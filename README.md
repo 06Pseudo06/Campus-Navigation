@@ -72,8 +72,8 @@ CampusWay is a modern, architectural campus wayfinding platform designed to prov
 ### Technology Stack
 - **Frontend**: Next.js 15 (App Router), React 19, TypeScript (Strict Mode), Tailwind CSS, Lucide Icons.
 - **Backend**: Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2.0.
-- **Database**: PostgreSQL 16.
-- **Infrastructure**: Docker & Docker Compose.
+- **Database**: PostgreSQL 16 (Native, Cloud-hosted, or containerized).
+- **Containerization (Optional)**: Docker & Docker Compose.
 
 ---
 
@@ -95,21 +95,17 @@ Campus-Navigation/
 │   │   ├── layout.tsx            # Root layout
 │   │   └── globals.css           # Global Tailwind styling
 │   ├── components/               # Reusable UI & Layout Components
-│   │   ├── layout/
-│   │   ├── navigation/
-│   │   ├── map/
-│   │   ├── locations/
-│   │   └── ui/
 │   ├── lib/                      # Utilities & API client
-│   │   ├── api/
-│   │   └── utils/
 │   ├── hooks/                    # Custom React hooks
 │   ├── types/                    # Shared frontend type definitions
 │   ├── public/                   # Static assets
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── tailwind.config.ts
-│   └── .env.example
+│   ├── package.json              # Frontend dependencies and npm scripts
+│   ├── package-lock.json         # Lockfile
+│   ├── tsconfig.json             # TypeScript configuration
+│   ├── tailwind.config.ts        # Tailwind CSS configuration
+│   ├── .dockerignore             # Docker build exclusions
+│   ├── Dockerfile                # Optional container image definition
+│   └── .env.example              # Frontend environment variables template
 │
 ├── backend/                      # FastAPI Route Intelligence Service
 │   ├── app/
@@ -131,77 +127,184 @@ Campus-Navigation/
 │   │           ├── algorithms.py # Dijkstra / A* algorithms
 │   │           └── directions.py # Turn-by-turn instruction builder
 │   ├── tests/                    # Pytest test suite
-│   ├── requirements.txt
-│   └── .env.example
+│   ├── requirements.txt          # Python dependencies
+│   ├── .dockerignore             # Docker build exclusions
+│   ├── Dockerfile                # Optional container image definition
+│   └── .env.example              # Backend environment variables template
 │
 ├── database/                     # Database migrations & seeds
-│   ├── migrations/               # Schema migration scripts
+│   ├── migrations/               # Schema migration scripts (Alembic placeholder)
 │   └── seeds/                    # Campus node/edge seed datasets
 │
 ├── docs/                         # System architecture & API specifications
 │   └── architecture.md
 │
-├── .gitignore
-├── docker-compose.yml
+├── .gitignore                    # Git exclusions
+├── docker-compose.yml            # Optional multi-service orchestration
 └── README.md
 ```
 
 ---
 
-## Getting Started
+## Development Workflows
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v18+ recommended)
-- [Python](https://www.python.org/) (v3.10+ recommended)
-- [Docker & Docker Compose](https://www.docker.com/) (optional, for containerized execution)
-
-### Local Development Setup
-
-#### 1. Running with Docker Compose (Recommended)
-```bash
-# Clone the repository
-git clone https://github.com/06Pseudo06/Campus-Navigation.git
-cd Campus-Navigation
-
-# Start all services (PostgreSQL, FastAPI backend, Next.js frontend)
-docker-compose up --build
-```
-- Frontend: `http://localhost:3000`
-- Backend API Docs: `http://localhost:8000/api/v1/docs`
+CampusWay supports two decoupled workflows:
+1. **Standard Native Development (Default)**: For day-to-day development. Developers install Node.js and Python dependencies natively on their machine. Docker is not required, installed, or started.
+2. **Docker Development (Optional)**: For running the entire containerized stack via Docker Compose.
 
 ---
 
-#### 2. Running Locally (Manual Setup)
+### Workflow 1: Standard Native Development (Default)
 
-**Frontend Setup:**
-```bash
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+#### Prerequisites & Supported Versions
 
-**Backend Setup:**
-```bash
-cd backend
-python -m venv venv
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-# source venv/bin/activate
+| Dependency | Supported Version | Notes |
+| :--- | :--- | :--- |
+| **Node.js** | `>= 18.18.0` (Node 20 LTS recommended) | Required for Next.js 15 |
+| **npm** | `>= 9.0.0` | Uses committed `frontend/package-lock.json` |
+| **Python** | `>= 3.11` (Python 3.11 – 3.13 tested) | Required for FastAPI & Pydantic v2 |
+| **PostgreSQL** | `16` (Optional in Foundation Phase) | Local native instance or shared cloud DB |
 
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8000
-```
-Open [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs) for interactive Swagger documentation.
+> [!NOTE]  
+> In the current foundation phase, backend API endpoints run without requiring an active PostgreSQL connection. Database configuration is driven entirely by environment variables.
+
+#### 1. Frontend Setup (Next.js)
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Create your local environment configuration:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+3. Install dependencies using npm:
+   ```bash
+   npm install
+   ```
+
+4. Start the native Next.js development server:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+5. Additional native verification scripts:
+   - Type check: `npm run type-check`
+   - Lint check: `npm run lint`
+   - Production build: `npm run build`
+
+---
+
+#### 2. Backend Setup (FastAPI)
+
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   ```
+
+2. Create and activate a Python virtual environment:
+   ```bash
+   # Create virtual environment
+   python -m venv venv
+
+   # Activate virtual environment
+   # On Windows (Command Prompt / PowerShell):
+   venv\Scripts\activate
+   # On macOS/Linux:
+   # source venv/bin/activate
+   ```
+
+3. Install backend dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   ```
+   Edit `.env` to configure your settings or database connection if using a database.
+
+5. Start the FastAPI development server:
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
+   - Interactive Swagger API Documentation: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
+   - Alternative ReDoc Documentation: [http://localhost:8000/api/v1/redoc](http://localhost:8000/api/v1/redoc)
+   - Health check endpoint: [http://localhost:8000/health](http://localhost:8000/health)
+
+6. Run automated test suite:
+   ```bash
+   pytest tests
+   ```
+
+---
+
+#### 3. Database & Migrations Configuration
+
+- **Environment-Driven Connection**: The backend loads `DATABASE_URL` from the environment or `.env`.
+  - **Local Native PostgreSQL**: `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/campusway_db`
+  - **Authorized Shared Cloud PostgreSQL** (e.g. Supabase, Neon, AWS RDS):
+    `DATABASE_URL=postgresql://<user>:<password>@<db-host>:5432/<dbname>?sslmode=require`
+- **Alembic Migrations Status**:
+  - Alembic migrations are **not yet configured** in this repository. `database/migrations/` currently contains a placeholder `.gitkeep`.
+  - No database migration commands need to be executed at this stage.
+  - When ORM models are finalized in `backend/app/models/`, Alembic migration commands (`alembic upgrade head`) will be introduced.
+
+---
+
+### Workflow 2: Docker Development (Optional)
+
+Developers who have Docker and Docker Compose installed can optionally run all services in containers without installing native Node.js or Python environments.
+
+#### Prerequisites
+- [Docker Engine / Docker Desktop](https://www.docker.com/)
+- [Docker Compose v2+](https://docs.docker.com/compose/)
+
+#### Commands
+
+From the repository root:
+
+1. **Build and start all services (PostgreSQL, FastAPI backend, Next.js frontend)**:
+   ```bash
+   docker compose up --build
+   ```
+
+2. **Run in detached (background) mode**:
+   ```bash
+   docker compose up -d
+   ```
+
+3. **View logs**:
+   ```bash
+   docker compose logs -f
+   ```
+
+4. **Stop all containers and networks**:
+   ```bash
+   docker compose down
+   ```
+
+5. **Stop containers and delete data volume**:
+   ```bash
+   docker compose down -v
+   ```
+
+#### Container Networking
+- Inside the Docker network, the backend automatically targets `postgres:5432` as defined in `docker-compose.yml`.
+- Ports `3000` (Frontend), `8000` (Backend API), and `5432` (PostgreSQL) are published to `localhost` on the host machine.
+- Native build directories and caches (`node_modules/`, `.next/`, `venv/`, `__pycache__/`) are excluded from container images via `backend/.dockerignore` and `frontend/.dockerignore`.
 
 ---
 
 ## Development Principles & Team Workflow
 
 This project is built by a 3-person team designed for parallel development:
-- **Module Separation**: Clean boundaries between the Presentation/BFF Layer (Next.js) and the Campus Intelligence Service (FastAPI).
+- **Zero Mandatory Docker**: Any teammate can clone the repo and develop natively using standard Node.js and Python tooling.
+- **Docker as an Optional Tool**: Container configurations remain fully functional and isolated for developers who prefer Docker.
+- **Module Separation**: Clean boundaries between the Presentation Layer (Next.js) and the Route Intelligence Service (FastAPI).
 - **Code Standards**: TypeScript strict mode, Python type annotations, explicit error handling.
 - **Maintainability**: Clear module interfaces, independently testable services, zero hardcoded secrets.
