@@ -65,6 +65,7 @@ class Location(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
         nullable=False,
     )
     parent_id = Column(
@@ -142,6 +143,7 @@ class LocationAlias(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
         nullable=False,
     )
     location_id = Column(

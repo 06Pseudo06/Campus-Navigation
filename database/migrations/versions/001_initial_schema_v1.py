@@ -1,7 +1,7 @@
 """Create initial schema v1 tables
 
 Revision ID: 001_initial_schema_v1
-Revises: 
+Revises:
 Create Date: 2026-10-25 20:00:00.000000
 
 """
@@ -22,7 +22,7 @@ def upgrade() -> None:
     # 1. users
     op.create_table(
         "users",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("full_name", sa.String(length=120), nullable=True),
         sa.Column("email", sa.String(length=255), nullable=True),
         sa.Column("phone", sa.String(length=20), nullable=True),
@@ -41,7 +41,7 @@ def upgrade() -> None:
     # 2. user_identities
     op.create_table(
         "user_identities",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("user_id", sa.Uuid(), nullable=False),
         sa.Column("provider", sa.String(length=30), nullable=False),
         sa.Column("provider_subject", sa.String(length=255), nullable=False),
@@ -55,7 +55,7 @@ def upgrade() -> None:
     # 3. locations
     op.create_table(
         "locations",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("parent_id", sa.Uuid(), nullable=True),
         sa.Column("name", sa.String(length=180), nullable=False),
         sa.Column("slug", sa.String(length=200), nullable=False),
@@ -83,7 +83,7 @@ def upgrade() -> None:
     # 4. location_aliases
     op.create_table(
         "location_aliases",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("location_id", sa.Uuid(), nullable=False),
         sa.Column("alias", sa.String(length=180), nullable=False),
         sa.Column("normalized_alias", sa.String(length=180), nullable=False),
@@ -97,7 +97,7 @@ def upgrade() -> None:
     # 5. nodes
     op.create_table(
         "nodes",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("location_id", sa.Uuid(), nullable=True),
         sa.Column("node_type", sa.String(length=40), nullable=False),
         sa.Column("latitude", sa.Float(precision=53), nullable=False),
@@ -116,7 +116,7 @@ def upgrade() -> None:
     # 6. edges
     op.create_table(
         "edges",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("source_node_id", sa.Uuid(), nullable=False),
         sa.Column("target_node_id", sa.Uuid(), nullable=False),
         sa.Column("distance_m", sa.Float(precision=53), nullable=False),
@@ -152,7 +152,7 @@ def upgrade() -> None:
     # 8. location_reports
     op.create_table(
         "location_reports",
-        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("id", sa.Uuid(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("reporter_id", sa.Uuid(), nullable=True),
         sa.Column("location_id", sa.Uuid(), nullable=True),
         sa.Column("node_id", sa.Uuid(), nullable=True),

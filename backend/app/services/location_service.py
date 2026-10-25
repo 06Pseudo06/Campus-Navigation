@@ -14,16 +14,24 @@ def validate_no_parent_cycle(
     location_id: Optional[uuid.UUID],
     proposed_parent_id: Optional[uuid.UUID],
 ) -> None:
-    """Ensure setting proposed_parent_id does not cause a self-reference or circular hierarchy."""
+    """Ensure setting proposed_parent_id does not cause a self-reference, missing parent, or circular hierarchy."""
     if not proposed_parent_id:
         return
 
     if location_id is not None and proposed_parent_id == location_id:
         raise ValueError("A location cannot be its own parent.")
 
+    # Verify proposed parent exists
+    parent_loc = db.query(Location).filter(Location.id == proposed_parent_id).first()
+    if not parent_loc:
+        raise ValueError(f"Parent location {proposed_parent_id} does not exist.")
+
+    if not parent_loc.is_active:
+        raise ValueError(f"Cannot set inactive location {proposed_parent_id} as parent.")
+
     # Walk up the ancestor tree of proposed_parent_id
-    current_parent_id: Optional[uuid.UUID] = proposed_parent_id
-    visited = {location_id} if location_id else set()
+    current_parent_id: Optional[uuid.UUID] = parent_loc.parent_id
+    visited = {location_id, proposed_parent_id} if location_id else {proposed_parent_id}
 
     while current_parent_id is not None:
         if current_parent_id in visited:

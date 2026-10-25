@@ -33,6 +33,7 @@ class User(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
         nullable=False,
     )
     full_name = Column(String(120), nullable=True)
@@ -88,6 +89,7 @@ class UserIdentity(Base):
         Uuid(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        server_default=func.gen_random_uuid(),
         nullable=False,
     )
     user_id = Column(
