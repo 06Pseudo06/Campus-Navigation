@@ -1,7 +1,7 @@
 # CampusWay Database Schema Reference (v1)
 
-> **Specification Source:** Team-approved database design documented in [`docs/Db_schema_v1.pdf`](file:///docs/Db_schema_v1.pdf).  
-> **Database Engine:** PostgreSQL 16 (Shared Neon PostgreSQL / Local Developer Instances).  
+> **Specification Source:** Team-approved database design documented in [`docs/Db_schema_v1.pdf`](file:///docs/Db_schema_v1.pdf).
+> **Database Engine:** PostgreSQL 16 (Shared Neon PostgreSQL / Local Developer Instances).
 > **ORM & Migrations:** SQLAlchemy 2.0+ and Alembic.
 
 ---
@@ -29,7 +29,7 @@ erDiagram
     USERS ||--o{ USER_IDENTITIES : "has"
     USERS ||--o{ FAVORITES : "saves"
     USERS ||--o{ LOCATION_REPORTS : "submits"
-    
+
     LOCATIONS ||--o{ LOCATIONS : "contains (parent_id)"
     LOCATIONS ||--o{ LOCATION_ALIASES : "has"
     LOCATIONS ||--o{ NODES : "associated_with"
@@ -255,3 +255,23 @@ erDiagram
 **Indexes & Constraints:**
 - Check: `location_id IS NOT NULL OR node_id IS NOT NULL OR edge_id IS NOT NULL`
 - Index on `status`
+
+---
+
+## 4. Operational Boundaries & Graph Integrity Policies
+
+### A. Authorization & Security Boundaries (Pending Auth Handoff)
+- **Safe Public Endpoints**: Location search, location details, location hierarchy, active nodes, active edges, Dijkstra route calculation, map report submission, and visitor help requests are public read/write without authentication.
+- **Administrative Operations**: Location creation/update/deactivation, alias addition, node/edge creation/deactivation, and report review/status resolution require administrative privileges (`X-Admin-Key` or `Authorization: Bearer <admin-key>`). Unauthenticated calls are rejected with HTTP 401 Unauthorized; invalid tokens return HTTP 403 Forbidden.
+- **User-Scoped Operations**: User favorites require a verified user identity (`X-User-ID` or `Authorization: Bearer <user-id>`). Users can only query, add, or delete their own bookmarks.
+
+### B. Duplicate Edge Policy
+- An active edge from `source` to `target` with the same `path_type` is rejected as an exact duplicate.
+- If an active bidirectional edge already exists from `target` to `source`, creating an edge from `source` to `target` with the same `path_type` is rejected as redundant.
+- If an active directed edge exists from `target` to `source`, attempting to create an overlapping bidirectional edge is rejected with instructions to update or replace the existing directed edge.
+
+### C. Graph Loading & Dijkstra Pathfinding Guarantees
+- Only active nodes (`is_active = TRUE`) are loaded into the navigation graph.
+- An edge is only registered if **both** its source and target nodes exist and are active. Deactivating either endpoint automatically isolates the edge during route calculations.
+- When `accessible_only = TRUE`, the engine filters both accessible nodes (`is_accessible = TRUE`) and accessible edges, guaranteeing wheelchair-compliant paths from origin to destination.
+- Dijkstra search uses a dynamic distance map (`best_dist`) to ensure optimal time complexity and prevent priority queue bloat.

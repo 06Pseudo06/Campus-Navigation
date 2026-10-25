@@ -39,6 +39,7 @@ The database connection is configured via the environment or `.env` files locate
 | :--- | :--- | :--- |
 | `DATABASE_URL` | Primary PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/campusway_db` |
 | `ALEMBIC_DATABASE_URL` | Optional override for running migrations against test or staging DB | `postgresql://postgres:postgres@localhost:5432/campusway_test` |
+| `ADMIN_API_KEY` | Development key for administrative endpoints | `campusway-admin-dev-secret` |
 
 ### Supported Connection Schemes:
 - **Local Native PostgreSQL**: `postgresql://postgres:postgres@localhost:5432/campusway_db`
@@ -81,7 +82,7 @@ alembic downgrade base
 alembic upgrade base:head --sql
 ```
 
-> [!WARNING]  
+> [!WARNING]
 > **Database Safety Notice:** Never execute destructive resets (`DROP DATABASE`, `alembic downgrade base`) against shared team databases (e.g. shared Neon PostgreSQL). Always verify the target connection string before running migrations.
 
 ---
@@ -100,3 +101,12 @@ The navigation engine distinguishes between directed and bidirectional pathways:
 The `users` and `user_identities` tables form the designated integration boundary for the teammate implementing authentication:
 - **No Credentials Stored**: Password hashes, JWT tokens, and OTP codes are strictly excluded from the database schema.
 - **Provider Linkage**: Once the authentication teammate implements Google sign-in or mobile OTP, the external subject ID is linked into `user_identities(provider, provider_subject)` referencing the internal `users.id`.
+
+---
+
+## 7. Administrative Authorization & Operational Safeguards
+
+- **Administrative Endpoints Guarded**: Write operations on locations, nodes, edges, and report reviews are guarded by `require_admin_role`, requiring `X-Admin-Key` or `Authorization: Bearer <key>`.
+- **User Scoped Favorites**: Favorites operations require `X-User-ID` matching the owner, preventing cross-user tampering.
+- **Duplicate Edge Prevention**: Graph edge creation enforces active forward uniqueness and detects conflicting reverse bidirectional edges.
+- **Dijkstra Inactive Node Isolation**: Edges are only registered in memory if both endpoint nodes are active, ensuring deactivated waypoints are never traversed.
