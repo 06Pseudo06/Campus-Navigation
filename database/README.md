@@ -1,19 +1,102 @@
-# Database Management
+# CampusWay Database Management (Schema v1)
 
-This directory contains database schema migrations and data seeding scripts for CampusWay.
+This directory contains version-controlled database schema migrations and data seeding scripts for CampusWay, designed around PostgreSQL 16 and managed via Alembic.
 
-## Directory Structure
+---
 
-- `migrations/`: Schema definition files and migration scripts (Alembic / SQL). Currently unconfigured placeholder (`.gitkeep`); migrations will be initialized once ORM models are finalized.
-- `seeds/`: Seed data scripts for official campus nodes, edges, buildings, gates, and landmarks once finalized.
+## 1. Directory Structure
 
-## Strategy & Current Status
+- `migrations/`: Alembic environment and schema revision scripts.
+  - `env.py`: Migration runtime context, dynamically loading SQLAlchemy metadata from `app.models.Base`.
+  - `script.py.mako`: Template for newly generated migration revisions.
+  - `versions/001_initial_schema_v1.py`: Baseline migration establishing the 8 approved schema v1 tables.
+- `seeds/`: Placeholder directory for planned official campus survey coordinates, waypoints, and landmark seeds.
 
-1. **Current Status**: Alembic migration scripts are not yet generated. The repository is in its initial foundation stage; API endpoints operate with in-memory structures or mock responses and do not yet execute database queries.
-2. **Schema Models**: Core schema models (Nodes, Edges, Locations, Entrances, Assistance Requests) will be defined collaboratively in `backend/app/models/`.
-3. **Database Connection**: Developers can connect to either:
-   - A local native PostgreSQL 16 instance (`localhost:5432`)
-   - An authorized shared cloud PostgreSQL database (e.g., Supabase, Neon, AWS RDS)
-   - An optional containerized PostgreSQL instance via `docker compose`
-4. **Migrations Setup (Future Step)**: Once models are defined, Alembic will be initialized via `alembic init database/migrations` and migration commands (`alembic revision --autogenerate`, `alembic upgrade head`) will be documented.
-5. Accurate real-world campus survey coordinates and waypoint definitions will then be populated via seed scripts.
+---
+
+## 2. Database Architecture & Schema v1 Entities
+
+The database uses **UUIDv4** primary keys and **TIMESTAMPTZ** timestamps for all entities. Deletions on core navigation entities favor soft deactivation (`is_active = FALSE`) over destructive row deletion to preserve graph topology and issue history.
+
+| Entity | Purpose | Key Constraints & Policies |
+| :--- | :--- | :--- |
+| `users` | Core application user profile (role, email, phone). | Role constrained to `student`, `admin`, `moderator`. No passwords/tokens. |
+| `user_identities` | Integration boundary for external authentication (Google OAuth, Phone OTP). | `UNIQUE (provider, provider_subject)`, `ON DELETE CASCADE` from `users`. |
+| `locations` | Searchable campus destinations (buildings, blocks, rooms, gates, landmarks). | Self-referencing `parent_id` for hierarchy; lat/long bounds [-90, 90], [-180, 180]; unique `slug`. |
+| `location_aliases` | Search synonyms, acronyms, and abbreviations. | `UNIQUE (location_id, normalized_alias)`, normalized lowercase tokens. |
+| `nodes` | Waypoints and vertices in the pedestrian routing graph. | Coordinate range checks; foreign key to `locations` (`ON DELETE SET NULL`). |
+| `edges` | Walkable connections between navigation nodes. | Positive metric distance (`distance_m > 0`); self-loop prevention (`source != target`). |
+| `favorites` | Bookmarked campus places per user. | Composite primary key `(user_id, location_id)`; cascades on deletion of either entity. |
+| `location_reports` | Crowdsourced issue reports (missing place, wrong pin, blocked path). | Requires at least one target (`location_id`, `node_id`, `edge_id`); status check in `('pending', 'reviewing', 'resolved', 'rejected')`. |
+
+---
+
+## 3. Configuration & Environment Variables
+
+The database connection is configured via the environment or `.env` files located in the project root or `backend/`:
+
+| Environment Variable | Description | Example |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | Primary PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/campusway_db` |
+| `ALEMBIC_DATABASE_URL` | Optional override for running migrations against test or staging DB | `postgresql://postgres:postgres@localhost:5432/campusway_test` |
+
+### Supported Connection Schemes:
+- **Local Native PostgreSQL**: `postgresql://postgres:postgres@localhost:5432/campusway_db`
+- **Docker Compose PostgreSQL**: `postgresql://postgres:postgres_password@postgres:5432/campusway_db`
+- **Cloud PostgreSQL (Neon / Supabase / AWS RDS)**: `postgresql://<user>:<password>@<neon-host>/<dbname>?sslmode=require`
+
+---
+
+## 4. Alembic Migration Commands
+
+Alembic can be run from the repository root or from within the `backend/` directory:
+
+### Run Migrations to Latest Head
+```bash
+# From repository root:
+alembic upgrade head
+
+# Or from backend/ directory:
+cd backend
+alembic upgrade head
+```
+
+### Check Current Migration Status
+```bash
+alembic current
+alembic heads
+```
+
+### Roll Back Latest Migration Safely (Development Only)
+```bash
+# Roll back the single latest revision
+alembic downgrade -1
+
+# Or roll back all migrations to base (disposable test database only)
+alembic downgrade base
+```
+
+### Inspect SQL Without Live Database Connection (Offline Mode)
+```bash
+alembic upgrade base:head --sql
+```
+
+> [!WARNING]  
+> **Database Safety Notice:** Never execute destructive resets (`DROP DATABASE`, `alembic downgrade base`) against shared team databases (e.g. shared Neon PostgreSQL). Always verify the target connection string before running migrations.
+
+---
+
+## 5. Walkable Path Representation (Edges)
+
+The navigation engine distinguishes between directed and bidirectional pathways:
+- `is_bidirectional = TRUE`: Pathway can be traversed in both directions (`source -> target` and `target -> source`) at equal metric distance `distance_m`.
+- `is_bidirectional = FALSE`: Pathway is strictly one-way (`source -> target`).
+- **Initial Cost Metric**: The pathfinding engine utilizes `distance_m` as the initial routing weight without premature travel-time assumptions.
+
+---
+
+## 6. Authentication Integration Boundary
+
+The `users` and `user_identities` tables form the designated integration boundary for the teammate implementing authentication:
+- **No Credentials Stored**: Password hashes, JWT tokens, and OTP codes are strictly excluded from the database schema.
+- **Provider Linkage**: Once the authentication teammate implements Google sign-in or mobile OTP, the external subject ID is linked into `user_identities(provider, provider_subject)` referencing the internal `users.id`.

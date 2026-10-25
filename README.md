@@ -243,16 +243,28 @@ CampusWay supports two decoupled workflows:
 
 ---
 
-#### 3. Database & Migrations Configuration
+#### 3. Database & Migrations Configuration (Schema v1)
 
 - **Environment-Driven Connection**: The backend loads `DATABASE_URL` from the environment or `.env`.
   - **Local Native PostgreSQL**: `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/campusway_db`
   - **Authorized Shared Cloud PostgreSQL** (e.g. Supabase, Neon, AWS RDS):
     `DATABASE_URL=postgresql://<user>:<password>@<db-host>:5432/<dbname>?sslmode=require`
-- **Alembic Migrations Status**:
-  - Alembic migrations are **not yet configured** in this repository. `database/migrations/` currently contains a placeholder `.gitkeep`.
-  - No database migration commands need to be executed at this stage.
-  - When ORM models are finalized in `backend/app/models/`, Alembic migration commands (`alembic upgrade head`) will be introduced.
+- **Alembic Migrations Workflow**:
+  - Alembic migrations are version-controlled in `database/migrations/`.
+  - Initial baseline revision: `001_initial_schema_v1` (establishes `users`, `user_identities`, `locations`, `location_aliases`, `nodes`, `edges`, `favorites`, `location_reports`).
+  - Run migrations against development database:
+    ```bash
+    alembic upgrade head
+    ```
+  - Roll back safely in development:
+    ```bash
+    alembic downgrade -1
+    ```
+  - Generate offline SQL without a live connection:
+    ```bash
+    alembic upgrade base:head --sql
+    ```
+  - For full schema reference and ER diagrams, see [`docs/schema_reference.md`](file:///docs/schema_reference.md) and [`database/README.md`](file:///database/README.md).
 
 ---
 
