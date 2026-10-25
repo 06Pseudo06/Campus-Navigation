@@ -68,16 +68,19 @@ def list_locations(
         search_term = f"%{query.strip().lower()}%"
         norm_term = f"%{normalize_alias_text(query)}%"
         # Match location name or any associated alias
-        alias_subquery = (
+        alias_select = (
             db.query(LocationAlias.location_id)
             .filter(LocationAlias.normalized_alias.ilike(norm_term))
-            .subquery()
+            .scalar_subquery()
         )
         q = q.filter(
             or_(
                 Location.name.ilike(search_term),
                 Location.slug.ilike(search_term),
-                Location.id.in_(alias_subquery),
+                Location.id.in_(
+                    db.query(LocationAlias.location_id)
+                    .filter(LocationAlias.normalized_alias.ilike(norm_term))
+                ),
             )
         )
 
