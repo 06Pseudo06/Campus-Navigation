@@ -14,12 +14,15 @@ from app.services.routing.graph import CampusGraph
 def list_active_nodes(
     db: Session,
     location_id: Optional[uuid.UUID] = None,
+    accessible_only: bool = False,
     is_active: bool = True,
 ) -> List[Node]:
-    """Retrieve active navigation graph nodes."""
+    """Retrieve active navigation graph nodes, optionally filtered by accessibility."""
     q = db.query(Node).filter(Node.is_active == is_active)
     if location_id:
         q = q.filter(Node.location_id == location_id)
+    if accessible_only:
+        q = q.filter(Node.is_accessible.is_(True))
     return q.all()
 
 
@@ -67,6 +70,17 @@ def update_node(
     return node
 
 
+def deactivate_node(db: Session, node_id: uuid.UUID) -> Optional[Node]:
+    """Soft-deactivate a navigation node."""
+    node = db.query(Node).filter(Node.id == node_id).first()
+    if not node:
+        return None
+    node.is_active = False
+    db.commit()
+    db.refresh(node)
+    return node
+
+
 def list_active_edges(
     db: Session,
     accessible_only: bool = False,
@@ -92,7 +106,7 @@ def get_edge_by_id(
 
 
 def create_edge(db: Session, edge_in: EdgeCreate) -> Edge:
-    """Create a walkable connection between two existing active nodes."""
+    """Create a walkable connection between two existing active nodes with duplicate policy enforcement."""
     source_node = get_node_by_id(db, edge_in.source_node_id)
     target_node = get_node_by_id(db, edge_in.target_node_id)
     if not source_node or not target_node:
@@ -101,18 +115,46 @@ def create_edge(db: Session, edge_in: EdgeCreate) -> Edge:
     if edge_in.source_node_id == edge_in.target_node_id:
         raise ValueError("Cannot create self-loop edge.")
 
-    # Check for duplicate edge
-    existing = (
+    # 1. Exact forward duplicate check on active edges
+    existing_forward = (
         db.query(Edge)
         .filter(
             Edge.source_node_id == edge_in.source_node_id,
             Edge.target_node_id == edge_in.target_node_id,
             Edge.path_type == edge_in.path_type,
+            Edge.is_active.is_(True),
         )
         .first()
     )
-    if existing:
-        raise ValueError("An edge with this source, target, and path type already exists.")
+    if existing_forward:
+        raise ValueError(
+            f"An active edge from {edge_in.source_node_id} to {edge_in.target_node_id} "
+            f"with path type '{edge_in.path_type}' already exists."
+        )
+
+    # 2. Reverse duplicate check: if either connection is bidirectional, prevent duplicate definition
+    existing_reverse = (
+        db.query(Edge)
+        .filter(
+            Edge.source_node_id == edge_in.target_node_id,
+            Edge.target_node_id == edge_in.source_node_id,
+            Edge.path_type == edge_in.path_type,
+            Edge.is_active.is_(True),
+        )
+        .first()
+    )
+    if existing_reverse:
+        if existing_reverse.is_bidirectional:
+            raise ValueError(
+                f"A bidirectional edge between these nodes with path type '{edge_in.path_type}' "
+                "already exists in the reverse direction. Do not create a duplicate connection."
+            )
+        if edge_in.is_bidirectional:
+            raise ValueError(
+                f"An active directed edge from {edge_in.target_node_id} to {edge_in.source_node_id} "
+                f"with path type '{edge_in.path_type}' already exists. Update or replace it rather "
+                "than creating an overlapping bidirectional edge."
+            )
 
     db_edge = Edge(
         source_node_id=edge_in.source_node_id,
@@ -145,11 +187,29 @@ def update_edge(
     return edge
 
 
+def deactivate_edge(db: Session, edge_id: uuid.UUID) -> Optional[Edge]:
+    """Soft-deactivate an edge."""
+    edge = db.query(Edge).filter(Edge.id == edge_id).first()
+    if not edge:
+        return None
+    edge.is_active = False
+    db.commit()
+    db.refresh(edge)
+    return edge
+
+
 def build_campus_graph(db: Session, accessible_only: bool = False) -> CampusGraph:
-    """Build in-memory CampusGraph populated from active nodes and edges in the database."""
+    """Build in-memory CampusGraph populated from active nodes and edges in the database.
+
+    Guarantees:
+    - Only active nodes are included in the graph.
+    - If accessible_only=True, only accessible nodes and accessible edges are included.
+    - Edges are only registered if BOTH endpoint nodes exist and are active in the graph.
+    - Bidirectional edges are expanded symmetrically into the adjacency list.
+    """
     graph = CampusGraph()
 
-    nodes = list_active_nodes(db, is_active=True)
+    nodes = list_active_nodes(db, accessible_only=accessible_only, is_active=True)
     edges = list_active_edges(db, accessible_only=accessible_only, is_active=True)
 
     for n in nodes:
@@ -168,18 +228,21 @@ def build_campus_graph(db: Session, accessible_only: bool = False) -> CampusGrap
         s_id = str(e.source_node_id)
         t_id = str(e.target_node_id)
 
+        # Both endpoints MUST exist in active graph nodes
+        if s_id not in graph.nodes or t_id not in graph.nodes:
+            continue
+
         # Forward edge
-        if s_id in graph.adjacency_list:
-            graph.adjacency_list[s_id].append({
-                "target": t_id,
-                "distance_m": e.distance_m,
-                "path_type": e.path_type,
-                "is_accessible": e.is_accessible,
-                "edge_id": e.id,
-            })
+        graph.adjacency_list[s_id].append({
+            "target": t_id,
+            "distance_m": e.distance_m,
+            "path_type": e.path_type,
+            "is_accessible": e.is_accessible,
+            "edge_id": e.id,
+        })
 
         # Reverse edge if bidirectional
-        if e.is_bidirectional and t_id in graph.adjacency_list:
+        if e.is_bidirectional:
             graph.adjacency_list[t_id].append({
                 "target": s_id,
                 "distance_m": e.distance_m,
@@ -218,6 +281,7 @@ def compute_shortest_route(
 
     # Dijkstra priority queue: (distance, current_node, path, segments)
     queue = [(0.0, origin_str, [origin_str], [])]
+    best_dist: Dict[str, float] = {origin_str: 0.0}
     visited = set()
 
     while queue:
@@ -248,12 +312,15 @@ def compute_shortest_route(
 
         for neighbor in graph.adjacency_list.get(current, []):
             nxt = neighbor["target"]
-            if nxt not in visited:
-                cost = dist + neighbor["distance_m"]
+            edge_dist = neighbor["distance_m"]
+            cost = dist + edge_dist
+
+            if cost < best_dist.get(nxt, float("inf")):
+                best_dist[nxt] = cost
                 new_segments = list(segments) + [{
                     "source": current,
                     "target": nxt,
-                    "distance_m": neighbor["distance_m"],
+                    "distance_m": edge_dist,
                     "path_type": neighbor["path_type"],
                     "is_accessible": neighbor["is_accessible"],
                 }]
