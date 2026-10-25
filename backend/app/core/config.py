@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/campusway_db"
+    ADMIN_API_KEY: str = "campusway-admin-dev-secret"
 
     model_config = SettingsConfigDict(
         env_file=(_ROOT_DIR / ".env", _BACKEND_DIR / ".env", ".env"),

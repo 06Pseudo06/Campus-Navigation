@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_db, require_admin_role
 from app.schemas.report import LocationReportCreate, LocationReportRead, LocationReportUpdate
 from app.services import report_service
 
@@ -17,7 +17,7 @@ def submit_report(
     report_in: LocationReportCreate,
     db: Session = Depends(get_db),
 ):
-    """Submit a map correction or navigation problem report."""
+    """Submit a map correction or navigation problem report (Public visitor/student endpoint)."""
     try:
         return report_service.create_location_report(db, report_in)
     except ValueError as e:
@@ -30,8 +30,9 @@ def list_reports(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """List submitted location and navigation reports."""
+    """List submitted location and navigation reports (Moderator/Admin operation)."""
     return report_service.list_reports(db, status=report_status, skip=skip, limit=limit)
 
 
@@ -40,8 +41,9 @@ def update_report_status(
     report_id: uuid.UUID,
     report_in: LocationReportUpdate,
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """Update report status and manage resolved timestamp."""
+    """Update report status and manage resolution timestamp (Moderator/Admin operation)."""
     rep = report_service.update_report_status(db, report_id, report_in)
     if not rep:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found.")

@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_db, require_admin_role
 from app.schemas.location import (
     LocationAliasCreate,
     LocationAliasRead,
@@ -68,8 +68,9 @@ def get_location_hierarchy(
 def create_location(
     location_in: LocationCreate,
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """Create a new campus destination with validation."""
+    """Create a new campus destination (Administrative operation; requires admin auth)."""
     try:
         return location_service.create_location(db, location_in)
     except ValueError as e:
@@ -81,8 +82,9 @@ def update_location(
     location_id: uuid.UUID,
     location_in: LocationUpdate,
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """Update a campus location with hierarchy cycle validation."""
+    """Update a campus location with hierarchy cycle validation (Administrative operation)."""
     try:
         updated = location_service.update_location(db, location_id, location_in)
         if not updated:
@@ -96,8 +98,9 @@ def update_location(
 def deactivate_location(
     location_id: uuid.UUID,
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """Soft-deactivate a location record to maintain navigation graph references."""
+    """Soft-deactivate a location record to maintain navigation graph references (Administrative operation)."""
     loc = location_service.deactivate_location(db, location_id)
     if not loc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
@@ -109,8 +112,9 @@ def add_location_alias(
     location_id: uuid.UUID,
     alias_in: LocationAliasCreate,
     db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
 ):
-    """Add a search alias or acronym for a campus destination."""
+    """Add a search alias or acronym for a campus destination (Administrative operation)."""
     try:
         return location_service.add_location_alias(db, location_id, alias_in)
     except ValueError as e:
