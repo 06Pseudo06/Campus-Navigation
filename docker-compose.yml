@@ -11,6 +11,11 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d campusway_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -23,8 +28,18 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres_password@postgres:5432/campusway_db
       - PROJECT_NAME=CampusWay Route Intelligence Service
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-campusway-admin-dev-secret}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-campusway-jwt-secret-key-change-in-production}
+      - CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   frontend:
     build:
@@ -38,7 +53,8 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
       - HOSTNAME=0.0.0.0
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:
