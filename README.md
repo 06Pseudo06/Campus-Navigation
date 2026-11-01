@@ -1,322 +1,153 @@
 # CampusWay | Campus Navigation & Wayfinding System
 
-> **Problem Statement (P10 – Which Block Is 34?: Campus Wayfinding Problem)**  
-> First-time visitors and new students frequently get lost among numbered blocks, gates, and internal roads because existing static signage and standard maps do not match how newcomers actually navigate university campuses.
-
-CampusWay is a modern, architectural campus wayfinding platform designed to provide intuitive point-to-point route planning, gate QR integrations, and visitor assistance.
+> **Campus Wayfinding Engine for Lovely Professional University (LPU), Punjab, India**  
+> Solves the numbered block navigation challenge (e.g., *"Which Block is 34?"*) through topological pedestrian graph routing, turn directions, gate QR integrations, and visitor assistance.
 
 ---
 
-## Current Project Status
+## 1. System Status & Verification
 
-> [!NOTE]  
-> **Development Phase: Foundation & Architecture Setup**  
-> This repository is in its initial foundation stage. The core directory structures, Next.js App Router routing skeletons, FastAPI route intelligence services, Docker Compose configurations, and module boundaries are established.  
-> 
-> *Actual route calculation algorithms (Dijkstra/A\*), real campus node data, map rendering engines, and authentication flows will be implemented in subsequent phases.*
-
----
-
-## Core Functional Modules
-
-1. **Campus Map Service**
-   - Searchable campus locations (Buildings, Gates, Rooms, Landmarks).
-   - Architectural, accessible campus mapping and points of interest.
-
-2. **Route Planning & Intelligence Service**
-   - Gate-to-building and gate-to-room walking route calculation.
-   - Graph-based pathfinding (Dijkstra / A\*) with distance and walking time estimation.
-   - Human-readable step-by-step navigation instructions.
-
-3. **Visitor Assistance Service**
-   - Gate QR code entrance handling (instant origin location detection).
-   - Destination guidance and route sharing.
-   - Assistance request dispatching for lost visitors.
+The CampusWay backend is **production-ready and integration-ready**, fully decoupling backend navigation capabilities from physical campus ground mapping:
+- **Test Suite**: **66 passed tests, 0 failures** across authentication, routing, locations, import staging, visitor assistance, favorites, reports, models, and migrations.
+- **Database**: PostgreSQL 16 & Neon Cloud single-head migrations (`001_initial_schema_v1` to `004_report_resolution_notes`).
+- **Pathfinding**: Predecessor-based Dijkstra & A* algorithms, cardinal bearing calculation, and configurable walking time estimation.
+- **Map Ingestion**: Provenance-aware OpenStreetMap & GeoJSON staging pipeline with duplicate detection and administrative review.
+- **Docker**: Hardened multi-stage container build with unprivileged execution (`appuser`), service health checks, and compose orchestration.
 
 ---
 
-## High-Level Architecture & Tech Stack
+## 2. Key Capabilities & Core Modules
 
-```
-                          ┌───────────────────────────┐
-                          │   Visitor / Student UI    │
-                          │      (Web / Mobile)       │
-                          └─────────────┬─────────────┘
-                                        │
-                                        ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Next.js Application Layer                       │
-│  - Presentation UI & Swiss Wayfinding Aesthetics                       │
-│  - App Router Structure: /, /explore, /locations, /navigate, /help     │
-│  - Admin Portal: /admin/login, /admin/dashboard                        │
-│  - Visitor Search & Wayfinding Experience                              │
-└───────────────────────────────────────┬────────────────────────────────┘
-                                        │
-                                        ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│              FastAPI Campus Intelligence & Route Service               │
-│  - In-memory Campus Graph (Nodes, Edges, Weights)                      │
-│  - Shortest & Optimal Path Calculation (Dijkstra / A*)                 │
-│  - Step-by-step turn directions generator                             │
-│  - Geospatial & path optimization                                      │
-└───────────────────────────────────────┬────────────────────────────────┘
-                                        │
-                                        ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                          PostgreSQL Database                           │
-│  - Campus Topology (Waypoints, Intersections, Paths)                   │
-│  - Venue Data (Buildings, Entrances, Rooms, Landmarks)                 │
-└────────────────────────────────────────────────────────────────────────┘
-```
+1. **Topological Pedestrian Routing Engine (`/api/v1/routing`)**
+   - Point-to-point shortest walking paths using optimized Dijkstra & A* pathfinding.
+   - Forward azimuth bearing calculation generating natural turn instructions (*"Turn right onto the corridor"*, *"Take the ramp"*).
+   - Wheelchair and mobility accessibility constraints (`accessible_only=true`).
+   - Dynamic walking duration estimation based on configurable pedestrian speeds (~1.3 m/s).
 
-### Technology Stack
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript (Strict Mode), Tailwind CSS, Lucide Icons.
-- **Backend**: Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2.0.
-- **Database**: PostgreSQL 16 (Native, Cloud-hosted, or containerized).
-- **Containerization (Optional)**: Docker & Docker Compose.
+2. **Hierarchical Location Catalog (`/api/v1/locations`)**
+   - Multi-tier spatial hierarchy (Campus -> Building -> Floor -> Room).
+   - Cycle prevention and safe cascading soft-deactivation.
+   - Dual-mode search ranking exact matches above partial and normalized alias matches.
+   - Dedicated administrative verification workflow (`/verify`) maintaining clear provenance boundaries.
+
+3. **Provenance-Aware Map Import Pipeline (`/api/v1/import`)**
+   - Ingestion of external OpenStreetMap ways/nodes and surveyor GeoJSON FeatureCollections.
+   - Spatial proximity and name similarity duplicate candidate detection against canonical records.
+   - Staging lifecycle with administrative review approval and promotion into canonical locations.
+
+4. **Visitor Assistance & Signpost QR Wayfinding (`/api/v1/assistance`)**
+   - Interactive visitor destination cards indicating walking route topology availability.
+   - Visitor assistance request ticketing workflow (`pending` -> `assigned` -> `resolved`).
+   - Tamper-proof HMAC-SHA256 signpost QR code generation and resolution.
+
+5. **Authentication & Role-Based Access Control (`/api/v1/auth`)**
+   - PBKDF2-SHA256 password hashing and stateless HS256 JWT sessions.
+   - Google OAuth 2.0 Single Sign-On and SMS Phone OTP adapter interfaces.
+   - Role boundaries: `visitor`, `user`, `moderator`, and `admin`.
+
+6. **Favorites & Community Map Reports (`/api/v1/favorites`, `/api/v1/reports`)**
+   - Bookmarked user destinations with ownership enforcement.
+   - Pathway blockage, accessibility issue, and map feature problem reporting with resolution notes.
 
 ---
 
-## Repository Structure
+## 3. High-Level Architecture
 
-```
-Campus-Navigation/
-├── frontend/                     # Next.js Application Layer
-│   ├── app/                      # App Router Pages
-│   │   ├── (public)/             # Public wayfinding routes
-│   │   │   ├── page.tsx          # Home page (/)
-│   │   │   ├── explore/          # Campus exploration (/explore)
-│   │   │   ├── locations/        # Location details (/locations/[locationId])
-│   │   │   ├── navigate/         # Route planning (/navigate)
-│   │   │   └── help/             # Visitor assistance (/help)
-│   │   ├── admin/                # Admin interface
-│   │   │   ├── login/            # Admin auth (/admin/login)
-│   │   │   └── dashboard/        # Management (/admin/dashboard)
-│   │   ├── layout.tsx            # Root layout
-│   │   └── globals.css           # Global Tailwind styling
-│   ├── components/               # Reusable UI & Layout Components
-│   ├── lib/                      # Utilities & API client
-│   ├── hooks/                    # Custom React hooks
-│   ├── types/                    # Shared frontend type definitions
-│   ├── public/                   # Static assets
-│   ├── package.json              # Frontend dependencies and npm scripts
-│   ├── package-lock.json         # Lockfile
-│   ├── tsconfig.json             # TypeScript configuration
-│   ├── tailwind.config.ts        # Tailwind CSS configuration
-│   ├── .dockerignore             # Docker build exclusions
-│   ├── Dockerfile                # Optional container image definition
-│   └── .env.example              # Frontend environment variables template
-│
-├── backend/                      # FastAPI Route Intelligence Service
-│   ├── app/
-│   │   ├── main.py               # FastAPI entry point & CORS
-│   │   ├── api/                  # API routers & dependency injection
-│   │   │   ├── routes/
-│   │   │   │   ├── locations.py  # Location endpoints
-│   │   │   │   ├── routing.py    # Route calculation endpoints
-│   │   │   │   └── assistance.py # Assistance endpoints
-│   │   │   └── dependencies.py
-│   │   ├── core/                 # Config & Database sessions
-│   │   │   ├── config.py
-│   │   │   └── database.py
-│   │   ├── models/               # SQLAlchemy ORM models
-│   │   ├── schemas/              # Pydantic schemas
-│   │   └── services/             # Business & graph intelligence logic
-│   │       └── routing/
-│   │           ├── graph.py      # Campus graph representation
-│   │           ├── algorithms.py # Dijkstra / A* algorithms
-│   │           └── directions.py # Turn-by-turn instruction builder
-│   ├── tests/                    # Pytest test suite
-│   ├── requirements.txt          # Python dependencies
-│   ├── .dockerignore             # Docker build exclusions
-│   ├── Dockerfile                # Optional container image definition
-│   └── .env.example              # Backend environment variables template
-│
-├── database/                     # Database migrations & seeds
-│   ├── migrations/               # Schema migration scripts (Alembic placeholder)
-│   └── seeds/                    # Campus node/edge seed datasets
-│
-├── docs/                         # System architecture & API specifications
-│   └── architecture.md
-│
-├── .gitignore                    # Git exclusions
-├── docker-compose.yml            # Optional multi-service orchestration
-└── README.md
+```mermaid
+graph TD
+    subgraph Clients["Frontend Clients & Touchpoints"]
+        WebClient["Next.js 15 Web Application"]
+        MobileClient["Mobile & Responsive PWA"]
+        QRKiosk["Signpost QR Wayfinding"]
+    end
+
+    subgraph Backend_Gateway["FastAPI Gateway (/api/v1)"]
+        Auth["/auth (JWT / OAuth / OTP)"]
+        Loc["/locations (Catalog & Search)"]
+        Route["/routing (Dijkstra / A*)"]
+        Import["/import (Map Provenance)"]
+        Assist["/assistance (Visitor & QR)"]
+        UserModules["/favorites & /reports"]
+    end
+
+    subgraph Core_Services["Domain Logic & Engines"]
+        Pathfinding["RoutingEngine (Dijkstra, A*, Turns)"]
+        Provenance["ImportService (GeoJSON Staging)"]
+        Hierarchy["LocationService (Cycle Guard)"]
+        Security["Security (PBKDF2 & JWT)"]
+    end
+
+    subgraph Storage["Persistence Layer"]
+        Postgres[("PostgreSQL / Neon Cloud DB")]
+    end
+
+    Clients --> Backend_Gateway
+    Backend_Gateway --> Core_Services
+    Core_Services --> Storage
 ```
 
 ---
 
-## Development Workflows
+## 4. Documentation Index
 
-CampusWay supports two decoupled workflows:
-1. **Standard Native Development (Default)**: For day-to-day development. Developers install Node.js and Python dependencies natively on their machine. Docker is not required, installed, or started.
-2. **Docker Development (Optional)**: For running the entire containerized stack via Docker Compose.
+Comprehensive technical documentation is maintained in the [`docs/`](docs/) directory:
 
----
-
-### Workflow 1: Standard Native Development (Default)
-
-#### Prerequisites & Supported Versions
-
-| Dependency | Supported Version | Notes |
-| :--- | :--- | :--- |
-| **Node.js** | `>= 18.18.0` (Node 20 LTS recommended) | Required for Next.js 15 |
-| **npm** | `>= 9.0.0` | Uses committed `frontend/package-lock.json` |
-| **Python** | `>= 3.11` (Python 3.11 – 3.13 tested) | Required for FastAPI & Pydantic v2 |
-| **PostgreSQL** | `16` (Optional in Foundation Phase) | Local native instance or shared cloud DB |
-
-> [!NOTE]  
-> In the current foundation phase, backend API endpoints run without requiring an active PostgreSQL connection. Database configuration is driven entirely by environment variables.
-
-#### 1. Frontend Setup (Next.js)
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Create your local environment configuration:
-   ```bash
-   cp .env.example .env.local
-   ```
-
-3. Install dependencies using npm:
-   ```bash
-   npm install
-   ```
-
-4. Start the native Next.js development server:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-5. Additional native verification scripts:
-   - Type check: `npm run type-check`
-   - Lint check: `npm run lint`
-   - Production build: `npm run build`
+- [Frontend Integration Contract (`docs/API_INTEGRATION.md`)](docs/API_INTEGRATION.md) — Endpoint specifications, TypeScript interfaces, request/response bodies, and status codes.
+- [Backend Architecture (`docs/BACKEND_ARCHITECTURE.md`)](docs/BACKEND_ARCHITECTURE.md) — System design, data flow diagrams, security model, and component breakdown.
+- [Database Schema (`docs/DATABASE_SCHEMA.md`)](docs/DATABASE_SCHEMA.md) — Entity-Relationship diagram, table definitions, indexes, and Alembic migration history.
+- [Routing Engine Specification (`docs/ROUTING_ENGINE.md`)](docs/ROUTING_ENGINE.md) — Dijkstra & A* pathfinding, bearing mathematics, turn instructions, and complexity analysis.
+- [Map Import & Surveyor Guide (`docs/MAP_IMPORT_GUIDE.md`)](docs/MAP_IMPORT_GUIDE.md) — GeoJSON schemas, staging workflow, duplicate detection, and surveyor instructions.
+- [Local Environment Setup (`docs/ENVIRONMENT_SETUP.md`)](docs/ENVIRONMENT_SETUP.md) — Step-by-step developer onboarding and environment variable reference.
+- [Testing & Quality Assurance (`docs/TESTING.md`)](docs/TESTING.md) — Test architecture, module breakdown, coverage, and execution commands.
+- [Production Deployment Guide (`docs/DEPLOYMENT.md`)](docs/DEPLOYMENT.md) — Docker Compose, Neon Cloud database tuning, SSL mode, and security checklists.
+- [Backend Audit & Roadmap (`docs/BACKEND_AUDIT.md`)](docs/BACKEND_AUDIT.md) — Original baseline audit and milestone delivery records.
 
 ---
 
-#### 2. Backend Setup (FastAPI)
+## 5. Quick Start (Local Development)
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+### 5.1 Prerequisites
+- Python 3.12+ (or 3.13)
+- PostgreSQL 16+ or Docker
 
-2. Create and activate a Python virtual environment:
-   ```bash
-   # Create virtual environment
-   python -m venv venv
+### 5.2 Starting the Backend
+```powershell
+# 1. Navigate to backend
+cd backend
 
-   # Activate virtual environment
-   # On Windows (Command Prompt / PowerShell):
-   venv\Scripts\activate
-   # On macOS/Linux:
-   # source venv/bin/activate
-   ```
+# 2. Activate virtual environment
+.\venv\Scripts\Activate.ps1   # On Windows
+# source venv/bin/activate    # On Linux/macOS
 
-3. Install backend dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 3. Install dependencies
+pip install -r requirements.txt
 
-4. Configure environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` to configure your settings or database connection if using a database.
+# 4. Apply database migrations
+alembic upgrade head
 
-5. Start the FastAPI development server:
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-   - Interactive Swagger API Documentation: [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs)
-   - Alternative ReDoc Documentation: [http://localhost:8000/api/v1/redoc](http://localhost:8000/api/v1/redoc)
-   - Health check endpoint: [http://localhost:8000/health](http://localhost:8000/health)
+# 5. Start development server
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
 
-6. Run automated test suite:
-   ```bash
-   pytest tests
-   ```
+- **Interactive API Documentation**: `http://localhost:8000/api/v1/docs`
+- **Health Check**: `http://localhost:8000/health`
+
+### 5.3 Running Tests
+```powershell
+# From the backend/ directory:
+python -m pytest
+```
+*Current test suite*: **66 passed, 0 failures**.
 
 ---
 
-#### 3. Database & Migrations Configuration (Schema v1)
+## 6. Docker Deployment
 
-- **Environment-Driven Connection**: The backend loads `DATABASE_URL` from the environment or `.env`.
-  - **Local Native PostgreSQL**: `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/campusway_db`
-  - **Authorized Shared Cloud PostgreSQL** (e.g. Supabase, Neon, AWS RDS):
-    `DATABASE_URL=postgresql://<user>:<password>@<db-host>:5432/<dbname>?sslmode=require`
-- **Alembic Migrations Workflow**:
-  - Alembic migrations are version-controlled in `database/migrations/`.
-  - Initial baseline revision: `001_initial_schema_v1` (establishes `users`, `user_identities`, `locations`, `location_aliases`, `nodes`, `edges`, `favorites`, `location_reports`).
-  - Run migrations against development database:
-    ```bash
-    alembic upgrade head
-    ```
-  - Roll back safely in development:
-    ```bash
-    alembic downgrade -1
-    ```
-  - Generate offline SQL without a live connection:
-    ```bash
-    alembic upgrade base:head --sql
-    ```
-  - For full schema reference and ER diagrams, see [`docs/schema_reference.md`](file:///docs/schema_reference.md) and [`database/README.md`](file:///database/README.md).
+Launch the full stack (PostgreSQL, FastAPI Backend, and Next.js Frontend) using Docker Compose:
 
----
+```bash
+docker compose up -d --build
+```
 
-### Workflow 2: Docker Development (Optional)
-
-Developers who have Docker and Docker Compose installed can optionally run all services in containers without installing native Node.js or Python environments.
-
-#### Prerequisites
-- [Docker Engine / Docker Desktop](https://www.docker.com/)
-- [Docker Compose v2+](https://docs.docker.com/compose/)
-
-#### Commands
-
-From the repository root:
-
-1. **Build and start all services (PostgreSQL, FastAPI backend, Next.js frontend)**:
-   ```bash
-   docker compose up --build
-   ```
-
-2. **Run in detached (background) mode**:
-   ```bash
-   docker compose up -d
-   ```
-
-3. **View logs**:
-   ```bash
-   docker compose logs -f
-   ```
-
-4. **Stop all containers and networks**:
-   ```bash
-   docker compose down
-   ```
-
-5. **Stop containers and delete data volume**:
-   ```bash
-   docker compose down -v
-   ```
-
-#### Container Networking
-- Inside the Docker network, the backend automatically targets `postgres:5432` as defined in `docker-compose.yml`.
-- Ports `3000` (Frontend), `8000` (Backend API), and `5432` (PostgreSQL) are published to `localhost` on the host machine.
-- Native build directories and caches (`node_modules/`, `.next/`, `venv/`, `__pycache__/`) are excluded from container images via `backend/.dockerignore` and `frontend/.dockerignore`.
-
----
-
-## Development Principles & Team Workflow
-
-This project is built by a 3-person team designed for parallel development:
-- **Zero Mandatory Docker**: Any teammate can clone the repo and develop natively using standard Node.js and Python tooling.
-- **Docker as an Optional Tool**: Container configurations remain fully functional and isolated for developers who prefer Docker.
-- **Module Separation**: Clean boundaries between the Presentation Layer (Next.js) and the Route Intelligence Service (FastAPI).
-- **Code Standards**: TypeScript strict mode, Python type annotations, explicit error handling.
-- **Maintainability**: Clear module interfaces, independently testable services, zero hardcoded secrets.
+- Backend API: `http://localhost:8000/api/v1`
+- Frontend Web App: `http://localhost:3000`
