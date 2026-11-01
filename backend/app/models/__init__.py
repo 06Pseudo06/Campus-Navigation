@@ -8,6 +8,7 @@ from app.models.edge import Edge
 from app.models.favorite import Favorite
 from app.models.report import LocationReport
 from app.models.map_import import MapImportBatch, StagedLocation
+from app.models.assistance import AssistanceRequest
 
 __all__ = [
     "Base",
@@ -21,6 +22,7 @@ __all__ = [
     "LocationReport",
     "MapImportBatch",
     "StagedLocation",
+    "AssistanceRequest",
     "generate_slug",
     "normalize_alias_text",
 ]
