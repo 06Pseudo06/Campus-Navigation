@@ -2,14 +2,14 @@
 
 import uuid
 from typing import List, Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.favorite import Favorite
 from app.models.location import Location
 
 
 def add_favorite(db: Session, user_id: uuid.UUID, location_id: uuid.UUID) -> Favorite:
-    """Bookmark a campus location for a user."""
+    """Bookmark a campus location for a user with eligibility checks."""
     loc = db.query(Location).filter(Location.id == location_id, Location.is_active.is_(True)).first()
     if not loc:
         raise ValueError("Location not found or inactive.")
@@ -36,5 +36,12 @@ def remove_favorite(db: Session, user_id: uuid.UUID, location_id: uuid.UUID) -> 
 
 
 def list_user_favorites(db: Session, user_id: uuid.UUID) -> List[Favorite]:
-    """Retrieve all bookmarked locations for a user."""
-    return db.query(Favorite).filter(Favorite.user_id == user_id).all()
+    """Retrieve all bookmarked active locations for a user with eager location details."""
+    return (
+        db.query(Favorite)
+        .options(joinedload(Favorite.location))
+        .join(Location, Favorite.location_id == Location.id)
+        .filter(Favorite.user_id == user_id, Location.is_active.is_(True))
+        .order_by(Favorite.created_at.desc())
+        .all()
+    )

@@ -12,6 +12,15 @@ from app.services import favorite_service
 router = APIRouter()
 
 
+@router.get("/mine", response_model=List[FavoriteRead])
+def get_my_favorites(
+    db: Session = Depends(get_db),
+    current_user_id: uuid.UUID = Depends(get_current_user_id),
+):
+    """Retrieve all bookmarked locations for the current authenticated user session."""
+    return favorite_service.list_user_favorites(db, current_user_id)
+
+
 @router.get("/{user_id}", response_model=List[FavoriteRead])
 def list_favorites(
     user_id: uuid.UUID,
