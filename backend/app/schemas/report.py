@@ -31,6 +31,7 @@ class LocationReportCreate(LocationReportBase):
 class LocationReportUpdate(BaseModel):
     status: Optional[ReportStatus] = None
     description: Optional[str] = None
+    resolution_notes: Optional[str] = None
 
 
 class LocationReportRead(LocationReportBase):
@@ -38,5 +39,7 @@ class LocationReportRead(LocationReportBase):
 
     id: uuid.UUID
     status: ReportStatus
+    resolution_notes: Optional[str] = None
     created_at: datetime
     resolved_at: Optional[datetime] = None
+

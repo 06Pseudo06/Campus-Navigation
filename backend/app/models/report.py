@@ -67,6 +67,7 @@ class LocationReport(Base):
     report_type = Column(String(40), nullable=False)
     description = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="pending")
+    resolution_notes = Column(Text, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

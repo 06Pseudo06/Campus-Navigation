@@ -15,11 +15,11 @@ def test_migration_revision_chain():
     heads = script.get_heads()
     assert len(heads) == 1
     head_rev = heads[0]
-    assert head_rev == "003_assistance_requests"
+    assert head_rev == "004_report_resolution_notes"
 
     revision = script.get_revision(head_rev)
     assert revision is not None
-    assert revision.down_revision == "002_map_import_provenance"
+    assert revision.down_revision == "003_assistance_requests"
 
 
 def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
