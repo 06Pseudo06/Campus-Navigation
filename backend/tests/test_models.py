@@ -143,6 +143,7 @@ def test_favorite_composite_pk_and_unique(db):
     fav = Favorite(user_id=user.id, location_id=loc.id)
     db.add(fav)
     db.commit()
+    db.expunge(fav)
 
     duplicate_fav = Favorite(user_id=user.id, location_id=loc.id)
     db.add(duplicate_fav)
