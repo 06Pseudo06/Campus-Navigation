@@ -75,6 +75,7 @@ class RouteQuery(BaseModel):
     origin_node_id: uuid.UUID
     destination_node_id: uuid.UUID
     accessible_only: bool = False
+    algorithm: str = "dijkstra"
 
 
 class PathSegment(BaseModel):
@@ -92,3 +93,6 @@ class RouteResponse(BaseModel):
     accessible: bool
     path_nodes: List[uuid.UUID]
     segments: List[PathSegment] = []
+    estimated_duration_s: Optional[float] = None
+    estimated_duration_min: Optional[float] = None
+

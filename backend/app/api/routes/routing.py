@@ -99,6 +99,7 @@ def calculate_route(
         origin_node_id=query.origin_node_id,
         destination_node_id=query.destination_node_id,
         accessible_only=query.accessible_only,
+        algorithm=query.algorithm,
     )
     if not route:
         raise HTTPException(

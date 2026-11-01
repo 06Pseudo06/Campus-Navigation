@@ -1,6 +1,5 @@
 """Navigation graph and pathway connection service."""
 
-import heapq
 import uuid
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
@@ -198,59 +197,15 @@ def deactivate_edge(db: Session, edge_id: uuid.UUID) -> Optional[Edge]:
     return edge
 
 
+from app.services.routing.algorithms import find_shortest_path
+from app.services.routing.directions import calculate_walking_duration, generate_step_directions
+from app.services.routing.graph import CampusGraph
+
+
 def build_campus_graph(db: Session, accessible_only: bool = False) -> CampusGraph:
-    """Build in-memory CampusGraph populated from active nodes and edges in the database.
-
-    Guarantees:
-    - Only active nodes are included in the graph.
-    - If accessible_only=True, only accessible nodes and accessible edges are included.
-    - Edges are only registered if BOTH endpoint nodes exist and are active in the graph.
-    - Bidirectional edges are expanded symmetrically into the adjacency list.
-    """
+    """Build in-memory CampusGraph populated from active nodes and edges in the database."""
     graph = CampusGraph()
-
-    nodes = list_active_nodes(db, accessible_only=accessible_only, is_active=True)
-    edges = list_active_edges(db, accessible_only=accessible_only, is_active=True)
-
-    for n in nodes:
-        node_id_str = str(n.id)
-        graph.nodes[node_id_str] = {
-            "id": n.id,
-            "node_type": n.node_type,
-            "latitude": n.latitude,
-            "longitude": n.longitude,
-            "is_accessible": n.is_accessible,
-            "location_id": n.location_id,
-        }
-        graph.adjacency_list[node_id_str] = []
-
-    for e in edges:
-        s_id = str(e.source_node_id)
-        t_id = str(e.target_node_id)
-
-        # Both endpoints MUST exist in active graph nodes
-        if s_id not in graph.nodes or t_id not in graph.nodes:
-            continue
-
-        # Forward edge
-        graph.adjacency_list[s_id].append({
-            "target": t_id,
-            "distance_m": e.distance_m,
-            "path_type": e.path_type,
-            "is_accessible": e.is_accessible,
-            "edge_id": e.id,
-        })
-
-        # Reverse edge if bidirectional
-        if e.is_bidirectional:
-            graph.adjacency_list[t_id].append({
-                "target": s_id,
-                "distance_m": e.distance_m,
-                "path_type": e.path_type,
-                "is_accessible": e.is_accessible,
-                "edge_id": e.id,
-            })
-
+    graph.load_from_db(db, accessible_only=accessible_only)
     return graph
 
 
@@ -259,71 +214,59 @@ def compute_shortest_route(
     origin_node_id: uuid.UUID,
     destination_node_id: uuid.UUID,
     accessible_only: bool = False,
+    algorithm: str = "dijkstra",
 ) -> Optional[RouteResponse]:
-    """Compute shortest walkable path using Dijkstra on the current database topology."""
+    """Compute optimal walking route using selected pathfinding algorithm with predecessor tracking."""
+    graph = build_campus_graph(db, accessible_only=accessible_only)
+
     origin_str = str(origin_node_id)
     dest_str = str(destination_node_id)
 
-    graph = build_campus_graph(db, accessible_only=accessible_only)
-
-    if origin_str not in graph.nodes or dest_str not in graph.nodes:
+    raw_result = find_shortest_path(
+        graph,
+        origin_str,
+        dest_str,
+        accessible_only=accessible_only,
+        algorithm=algorithm,
+    )
+    if not raw_result:
         return None
 
-    if origin_str == dest_str:
-        return RouteResponse(
-            origin_node_id=origin_node_id,
-            destination_node_id=destination_node_id,
-            total_distance_m=0.0,
-            accessible=True,
-            path_nodes=[origin_node_id],
-            segments=[],
+    total_dist = raw_result["total_distance_m"]
+    duration_s, duration_min = calculate_walking_duration(total_dist)
+
+    enriched_segments = generate_step_directions(
+        graph,
+        raw_result["path_nodes"],
+        raw_result["segments"],
+    )
+
+    path_uuids = [uuid.UUID(nid) for nid in raw_result["path_nodes"]]
+    formatted_segments = [
+        PathSegment(
+            source_node_id=uuid.UUID(str(s["source_node_id"])),
+            target_node_id=uuid.UUID(str(s["target_node_id"])),
+            distance_m=s["distance_m"],
+            path_type=s["path_type"],
+            instruction=s["instruction"],
         )
+        for s in enriched_segments
+    ]
 
-    # Dijkstra priority queue: (distance, current_node, path, segments)
-    queue = [(0.0, origin_str, [origin_str], [])]
-    best_dist: Dict[str, float] = {origin_str: 0.0}
-    visited = set()
+    is_accessible = (
+        accessible_only
+        or (len(raw_result["segments"]) == 0)
+        or all(s.get("is_accessible", True) for s in raw_result["segments"])
+    )
 
-    while queue:
-        dist, current, path, segments = heapq.heappop(queue)
+    return RouteResponse(
+        origin_node_id=origin_node_id,
+        destination_node_id=destination_node_id,
+        total_distance_m=total_dist,
+        accessible=is_accessible,
+        path_nodes=path_uuids,
+        segments=formatted_segments,
+        estimated_duration_s=duration_s,
+        estimated_duration_min=duration_min,
+    )
 
-        if current in visited:
-            continue
-        visited.add(current)
-
-        if current == dest_str:
-            return RouteResponse(
-                origin_node_id=origin_node_id,
-                destination_node_id=destination_node_id,
-                total_distance_m=round(dist, 2),
-                accessible=accessible_only or all(s.get("is_accessible", True) for s in segments),
-                path_nodes=[uuid.UUID(nid) for nid in path],
-                segments=[
-                    PathSegment(
-                        source_node_id=uuid.UUID(s["source"]),
-                        target_node_id=uuid.UUID(s["target"]),
-                        distance_m=s["distance_m"],
-                        path_type=s["path_type"],
-                        instruction=f"Follow {s['path_type']} for {s['distance_m']}m",
-                    )
-                    for s in segments
-                ],
-            )
-
-        for neighbor in graph.adjacency_list.get(current, []):
-            nxt = neighbor["target"]
-            edge_dist = neighbor["distance_m"]
-            cost = dist + edge_dist
-
-            if cost < best_dist.get(nxt, float("inf")):
-                best_dist[nxt] = cost
-                new_segments = list(segments) + [{
-                    "source": current,
-                    "target": nxt,
-                    "distance_m": edge_dist,
-                    "path_type": neighbor["path_type"],
-                    "is_accessible": neighbor["is_accessible"],
-                }]
-                heapq.heappush(queue, (cost, nxt, path + [nxt], new_segments))
-
-    return None
