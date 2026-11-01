@@ -1,11 +1,12 @@
 """API Route definitions."""
 
 from fastapi import APIRouter
-from app.api.routes import auth, locations, routing, assistance, favorites, reports
+from app.api.routes import auth, imports, locations, routing, assistance, favorites, reports
 
 api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+api_router.include_router(imports.router, prefix="/import", tags=["Map Import"])
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 api_router.include_router(routing.router, prefix="/routing", tags=["Routing"])
 api_router.include_router(assistance.router, prefix="/assistance", tags=["Assistance"])

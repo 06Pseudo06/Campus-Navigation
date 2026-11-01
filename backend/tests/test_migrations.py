@@ -15,11 +15,11 @@ def test_migration_revision_chain():
     heads = script.get_heads()
     assert len(heads) == 1
     head_rev = heads[0]
-    assert head_rev == "001_initial_schema_v1"
+    assert head_rev == "002_map_import_provenance"
 
     revision = script.get_revision(head_rev)
     assert revision is not None
-    assert revision.down_revision is None
+    assert revision.down_revision == "001_initial_schema_v1"
 
 
 def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
@@ -52,6 +52,8 @@ def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
             "edges",
             "favorites",
             "location_reports",
+            "map_import_batches",
+            "staged_locations",
         }
         assert expected_tables.issubset(tables)
 
