@@ -14,6 +14,7 @@ from app.schemas.location import (
     LocationHierarchyRead,
     LocationRead,
     LocationUpdate,
+    LocationVerifyRequest,
 )
 from app.services import location_service
 
@@ -22,8 +23,9 @@ router = APIRouter()
 
 @router.get("/", response_model=List[LocationRead])
 def list_locations(
-    query: Optional[str] = Query(None, description="Search by name, slug, or alias"),
+    query: Optional[str] = Query(None, description="Search by name, slug, or alias with relevance ranking"),
     location_type: Optional[str] = Query(None, description="Filter by location type"),
+    is_verified: Optional[bool] = Query(None, description="Filter by verification status"),
     is_active: bool = Query(True, description="Filter by active status"),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -34,6 +36,7 @@ def list_locations(
         db,
         query=query,
         location_type=location_type,
+        is_verified=is_verified,
         is_active=is_active,
         skip=skip,
         limit=limit,
@@ -62,6 +65,31 @@ def get_location_hierarchy(
     if not hierarchy:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
     return hierarchy
+
+
+@router.get("/{location_id}/ancestors", response_model=List[LocationRead])
+def get_location_ancestors(
+    location_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    """Retrieve parent ancestor chain (e.g. Room -> Floor -> Building)."""
+    loc = location_service.get_location_by_id(db, location_id)
+    if not loc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
+    return location_service.get_location_ancestors(db, location_id)
+
+
+@router.get("/{location_id}/children", response_model=List[LocationRead])
+def get_location_children(
+    location_id: uuid.UUID,
+    is_active: bool = Query(True, description="Filter child locations by active state"),
+    db: Session = Depends(get_db),
+):
+    """Retrieve direct child locations belonging to this building or facility."""
+    loc = location_service.get_location_by_id(db, location_id)
+    if not loc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
+    return location_service.get_location_children(db, location_id, is_active=is_active)
 
 
 @router.post("/", response_model=LocationRead, status_code=status.HTTP_201_CREATED)
@@ -94,17 +122,35 @@ def update_location(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post("/{location_id}/verify", response_model=LocationRead)
+def verify_location(
+    location_id: uuid.UUID,
+    verify_in: LocationVerifyRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
+):
+    """Authorize or revoke verification status for a campus location (Administrative operation)."""
+    loc = location_service.verify_location(db, location_id, is_verified=verify_in.is_verified)
+    if not loc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
+    return loc
+
+
 @router.delete("/{location_id}", response_model=LocationRead)
 def deactivate_location(
     location_id: uuid.UUID,
+    cascade: bool = Query(False, description="Cascade soft-deactivation to active child sub-locations"),
     db: Session = Depends(get_db),
     _admin: str = Depends(require_admin_role),
 ):
     """Soft-deactivate a location record to maintain navigation graph references (Administrative operation)."""
-    loc = location_service.deactivate_location(db, location_id)
-    if not loc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
-    return loc
+    try:
+        loc = location_service.deactivate_location(db, location_id, cascade=cascade)
+        if not loc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found.")
+        return loc
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/{location_id}/aliases", response_model=LocationAliasRead, status_code=status.HTTP_201_CREATED)

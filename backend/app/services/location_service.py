@@ -2,7 +2,7 @@
 
 import uuid
 from typing import List, Optional
-from sqlalchemy import or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.location import Location, LocationAlias, generate_slug, normalize_alias_text
@@ -62,35 +62,63 @@ def list_locations(
     db: Session,
     query: Optional[str] = None,
     location_type: Optional[str] = None,
+    is_verified: Optional[bool] = None,
     is_active: bool = True,
     skip: int = 0,
     limit: int = 50,
 ) -> List[Location]:
-    """Retrieve and search active campus destinations."""
+    """Retrieve and search active campus destinations with relevance ranking.
+    
+    Ranking precedence:
+    1. Exact name match
+    2. Exact alias match
+    3. Prefix name match
+    4. Partial substring name match
+    5. Partial alias match
+    """
     q = db.query(Location).filter(Location.is_active == is_active)
 
     if location_type:
         q = q.filter(Location.location_type == location_type)
 
+    if is_verified is not None:
+        q = q.filter(Location.is_verified == is_verified)
+
     if query:
-        search_term = f"%{query.strip().lower()}%"
-        norm_term = f"%{normalize_alias_text(query)}%"
-        # Match location name or any associated alias
-        alias_select = (
+        raw_query = query.strip()
+        search_term = f"%{raw_query.lower()}%"
+        norm_exact = normalize_alias_text(raw_query)
+        norm_term = f"%{norm_exact}%"
+
+        exact_alias_ids = (
+            db.query(LocationAlias.location_id)
+            .filter(LocationAlias.normalized_alias == norm_exact)
+            .scalar_subquery()
+        )
+        partial_alias_ids = (
             db.query(LocationAlias.location_id)
             .filter(LocationAlias.normalized_alias.ilike(norm_term))
             .scalar_subquery()
         )
+
+        relevance = case(
+            (func.lower(Location.name) == raw_query.lower(), 1),
+            (Location.id.in_(exact_alias_ids), 2),
+            (Location.name.ilike(f"{raw_query.lower()}%"), 3),
+            (Location.name.ilike(search_term), 4),
+            (Location.id.in_(partial_alias_ids), 5),
+            else_=6,
+        )
+
         q = q.filter(
             or_(
                 Location.name.ilike(search_term),
                 Location.slug.ilike(search_term),
-                Location.id.in_(
-                    db.query(LocationAlias.location_id)
-                    .filter(LocationAlias.normalized_alias.ilike(norm_term))
-                ),
+                Location.id.in_(partial_alias_ids),
             )
-        )
+        ).order_by(relevance, Location.name.asc())
+    else:
+        q = q.order_by(Location.name.asc())
 
     return q.offset(skip).limit(limit).all()
 
@@ -125,10 +153,11 @@ def get_location_hierarchy(db: Session, location_id: uuid.UUID) -> Optional[dict
         ancestors.append(parent)
         curr_parent_id = parent.parent_id
 
-    # Children
+    # Direct children
     children = (
         db.query(Location)
         .filter(Location.parent_id == loc.id, Location.is_active.is_(True))
+        .order_by(Location.name.asc())
         .all()
     )
 
@@ -139,23 +168,55 @@ def get_location_hierarchy(db: Session, location_id: uuid.UUID) -> Optional[dict
     }
 
 
-def create_location(db: Session, location_in: LocationCreate) -> Location:
-    """Create a new campus location."""
+def get_location_ancestors(db: Session, location_id: uuid.UUID) -> List[Location]:
+    """Retrieve the ancestor hierarchy lineage for a location."""
+    hierarchy = get_location_hierarchy(db, location_id)
+    return hierarchy["ancestors"] if hierarchy else []
+
+
+def get_location_children(db: Session, location_id: uuid.UUID, is_active: bool = True) -> List[Location]:
+    """Retrieve all direct sub-locations belonging to a location."""
+    return (
+        db.query(Location)
+        .filter(Location.parent_id == location_id, Location.is_active == is_active)
+        .order_by(Location.name.asc())
+        .all()
+    )
+
+
+def create_location(db: Session, location_in: LocationCreate, allow_verified: bool = False) -> Location:
+    """Create a new campus destination with duplicate detection.
+    
+    Ordinary location creation cannot arbitrarily mark a location as verified.
+    """
     if location_in.parent_id:
         validate_no_parent_cycle(db, None, location_in.parent_id)
+
+    # Duplicate sibling detection
+    existing_duplicate = (
+        db.query(Location)
+        .filter(
+            func.lower(Location.name) == location_in.name.strip().lower(),
+            Location.parent_id == location_in.parent_id,
+            Location.is_active.is_(True),
+        )
+        .first()
+    )
+    if existing_duplicate:
+        raise ValueError(f"A location named '{location_in.name}' already exists under the specified parent area.")
 
     slug = location_in.slug or generate_slug(location_in.name)
     slug = get_unique_slug(db, slug)
 
     db_obj = Location(
-        name=location_in.name,
+        name=location_in.name.strip(),
         slug=slug,
         location_type=location_in.location_type,
         description=location_in.description,
         latitude=location_in.latitude,
         longitude=location_in.longitude,
         address_details=location_in.address_details,
-        is_verified=location_in.is_verified,
+        is_verified=location_in.is_verified if allow_verified else False,
         is_active=location_in.is_active,
         parent_id=location_in.parent_id,
     )
@@ -170,12 +231,15 @@ def update_location(
     location_id: uuid.UUID,
     location_in: LocationUpdate,
 ) -> Optional[Location]:
-    """Update an existing campus location."""
+    """Update an existing campus location with cycle prevention."""
     loc = db.query(Location).filter(Location.id == location_id).first()
     if not loc:
         return None
 
     update_data = location_in.model_dump(exclude_unset=True)
+
+    # Protect is_verified: cannot be altered through generic update
+    update_data.pop("is_verified", None)
 
     if "parent_id" in update_data and update_data["parent_id"] != loc.parent_id:
         validate_no_parent_cycle(db, location_id, update_data["parent_id"])
@@ -193,11 +257,56 @@ def update_location(
     return loc
 
 
-def deactivate_location(db: Session, location_id: uuid.UUID) -> Optional[Location]:
-    """Soft-deactivate a location to protect navigation graph integrity."""
+def verify_location(
+    db: Session,
+    location_id: uuid.UUID,
+    is_verified: bool = True,
+) -> Optional[Location]:
+    """Authorized administrative verification workflow."""
     loc = db.query(Location).filter(Location.id == location_id).first()
     if not loc:
         return None
+    loc.is_verified = is_verified
+    db.commit()
+    db.refresh(loc)
+    return loc
+
+
+def _recursively_deactivate_children(db: Session, parent_id: uuid.UUID) -> None:
+    """Helper to cascade soft deactivation down child tree."""
+    children = db.query(Location).filter(Location.parent_id == parent_id, Location.is_active.is_(True)).all()
+    for child in children:
+        child.is_active = False
+        _recursively_deactivate_children(db, child.id)
+
+
+def deactivate_location(
+    db: Session,
+    location_id: uuid.UUID,
+    cascade: bool = False,
+) -> Optional[Location]:
+    """Soft-deactivate a location record with child dependency policy.
+    
+    If active child locations exist and cascade=False, raises ValueError to protect graph integrity.
+    """
+    loc = db.query(Location).filter(Location.id == location_id).first()
+    if not loc:
+        return None
+
+    active_children = (
+        db.query(Location)
+        .filter(Location.parent_id == location_id, Location.is_active.is_(True))
+        .all()
+    )
+    if active_children:
+        if not cascade:
+            raise ValueError(
+                f"Cannot deactivate location '{loc.name}': it currently contains "
+                f"{len(active_children)} active sub-location(s). Deactivate or reassign them first, "
+                "or specify cascade=true."
+            )
+        _recursively_deactivate_children(db, location_id)
+
     loc.is_active = False
     db.commit()
     db.refresh(loc)

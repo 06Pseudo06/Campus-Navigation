@@ -91,3 +91,10 @@ class LocationHierarchyRead(BaseModel):
     location: LocationRead
     ancestors: List[LocationRead] = []
     children: List[LocationRead] = []
+
+
+class LocationVerifyRequest(BaseModel):
+    """Payload for administrative location verification."""
+    is_verified: bool = True
+    verification_notes: Optional[str] = None
+
