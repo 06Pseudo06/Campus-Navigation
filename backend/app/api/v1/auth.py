@@ -182,11 +182,13 @@ async def google_callback(
             redirect.delete_cookie(key=settings.STATE_COOKIE_NAME, path="/")
             return redirect
         except Exception as db_err:
-            logger.error(f"[Google OAuth] Database operation failed: {db_err}. Falling back to in-memory store.")
-            from app.services.user_store import get_in_memory_user_repository
-            in_mem_repo = get_in_memory_user_repository()
-            user = in_mem_repo.get_or_create_from_google(google_user)
-            user_repo = in_mem_repo
+            logger.error(f"[Google OAuth] Database operation failed: {db_err}")
+            redirect = RedirectResponse(
+                url=f"{settings.FRONTEND_URL}/login?error=database_unavailable",
+                status_code=status.HTTP_302_FOUND,
+            )
+            redirect.delete_cookie(key=settings.STATE_COOKIE_NAME, path="/")
+            return redirect
 
         # Reject inactive account upfront
         if not getattr(user, "is_active", True):
@@ -216,15 +218,13 @@ async def google_callback(
                 )
             )
         except Exception as sess_err:
-            logger.warning(f"[Google OAuth] Session create failed on repo ({sess_err}), saving to fallback in-memory store.")
-            from app.services.user_store import get_in_memory_user_repository
-            get_in_memory_user_repository().create_session(
-                user_id=str(user.id),
-                token_hash=token_hash,
-                expires_at=expires_at,
-                ip_address=client_ip,
-                user_agent=user_agent,
+            logger.error(f"[Google OAuth] Session persistence failed: {sess_err}")
+            redirect = RedirectResponse(
+                url=f"{settings.FRONTEND_URL}/login?error=database_unavailable",
+                status_code=status.HTTP_302_FOUND,
             )
+            redirect.delete_cookie(key=settings.STATE_COOKIE_NAME, path="/")
+            return redirect
 
         session_token = security_manager.create_session_token(
             user_id=user.id,
@@ -473,18 +473,17 @@ async def _get_authenticated_user_and_session(
             detail="Session expired or invalid",
         )
 
-    # 2. Server-side session validation
-    session_record = None
+    # 2. Server-side session validation (strictly against Neon database)
     try:
         session_record = await _resolve(
             user_repo.get_session_by_token_hash(token_data["token_hash"])
         )
     except Exception as e:
-        logger.warning(f"[Session] Database query for session failed ({e}). Checking in-memory fallback.")
-
-    if not session_record:
-        from app.services.user_store import get_in_memory_user_repository
-        session_record = get_in_memory_user_repository().get_session_by_token_hash(token_data["token_hash"])
+        logger.error(f"[Session] Database query for session failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service is unavailable. Please verify connectivity.",
+        )
 
     if not session_record:
         raise HTTPException(
@@ -511,15 +510,14 @@ async def _get_authenticated_user_and_session(
                 detail="Session expired or invalid",
             )
 
-    user = None
     try:
         user = await _resolve(user_repo.get_by_id(token_data["user_id"]))
     except Exception as e:
-        logger.warning(f"[Session] Database query for user failed ({e}). Checking in-memory fallback.")
-
-    if not user:
-        from app.services.user_store import get_in_memory_user_repository
-        user = get_in_memory_user_repository().get_by_id(token_data["user_id"])
+        logger.error(f"[Session] Database query for user failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service is unavailable. Please verify connectivity.",
+        )
 
     if not user:
         raise HTTPException(
@@ -757,17 +755,11 @@ async def logout(
         )
         if token_data and "token_hash" in token_data:
             token_hash = token_data["token_hash"]
-            # Revoke in in-memory repository immediately
-            try:
-                from app.services.user_store import get_in_memory_user_repository
-                get_in_memory_user_repository().revoke_session(token_hash)
-            except Exception:
-                pass
             # Revoke in persistent database
             try:
                 await _resolve(user_repo.revoke_session(token_hash))
             except Exception as e:
-                logger.warning(f"[Logout] Database revocation failed ({e}). Revoking in memory.")
+                logger.warning(f"[Logout] Database revocation failed: {e}")
 
     # Force immediate irreversible cookie deletion across all browsers
     response.set_cookie(

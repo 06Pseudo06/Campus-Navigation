@@ -227,7 +227,7 @@ def get_in_memory_user_repository() -> InMemoryUserRepository:
 
 
 from collections.abc import AsyncGenerator
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
 from app.core.database import get_db
@@ -237,7 +237,7 @@ from app.repositories.postgres_user_repository import PostgresUserRepository
 async def get_db_optional(
     settings: Settings = Depends(get_settings),
 ) -> AsyncGenerator[Optional[AsyncSession], None]:
-    """Yields an active database session when DATABASE_URL is configured, or None for in-memory mode."""
+    """Yields an active database session when DATABASE_URL is configured, or None for test mode."""
     if not settings.is_database_configured:
         yield None
         return
@@ -245,182 +245,25 @@ async def get_db_optional(
         yield session
 
 
-class ResilientUserRepository:
-    """
-    Transparent hybrid resilience proxy around PostgresUserRepository.
-    Executes operations against PostgreSQL when available, and automatically
-    falls back to InMemoryUserRepository if the database is unreachable, timing out,
-    or blocked by firewalls (e.g., campus Wi-Fi blocking outbound port 5432).
-    """
-
-    def __init__(self, pg_repo: PostgresUserRepository, in_mem_repo: InMemoryUserRepository):
-        self._pg_repo = pg_repo
-        self._in_mem = in_mem_repo
-
-    async def get_by_id(self, user_id: Any) -> Optional[UserProfile]:
-        try:
-            res = await self._pg_repo.get_by_id(user_id)
-            if res:
-                return res
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_by_id failed ({e}). Using in-memory store.")
-        return self._in_mem.get_by_id(str(user_id))
-
-    async def get_by_email(self, email: str) -> Optional[UserProfile]:
-        try:
-            res = await self._pg_repo.get_by_email(email)
-            if res:
-                return res
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_by_email failed ({e}). Using in-memory store.")
-        return self._in_mem.get_by_email(email)
-
-    async def get_by_phone(self, phone: str) -> Optional[UserProfile]:
-        try:
-            res = await self._pg_repo.get_by_phone(phone)
-            if res:
-                return res
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_by_phone failed ({e}). Using in-memory store.")
-        return None
-
-    async def get_by_google_sub(self, google_sub: str) -> Optional[UserProfile]:
-        try:
-            res = await self._pg_repo.get_by_google_sub(google_sub)
-            if res:
-                return res
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_by_google_sub failed ({e}). Using in-memory store.")
-        return self._in_mem.get_by_google_sub(google_sub)
-
-    async def create_email_user(self, email: str, name: str, password_hash: str) -> UserProfile:
-        try:
-            res = await self._pg_repo.create_email_user(email, name, password_hash)
-            # Sync into in-memory store for fallback lookups
-            try:
-                self._in_mem._users_by_id[str(res.id)] = res
-                self._in_mem._users_by_email[email.strip().lower()] = str(res.id)
-            except Exception:
-                pass
-            return res
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.warning(f"[DB Failover] create_email_user failed ({e}). Saving to in-memory store.")
-            return self._in_mem.create_email_user(email, name, password_hash)
-
-    async def get_or_create_from_google(self, google_user: GoogleUserInfo) -> UserProfile:
-        try:
-            res = await self._pg_repo.get_or_create_from_google(google_user)
-            try:
-                self._in_mem._users_by_id[str(res.id)] = res
-                if res.google_sub:
-                    self._in_mem._users_by_sub[res.google_sub] = str(res.id)
-                if res.email:
-                    self._in_mem._users_by_email[res.email.strip().lower()] = str(res.id)
-            except Exception:
-                pass
-            return res
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_or_create_from_google failed ({e}). Using in-memory store.")
-            return self._in_mem.get_or_create_from_google(google_user)
-
-    async def create_session(
-        self,
-        user_id: Any,
-        token_hash: str,
-        expires_at: datetime,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-    ) -> Any:
-        # Pre-seed in-memory store
-        self._in_mem.create_session(
-            user_id=str(user_id),
-            token_hash=token_hash,
-            expires_at=expires_at,
-            ip_address=ip_address,
-            user_agent=user_agent,
-        )
-        try:
-            return await self._pg_repo.create_session(
-                user_id=user_id,
-                token_hash=token_hash,
-                expires_at=expires_at,
-                ip_address=ip_address,
-                user_agent=user_agent,
-            )
-        except Exception as e:
-            logger.warning(f"[DB Failover] create_session failed ({e}). Using in-memory session.")
-            return self._in_mem.get_session_by_token_hash(token_hash)
-
-    async def get_session_by_token_hash(self, token_hash: str) -> Optional[Any]:
-        try:
-            res = await self._pg_repo.get_session_by_token_hash(token_hash)
-            if res:
-                return res
-        except Exception as e:
-            logger.warning(f"[DB Failover] get_session failed ({e}). Checking in-memory store.")
-        return self._in_mem.get_session_by_token_hash(token_hash)
-
-    async def revoke_session(self, token_hash: str) -> bool:
-        self._in_mem.revoke_session(token_hash)
-        try:
-            return await self._pg_repo.revoke_session(token_hash)
-        except Exception as e:
-            logger.warning(f"[DB Failover] revoke_session failed ({e}).")
-            return True
-
-    async def update_profile(self, user_id: Any, name: str) -> Optional[UserProfile]:
-        self._in_mem.update_profile(str(user_id), name)
-        try:
-            return await self._pg_repo.update_profile(user_id, name)
-        except Exception as e:
-            logger.warning(f"[DB Failover] update_profile failed ({e}).")
-            return self._in_mem.get_by_id(str(user_id))
-
-    async def update_password(self, user_id: Any, new_password_hash: str) -> bool:
-        self._in_mem.update_password(str(user_id), new_password_hash)
-        try:
-            return await self._pg_repo.update_password(user_id, new_password_hash)
-        except Exception as e:
-            logger.warning(f"[DB Failover] update_password failed ({e}).")
-            return True
-
-    async def delete_user(self, user_id: Any) -> bool:
-        self._in_mem.delete_user(str(user_id))
-        try:
-            return await self._pg_repo.delete_user(user_id)
-        except Exception as e:
-            logger.warning(f"[DB Failover] delete_user failed ({e}).")
-            return True
-
-    async def update_last_login(self, user_id: Any) -> Optional[UserProfile]:
-        self._in_mem.update_last_login(str(user_id))
-        try:
-            return await self._pg_repo.update_last_login(user_id)
-        except Exception as e:
-            logger.warning(f"[DB Failover] update_last_login failed ({e}).")
-            return self._in_mem.get_by_id(str(user_id))
-
-    def clear(self) -> None:
-        self._in_mem.clear()
-
-
 def get_user_repository(
     session: Optional[AsyncSession] = Depends(get_db_optional),
-    settings: Settings = Depends(get_settings),
+    settings: Any = Depends(get_settings),
 ) -> Any:
     """
     FastAPI dependency that returns the active user repository.
-    Returns ResilientUserRepository wrapping PostgresUserRepository and InMemoryUserRepository.
-    Falls back gracefully when PostgreSQL is blocked or unreachable.
+    Strictly returns PostgresUserRepository backed by Neon PostgreSQL.
+    If database session is unavailable or not configured, raises HTTP 503.
+    Only falls back to InMemoryUserRepository when explicitly running isolated unit tests (ENVIRONMENT == 'test').
     """
-    if (
-        isinstance(session, AsyncSession)
-        and getattr(settings, "is_database_configured", False)
-        and getattr(settings, "ENVIRONMENT", "").lower() != "test"
-    ):
-        return ResilientUserRepository(PostgresUserRepository(session), _user_repository)
-    return _user_repository
+    resolved_settings = settings if isinstance(settings, Settings) else get_settings()
+
+    if getattr(resolved_settings, "ENVIRONMENT", "").lower() == "test":
+        return _user_repository
+
+    if not isinstance(session, AsyncSession) or not getattr(resolved_settings, "is_database_configured", False):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service is unavailable. Neon PostgreSQL connection is required for authentication.",
+        )
+
+    return PostgresUserRepository(session)

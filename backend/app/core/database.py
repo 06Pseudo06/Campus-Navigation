@@ -42,8 +42,8 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
     original_host = url.host or ""
     is_neon = "neon.tech" in original_host
 
-    # Set a fast failover connection timeout (1.5 seconds) so blocked ports fail fast without freezing requests
-    connect_args["timeout"] = 1.5
+    # Database connect timeout (5.0 seconds) ensures fast error propagation on unreachable networks
+    connect_args["timeout"] = 5.0
 
     if is_neon:
         endpoint_id = original_host.split(".")[0]
