@@ -1,219 +1,219 @@
-# CampusWay — Campus Navigation & Wayfinding Web Application
+# CampusWay | Campus Navigation & Wayfinding System
 
-A modern campus wayfinding and navigation system designed for university students, staff, freshmen, and first-time visitors to easily locate campus buildings, gates, lecture halls, and landmarks.
-
----
-
-## 🏗️ Architecture Overview
-
-The complete project architecture consists of:
-1. **Frontend**: Next.js (App Router) with TypeScript & Tailwind CSS
-2. **Backend**: FastAPI (Python) with Python Graph Routing Algorithms *(Planned for Phase 2)*
-3. **Database**: PostgreSQL with Docker local environment *(Planned for Phase 2)*
-4. **Services**:
-   - **Campus Map Service**: 2D/3D building layouts, points of interest, gate locations.
-   - **Route Planning Service**: Algorithmic graph-based shortest path routing with accessibility support.
-   - **Visitor Assistance Service**: Guest check-in, parking guidance, emergency facilities.
+> **Campus Wayfinding Engine for Lovely Professional University (LPU), Punjab, India**<br />
+> Solves the numbered block navigation challenge (e.g., *"Which Block is 34?"*) through topological pedestrian graph routing, turn directions, gate QR integrations, and visitor assistance.
 
 ---
 
-## 🚀 Phase 1: Login & Signup Frontend
+## 1. System Status & Verification
 
-Phase 1 delivers the architectural-magazine visual frontend for user authentication:
-- **Visual Design**: High-fidelity university campus photography, warm evening lighting, dark contrast overlays, refined typography, and centered authentication cards.
-- **Header**: Responsive navigation with CampusWay pinnacle/compass logo and navigation links.
-- **Right-Side Branding**: Distinctive architectural slogan:
-  ```
-  FIND.
-  EXPLORE.
-  BELONG.
-  ```
-- **Login Experience (`/login`)**:
-  - Email & password controlled inputs with real-time validation.
-  - Password visibility toggle (show/hide).
-  - "Remember me" checkbox and "Forgot password?" recovery modal.
-  - "Continue with Google" OAuth button.
-  - Warm red/orange primary CTA button (`#DE4B31`).
-  - Mobile OTP alternative interface with country code selector (default `+91` India) and 30-second resend countdown.
-  - Clear system feedback without fabricating fake tokens, mock sessions, or false backend success.
-- **Signup Experience (`/signup`)**:
-  - Full Name, Email, Password, and Confirm Password matching validation.
-  - Password visibility toggles.
-  - Accessible error messages.
-  - Google and Mobile OTP alternatives.
-  - Navigation between Login and Signup.
-- **Service Layer (`src/services/authService.ts`)**:
-  - Modular API client reading `NEXT_PUBLIC_API_BASE_URL`.
-  - Gracefully handles offline backend state with informative messages.
+CampusWay is a full-stack, production-grade navigation platform combining an architectural Next.js frontend with an async FastAPI backend and cloud PostgreSQL database:
+
+- **Frontend Application**: Next.js 16 (App Router), React 19, and Tailwind CSS v4 with full client/server component separation, dynamic authentication state rendering, and zero-flash loading skeletons.
+- **Backend Architecture**: FastAPI with asynchronous SQLAlchemy 2.0, connection pooling, and strict database transaction boundaries.
+- **Authentication & Security**: Argon2id password hashing, Google OAuth 2.0 SSO, server-side revocable session storage with SHA-256 token hashing, and hardened HttpOnly cookie management.
+- **Database**: PostgreSQL 16 & Neon Cloud single-head migrations (`001_initial_schema_v1` through `003_add_user_sessions` and `004_report_resolution_notes`).
+- **Pathfinding**: Predecessor-based Dijkstra & A* algorithms, cardinal bearing calculation, and configurable walking time estimation.
+- **Map Ingestion**: Provenance-aware OpenStreetMap & GeoJSON staging pipeline with duplicate detection and administrative review.
+- **Docker**: Hardened multi-stage container build with unprivileged execution (`appuser`), service health checks, and compose orchestration.
 
 ---
 
-## 📁 Repository Structure
+## 2. High-Level Architecture
 
-```
-campus-wayfinder/
-├── frontend/
-│   ├── public/
-│   │   ├── images/
-│   │   │   └── campus-bg.jpg      # Architectural campus photography
-│   │   └── favicon.ico
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.tsx         # Root layout with Geist font
-│   │   │   ├── globals.css        # Tailwind CSS configuration
-│   │   │   ├── page.tsx           # Home landing page with CTAs
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx       # /login route
-│   │   │   ├── signup/
-│   │   │   │   └── page.tsx       # /signup route
-│   │   │   ├── explore/
-│   │   │   │   └── page.tsx       # /explore placeholder for map service
-│   │   │   └── about/
-│   │   │       └── page.tsx       # /about project details
-│   │   ├── components/
-│   │   │   ├── auth/
-│   │   │   │   ├── AuthCard.tsx
-│   │   │   │   ├── LoginForm.tsx
-│   │   │   │   ├── SignupForm.tsx
-│   │   │   │   ├── GoogleButton.tsx
-│   │   │   │   └── PhoneOtpForm.tsx
-│   │   │   ├── layout/
-│   │   │   │   ├── Navbar.tsx
-│   │   │   │   └── CampusBranding.tsx
-│   │   │   └── icons/
-│   │   │       └── Icons.tsx
-│   │   ├── services/
-│   │   │   └── authService.ts     # FastAPI backend connection client
-│   │   └── types/
-│   │       └── auth.ts            # TypeScript interfaces
-│   ├── .env.example
-│   ├── .env.local
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── next.config.ts
-├── package.json                   # Root workspace scripts
-└── README.md
+```mermaid
+graph TD
+    subgraph Clients["Frontend Clients & Touchpoints"]
+        WebClient["Next.js 16 Web Application"]
+        MobileClient["Mobile & Responsive PWA"]
+        QRKiosk["Signpost QR Wayfinding"]
+    end
+
+    subgraph Backend_Gateway["FastAPI Gateway (/api/v1)"]
+        Auth["/auth (Argon2id / Google OAuth / Sessions)"]
+        Loc["/locations (Catalog & Search)"]
+        Route["/routing (Dijkstra / A*)"]
+        Import["/import (Map Provenance)"]
+        Assist["/assistance (Visitor & QR)"]
+        UserModules["/favorites & /reports"]
+    end
+
+    subgraph Core_Services["Domain Logic & Engines"]
+        Pathfinding["RoutingEngine (Dijkstra, A*, Turns)"]
+        Provenance["ImportService (GeoJSON Staging)"]
+        Hierarchy["LocationService (Cycle Guard)"]
+        Security["Security (Argon2id, SHA-256 Tokens)"]
+    end
+
+    subgraph Storage["Persistence Layer"]
+        Postgres[("PostgreSQL / Neon Cloud DB")]
+    end
+
+    Clients --> Backend_Gateway
+    Backend_Gateway --> Core_Services
+    Core_Services --> Storage
 ```
 
 ---
 
-## 💻 Running Locally
+## 3. Key Capabilities & Core Modules
 
-### Prerequisites
-- Node.js 18+ (tested on Node v24)
-- npm 9+
+### 1. Authentication & Session Security (`/api/v1/auth`)
+- **Argon2id Password Hashing**: Compliant with OWASP recommended memory and time parameters.
+- **Google OAuth 2.0 SSO**: Secure authorization code exchange with state parameter CSRF validation.
+- **Database-Backed Sessions**: Server-side revocable sessions with SHA-256 token hashing; tokens are validated against database state on every authenticated request.
+- **Configurable Lifetimes**: Standard sessions expire in 24 hours; "Remember Me" sessions persist for 30 days.
+- **Immediate Server-Side Revocation**: Logouts instantly invalidate sessions in the database.
 
-### 1. Install Dependencies
+### 2. Topological Pedestrian Routing Engine (`/api/v1/routing`)
+- Point-to-point shortest walking paths using optimized Dijkstra & A* pathfinding.
+- Forward azimuth bearing calculation generating natural turn instructions (*"Turn right onto the corridor"*, *"Take the ramp"*).
+- Wheelchair and mobility accessibility constraints (`accessible_only=true`).
+- Dynamic walking duration estimation based on configurable pedestrian speeds (~1.3 m/s).
+
+### 3. Hierarchical Location Catalog (`/api/v1/locations`)
+- Multi-tier spatial hierarchy (Campus -> Building -> Floor -> Room).
+- Cycle prevention and safe cascading soft-deactivation.
+- Dual-mode search ranking exact matches above partial and normalized alias matches.
+- Dedicated administrative verification workflow (`/verify`) maintaining clear provenance boundaries.
+
+### 4. Interactive Frontend Dashboard (`frontend/src/`)
+- Responsive dark-theme architectural magazine UI.
+- Interactive campus exploration dashboard (`/explore`) with Block 34 navigation, popular route teasers, and saved destinations.
+- Context-driven hero CTAs that react to user authentication status in real time.
+
+### 5. Provenance-Aware Map Import Pipeline (`/api/v1/import`)
+- Ingestion of external OpenStreetMap ways/nodes and surveyor GeoJSON FeatureCollections.
+- Spatial proximity and name similarity duplicate candidate detection against canonical records.
+- Staging lifecycle with administrative review approval and promotion into canonical locations.
+
+### 6. Visitor Assistance & Signpost QR Wayfinding (`/api/v1/assistance`)
+- Interactive visitor destination cards indicating walking route topology availability.
+- Visitor assistance request ticketing workflow (`pending` -> `assigned` -> `resolved`).
+- Tamper-proof HMAC-SHA256 signpost QR code generation and resolution.
+
+### 7. Favorites & Community Map Reports (`/api/v1/favorites`, `/api/v1/reports`)
+- Bookmarked user destinations with ownership enforcement.
+- Pathway blockage, accessibility issue, and map feature problem reporting with resolution notes.
+
+---
+
+## 4. Documentation Index
+
+Comprehensive technical documentation is maintained in the [`docs/`](docs/) directory:
+
+- [Frontend Integration Contract (`docs/API_INTEGRATION.md`)](docs/API_INTEGRATION.md) — Endpoint specifications, TypeScript interfaces, request/response bodies, and status codes.
+- [Backend Architecture (`docs/BACKEND_ARCHITECTURE.md`)](docs/BACKEND_ARCHITECTURE.md) — System design, data flow diagrams, security model, and component breakdown.
+- [Database Schema (`docs/DATABASE_SCHEMA.md`)](docs/DATABASE_SCHEMA.md) — Entity-Relationship diagram, table definitions, indexes, and Alembic migration history.
+- [Routing Engine Specification (`docs/ROUTING_ENGINE.md`)](docs/ROUTING_ENGINE.md) — Dijkstra & A* pathfinding, bearing mathematics, turn instructions, and complexity analysis.
+- [Map Import & Surveyor Guide (`docs/MAP_IMPORT_GUIDE.md`)](docs/MAP_IMPORT_GUIDE.md) — GeoJSON schemas, staging workflow, duplicate detection, and surveyor instructions.
+- [Local Environment Setup (`docs/ENVIRONMENT_SETUP.md`)](docs/ENVIRONMENT_SETUP.md) — Step-by-step developer onboarding and environment variable reference.
+- [Testing & Quality Assurance (`docs/TESTING.md`)](docs/TESTING.md) — Test architecture, module breakdown, coverage, and execution commands.
+- [Production Deployment Guide (`docs/DEPLOYMENT.md`)](docs/DEPLOYMENT.md) — Docker Compose, Neon Cloud database tuning, SSL mode, and security checklists.
+- [Backend Audit & Roadmap (`docs/BACKEND_AUDIT.md`)](docs/BACKEND_AUDIT.md) — Baseline audit and milestone delivery records.
+
+---
+
+## 5. Quick Start (Local Development)
+
+### 5.1 Prerequisites
+- **Node.js**: 18+ (tested on Node v20/v22/v24)
+- **Python**: 3.12+ (tested on Python 3.12/3.13)
+- **PostgreSQL**: Neon Cloud PostgreSQL or local PostgreSQL 16+
+
+---
+
+### 5.2 One-Command Startup (Concurrent)
+From the repository root, start both the FastAPI backend and Next.js frontend together:
 ```bash
-cd frontend
+npm run dev
+```
+
+- **Web Application**: [http://localhost:3000](http://localhost:3000)
+- **Sign In Portal**: [http://localhost:3000/login](http://localhost:3000/login)
+- **Interactive Campus Dashboard**: [http://localhost:3000/explore](http://localhost:3000/explore)
+- **Backend Interactive Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Backend Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+
+---
+
+### 5.3 Running Services Individually
+
+#### Option A: Next.js Frontend
+```bash
+# From frontend/
 npm install
+npm run dev
 ```
 
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env.local` inside `frontend/`:
-```bash
+#### Option B: FastAPI Backend
+```powershell
+# From backend/ (Windows PowerShell)
+cd backend
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+---
+
+### 5.4 Environment Configuration
+
+#### Frontend (`frontend/.env.local`)
+```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
-### 3. Start Development Server
-From the workspace root or inside `frontend/`:
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+#### Backend (`backend/.env`)
+```env
+# Database
+DATABASE_URL=postgresql://user:password@ep-sample-pooler.region.aws.neon.tech/neondb?sslmode=require
 
-- Login page: [http://localhost:3000/login](http://localhost:3000/login)
-- Signup page: [http://localhost:3000/signup](http://localhost:3000/signup)
-- Explore preview: [http://localhost:3000/explore](http://localhost:3000/explore)
-- About page: [http://localhost:3000/about](http://localhost:3000/about)
+# Security Secrets (min 32 characters in production)
+SESSION_SECRET=campusway-dev-secret-key-must-be-changed-in-production-min-32-chars
+ENVIRONMENT=development
 
-### 4. Build for Production
-```bash
-npm run build
+# Google OAuth 2.0 Credentials (https://console.cloud.google.com/)
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+
+# Client URLs
+FRONTEND_URL=http://localhost:3000
 ```
 
 ---
 
-## 🔐 Phase 2: Authentication (Google OAuth 2.0 & Email/Password with Argon2id)
+## 6. Testing & Quality Assurance
 
-CampusWay features a complete dual-authentication system handled by the FastAPI backend:
-1. **Google OAuth 2.0**: Authorization Code flow with CSRF-protected state parameters, ID token signature verification, and automatic account linking.
-2. **Email & Password Authentication**: Argon2id password hashing (OWASP standard parameters), duplicate email enforcement, `remember_me` session duration expansion, and HTTP-only signed session cookies.
-
-### 🌐 Google Cloud Console Setup Steps
-
-To enable real Google sign-in with your Google accounts:
-
-1. **Open Google Cloud Console**:
-   Navigate to [https://console.cloud.google.com/](https://console.cloud.google.com/).
-
-2. **Create or Select a Project**:
-   Click the project dropdown in the top bar and select **New Project** (e.g. `CampusWay`).
-
-3. **Configure OAuth Consent Screen**:
-   - Go to **APIs & Services** > **OAuth consent screen**.
-   - User Type: Select **External**, then click **Create**.
-   - App Information: Enter **App name** (`CampusWay`), **User support email**, and **Developer contact email**.
-   - Scopes: Click **Add or Remove Scopes** and select `.../auth/userinfo.email`, `.../auth/userinfo.profile`, and `openid`.
-   - Test Users: While your app is in "Testing" mode, add your personal Google email address under **Test users** so you can log in.
-   - Save and continue.
-
-4. **Create OAuth 2.0 Credentials**:
-   - Go to **APIs & Services** > **Credentials**.
-   - Click **Create Credentials** > **OAuth client ID**.
-   - Application type: Select **Web application**.
-   - Name: `CampusWay Web Client`.
-   - **Authorized JavaScript origins**:
-     - `http://localhost:3000`
-   - **Authorized redirect URIs**:
-     - `http://localhost:8000/api/v1/auth/google/callback`
-   - Click **Create**.
-   - Copy your **Client ID** and **Client Secret**.
-
-5. **Configure Backend Environment Variables**:
-   Open `backend/.env` (created from `backend/.env.example`) and fill in:
-   ```env
-   GOOGLE_CLIENT_ID=your-actual-client-id.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=your-actual-client-secret
-   GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-   FRONTEND_URL=http://localhost:3000
-   SESSION_SECRET=a-secure-random-string-at-least-32-characters
-   ENVIRONMENT=development
-   ```
-
----
-
-## 💻 Running the Application
-
-### One Command to Run Everything
-From the workspace root, simply run:
+### Frontend Builds and Linting
 ```bash
-npm run dev
-```
-This automatically boots **both** the FastAPI Python backend (port 8000) and the Next.js frontend (port 3000) concurrently using `concurrently`.
+# Build production bundle
+npm --prefix frontend run build
 
-- **Web Application**: [http://localhost:3000](http://localhost:3000)
-- **Sign In Page**: [http://localhost:3000/login](http://localhost:3000/login)
-- **Campus Dashboard**: [http://localhost:3000/explore](http://localhost:3000/explore)
-- **FastAPI Interactive Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Backend Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
+# Run TypeScript type check
+npm --prefix frontend run type-check
 
-### Running Services Separately (Optional)
-If you prefer running services in separate terminals:
-```bash
-# Terminal 1 - FastAPI Backend
-npm run dev:backend
-
-# Terminal 2 - Next.js Frontend
-npm run dev:frontend
+# Run linter
+npm --prefix frontend run lint
 ```
 
-### 3. Run Backend Automated Tests (21 Tests)
-```bash
-npm run test:backend
-# or:
+### Backend Automated Test Suite
+```powershell
+# Run all async backend tests
 backend\venv\Scripts\pytest backend/tests -v
 ```
 
-> [!NOTE]
-> Until valid Google Cloud credentials are added to `backend/.env`, clicking "Continue with Google" redirects back with an informative configuration warning message. Once credentials are provided, clicking "Continue with Google" directly opens Google's account selection window and authenticates you into CampusWay!
+---
+
+## 7. Docker Deployment
+
+Launch the full stack (PostgreSQL, FastAPI Backend, and Next.js Frontend) using Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+- Backend API: `http://localhost:8000/api/v1`
+- Frontend Web App: `http://localhost:3000`

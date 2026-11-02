@@ -20,6 +20,8 @@ from app.models.base import Base
 if TYPE_CHECKING:
     from app.models.user_credential import UserCredential
     from app.models.user_session import UserSession
+    from app.models.favorite import Favorite
+    from app.models.report import LocationReport
 
 
 class User(Base):
@@ -105,6 +107,19 @@ class User(Base):
         "UserSession",
         back_populates="user",
         cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # Campus modules relationships
+    favorites = relationship(
+        "Favorite",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    reports = relationship(
+        "LocationReport",
+        back_populates="reporter",
         passive_deletes=True,
     )
 

@@ -1,7 +1,13 @@
-from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+"""User and external identity Pydantic schemas."""
 
+import re
+import uuid
+from datetime import datetime
+from typing import List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+# --- Auth & Session Schemas (API v1) ---
 
 class GoogleUserInfo(BaseModel):
     """Normalized payload verified from Google ID Token."""
@@ -54,3 +60,64 @@ class UserResponse(BaseModel):
 class LogoutResponse(BaseModel):
     success: bool = True
     message: str = "Logged out successfully"
+
+
+# --- Domain User Schemas ---
+
+UserRole = Literal["student", "admin", "moderator"]
+
+EMAIL_REGEX = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
+PHONE_REGEX = r"^\+?[1-9]\d{1,14}$"
+
+
+class UserBase(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=120)
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+    role: UserRole = "student"
+    is_active: bool = True
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.match(EMAIL_REGEX, v):
+            raise ValueError("Invalid email format.")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not re.match(PHONE_REGEX, v):
+            raise ValueError("Invalid phone number format.")
+        return v
+
+
+class UserCreate(UserBase):
+    pass
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = Field(None, max_length=120)
+    email: Optional[str] = Field(None, max_length=255)
+    phone: Optional[str] = Field(None, max_length=20)
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+class UserIdentityRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    provider: str
+    provider_subject: str
+    created_at: datetime
+
+
+class UserRead(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    updated_at: datetime
+    identities: List[UserIdentityRead] = []
