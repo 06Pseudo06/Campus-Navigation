@@ -1,0 +1,27 @@
+{
+  "name": "campus-wayfinder-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CampusWay — Campus Navigation & Wayfinding Web Application",
+  "scripts": {
+    "dev": "concurrently -n \"backend,frontend\" -c \"magenta,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "backend\\venv\\Scripts\\uvicorn app.main:app --app-dir backend --reload --port 8000",
+    "test:backend": "backend\\venv\\Scripts\\pytest backend/tests -v",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "lint": "npm --prefix frontend run lint"
+  },
+  "keywords": [
+    "campus-navigation",
+    "wayfinding",
+    "nextjs",
+    "fastapi",
+    "university"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
