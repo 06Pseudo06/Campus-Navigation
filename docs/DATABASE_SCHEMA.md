@@ -12,6 +12,8 @@ The schema is managed using **Alembic** migrations and is 100% compatible with b
 ```mermaid
 erDiagram
     USERS ||--o{ USER_IDENTITIES : "has"
+    USERS ||--o| USER_CREDENTIALS : "authenticates via"
+    USERS ||--o{ USER_SESSIONS : "holds"
     USERS ||--o{ FAVORITES : "bookmarks"
     USERS ||--o{ LOCATION_REPORTS : "submits"
     USERS ||--o{ ASSISTANCE_REQUESTS : "requests"
@@ -47,6 +49,27 @@ erDiagram
         string provider
         string provider_user_id
         timestamp created_at
+    }
+
+    USER_CREDENTIALS {
+        uuid id PK
+        uuid user_id FK
+        string password_hash
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    USER_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        string token_hash UK
+        string ip_address
+        string user_agent
+        boolean is_revoked
+        timestamp expires_at
+        timestamp revoked_at
+        timestamp created_at
+        timestamp updated_at
     }
 
     LOCATIONS {

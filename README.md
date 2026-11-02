@@ -11,8 +11,8 @@ CampusWay is a full-stack, production-grade navigation platform combining an arc
 
 - **Frontend Application**: Next.js 16 (App Router), React 19, and Tailwind CSS v4 with full client/server component separation, dynamic authentication state rendering, and zero-flash loading skeletons.
 - **Backend Architecture**: FastAPI with asynchronous SQLAlchemy 2.0, connection pooling, and strict database transaction boundaries.
-- **Authentication & Security**: Argon2id password hashing, Google OAuth 2.0 SSO, server-side revocable session storage with SHA-256 token hashing, and hardened HttpOnly cookie management.
-- **Database**: PostgreSQL 16 & Neon Cloud single-head migrations (`001_initial_schema_v1` through `003_add_user_sessions` and `004_report_resolution_notes`).
+- **Authentication & Security**: Argon2id password hashing, Google OAuth 2.0 SSO, server-side revocable session storage with SHA-256 token hashing, and hardened HttpOnly cookie management -- fully connected and verified with Neon Cloud PostgreSQL.
+- **Database (Neon Cloud)**: Serverless PostgreSQL 16 on Neon with connection pooling, asyncpg driver, and single-head Alembic migrations (`001_initial_schema_v1` through `003_add_user_sessions` and `004_report_resolution_notes`).
 - **Pathfinding**: Predecessor-based Dijkstra & A* algorithms, cardinal bearing calculation, and configurable walking time estimation.
 - **Map Ingestion**: Provenance-aware OpenStreetMap & GeoJSON staging pipeline with duplicate detection and administrative review.
 - **Docker**: Hardened multi-stage container build with unprivileged execution (`appuser`), service health checks, and compose orchestration.
