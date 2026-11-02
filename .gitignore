@@ -1,3 +1,4 @@
+
 # Dependencies
 node_modules/
 .pnp
@@ -28,11 +29,20 @@ backend/.env
 !.env.example
 !frontend/.env.example
 !backend/.env.example
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
 
-# Python & Backend
+# Python virtual environments
+venv/
+.venv/
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Python testing and coverage
 *.so
 .Python
 backend/venv/

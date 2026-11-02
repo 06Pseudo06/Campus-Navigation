@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
+from app.models.base import Base
 
 
 def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
