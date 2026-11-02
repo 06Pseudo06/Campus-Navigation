@@ -407,3 +407,76 @@ class PostgresUserRepository:
                     email_verified=google_user.email_verified,
                 )
             raise
+
+    async def update_profile(
+        self, user_id: Union[str, uuid.UUID], name: str
+    ) -> Optional[UserProfile]:
+        """Update editable profile information (full_name)."""
+        try:
+            uid = uuid.UUID(str(user_id))
+        except (ValueError, TypeError):
+            return None
+
+        stmt = (
+            select(User)
+            .options(selectinload(User.identities), selectinload(User.credentials))
+            .where(User.id == uid)
+        )
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            return None
+
+        user.full_name = name.strip()
+        user.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user_to_profile(user)
+
+    async def update_password(
+        self, user_id: Union[str, uuid.UUID], new_password_hash: str
+    ) -> bool:
+        """Update or set password_hash in user_credentials for a given user."""
+        try:
+            uid = uuid.UUID(str(user_id))
+        except (ValueError, TypeError):
+            return False
+
+        stmt = select(UserCredential).where(UserCredential.user_id == uid)
+        result = await self.session.execute(stmt)
+        cred = result.scalar_one_or_none()
+        now = datetime.now(timezone.utc)
+
+        if cred:
+            cred.password_hash = new_password_hash
+            cred.updated_at = now
+        else:
+            cred = UserCredential(
+                id=uuid.uuid4(),
+                user_id=uid,
+                password_hash=new_password_hash,
+                created_at=now,
+                updated_at=now,
+            )
+            self.session.add(cred)
+
+        await self.session.commit()
+        return True
+
+    async def delete_user(self, user_id: Union[str, uuid.UUID]) -> bool:
+        """Permanently delete user account and cascade to credentials, sessions, and identities."""
+        try:
+            uid = uuid.UUID(str(user_id))
+        except (ValueError, TypeError):
+            return False
+
+        stmt = select(User).where(User.id == uid)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            return False
+
+        await self.session.delete(user)
+        await self.session.commit()
+        return True
+

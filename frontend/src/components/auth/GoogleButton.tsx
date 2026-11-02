@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { GoogleIcon, Spinner } from "@/components/icons/Icons";
-
 import { authService } from "@/services/authService";
 
 interface GoogleButtonProps {
@@ -27,7 +26,7 @@ export function GoogleButton({
         setLoading(false);
         if (onNotice) {
           onNotice(
-            "FastAPI backend is offline (port 8000). Please run 'npm run dev' in your project root to run both backend and frontend."
+            "FastAPI backend is offline (port 8000). Please verify that the backend is running."
           );
         }
         return;
@@ -59,11 +58,11 @@ export function GoogleButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="w-full h-11 flex items-center justify-center gap-3 px-4 rounded-lg border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50/80 active:bg-gray-100 text-gray-800 text-sm font-semibold transition-colors shadow-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300"
+      className="w-full h-11 flex items-center justify-center gap-3 px-4 rounded-lg border border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 bg-white hover:bg-gray-50/80 active:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:active:bg-zinc-700/80 text-gray-800 dark:text-zinc-100 text-sm font-semibold transition-colors shadow-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-zinc-600"
       aria-label={text}
     >
       {loading ? (
-        <Spinner className="w-4 h-4 text-gray-500" />
+        <Spinner className="w-4 h-4 text-gray-500 dark:text-zinc-400" />
       ) : (
         <GoogleIcon className="w-[18px] h-[18px] shrink-0" />
       )}

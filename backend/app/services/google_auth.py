@@ -1,3 +1,4 @@
+import logging
 import urllib.parse
 from typing import Optional
 import httpx
@@ -7,16 +8,18 @@ from google.oauth2 import id_token as google_id_token
 from app.config import Settings, get_settings
 from app.schemas.user import GoogleUserInfo
 
+logger = logging.getLogger(__name__)
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 VALID_GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 
 
 class GoogleOAuthService:
     """
-    Handles Google OAuth 2.0 Authorization Code flow and ID token verification.
-    Uses Google's maintained `google-auth` verification library.
+    Handles Google OAuth 2.0 Authorization Code flow, ID token verification,
+    and server-side UserInfo identity retrieval.
     """
 
     def __init__(self, settings: Optional[Settings] = None):
@@ -56,10 +59,14 @@ class GoogleOAuthService:
             response = await client.post(GOOGLE_TOKEN_URL, data=payload)
 
         if response.status_code != 200:
-            # Safe error logging without leaking tokens or client secret
             error_data = response.json() if "application/json" in response.headers.get("content-type", "") else {}
-            error_msg = error_data.get("error_description") or error_data.get("error") or f"Status {response.status_code}"
-            raise ValueError(f"Google token exchange failed: {error_msg}")
+            error_code = error_data.get("error", "unknown")
+            error_desc = error_data.get("error_description", f"Status {response.status_code}")
+            logger.error(
+                f"[Google OAuth] Token exchange failed ({response.status_code}): {error_code} - {error_desc}. "
+                f"Configured redirect_uri was: {self.settings.GOOGLE_REDIRECT_URI}"
+            )
+            raise ValueError(f"Google token exchange failed: {error_code} ({error_desc})")
 
         return response.json()
 
@@ -67,16 +74,18 @@ class GoogleOAuthService:
         """
         Verify the Google ID token using Google's official `verify_oauth2_token`.
         Validates token signature, certificates, expiration, issuer, and audience.
-        Returns a normalized GoogleUserInfo object.
+        Includes a 10-second clock skew tolerance for local machine time discrepancies.
         """
         request = google_requests.Request()
         try:
             payload = google_id_token.verify_oauth2_token(
                 id_token_str,
                 request,
-                audience=self.settings.GOOGLE_CLIENT_ID
+                audience=self.settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=10,
             )
         except Exception as e:
+            logger.warning(f"[Google OAuth] verify_oauth2_token failed: {e}")
             raise ValueError(f"Invalid Google ID token: {str(e)}")
 
         # Verify token issuer
@@ -99,6 +108,38 @@ class GoogleOAuthService:
             email_verified=bool(payload.get("email_verified", False)),
             name=payload.get("name"),
             picture=payload.get("picture"),
+        )
+
+    async def get_user_info_from_access_token(self, access_token: str) -> GoogleUserInfo:
+        """
+        Fetch verified user identity directly from Google's UserInfo endpoint
+        using the OAuth 2.0 access token. This acts as a robust server-to-server
+        verification channel resilient against local clock skew and certificate caching issues.
+        """
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(GOOGLE_USERINFO_URL, headers=headers)
+
+        if response.status_code != 200:
+            logger.error(f"[Google OAuth] Failed to fetch UserInfo with access token: status {response.status_code}")
+            raise ValueError(f"Google UserInfo fetch failed with status {response.status_code}")
+
+        data = response.json()
+        sub = data.get("sub")
+        email = data.get("email")
+
+        if not sub:
+            raise ValueError("Google UserInfo response missing required 'sub' claim.")
+        if not email:
+            raise ValueError("Google UserInfo response missing required 'email' claim.")
+
+        return GoogleUserInfo(
+            sub=str(sub),
+            email=str(email),
+            email_verified=bool(data.get("email_verified", False)),
+            name=data.get("name"),
+            picture=data.get("picture"),
         )
 
 

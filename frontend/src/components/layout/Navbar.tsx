@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { CampusWayLogo } from "@/components/icons/Icons";
-
 import Image from "next/image";
+import { CampusWayLogo } from "@/components/icons/Icons";
 import { useAuth } from "@/context/AuthContext";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,7 +21,7 @@ export function Navbar() {
           aria-label="CampusWay Home"
         >
           <CampusWayLogo className="w-7 h-7 sm:w-8 sm:h-8 text-white shrink-0" />
-          <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white drop-shadow-sm">
+          <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white drop-shadow-xs">
             CampusWay
           </span>
         </Link>
@@ -50,10 +50,17 @@ export function Navbar() {
             About
           </Link>
 
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Authentication State */}
           {user ? (
             <div className="flex items-center gap-3 pl-2 border-l border-white/20">
-              <div className="flex items-center gap-2">
+              <Link
+                href="/profile"
+                title="Profile & Settings"
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
                 {user.picture ? (
                   <Image
                     src={user.picture}
@@ -70,7 +77,7 @@ export function Navbar() {
                 <span className="text-xs font-medium text-white/90 max-w-[120px] truncate">
                   {user.name || user.email.split("@")[0]}
                 </span>
-              </div>
+              </Link>
               <button
                 type="button"
                 onClick={() => logout()}
@@ -90,11 +97,12 @@ export function Navbar() {
         </nav>
 
         {/* Mobile menu button */}
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
+          <ThemeToggle />
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-white/90 hover:text-white focus:outline-none"
+            className="p-2 text-white/90 hover:text-white focus:outline-none cursor-pointer"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
@@ -127,7 +135,7 @@ export function Navbar() {
 
       {/* Mobile dropdown menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden mt-3 px-5 py-4 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 shadow-xl flex flex-col gap-3">
+        <div className="md:hidden mt-3 px-5 py-4 rounded-xl bg-black/85 backdrop-blur-md border border-white/10 shadow-xl flex flex-col gap-3">
           <Link
             href="/"
             onClick={() => setMobileMenuOpen(false)}
@@ -149,23 +157,32 @@ export function Navbar() {
           >
             About
           </Link>
-          <div className="pt-2 border-t border-white/10">
+          <div className="pt-2 border-t border-white/10 space-y-2">
             {user ? (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-white/80 truncate">
-                  Signed in as <b>{user.name || user.email}</b>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    logout();
-                  }}
-                  className="px-2.5 py-1 text-xs text-white bg-white/15 rounded-lg border border-white/20"
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/80 truncate">
+                    Signed in as <b>{user.name || user.email}</b>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      logout();
+                    }}
+                    className="px-2.5 py-1 text-xs text-white bg-white/15 rounded-lg border border-white/20 cursor-pointer"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+                <Link
+                  href="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-center py-2 px-3 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 rounded-lg border border-white/20 transition-all"
                 >
-                  Sign Out
-                </button>
-              </div>
+                  Profile &amp; Settings
+                </Link>
+              </>
             ) : (
               <Link
                 href="/login"

@@ -37,6 +37,12 @@ export function SignupForm() {
   } | null>(null);
 
   React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isLoggedOut = sessionStorage.getItem("campusway_logged_out") === "true";
+      if (isLoggedOut) {
+        return;
+      }
+    }
     if (!authLoading && user) {
       router.push("/");
     }
@@ -102,11 +108,11 @@ export function SignupForm() {
 
   return (
     <div className="space-y-4">
-      {/* System Status / Phase 1 Notice Banner */}
+      {/* System Status Banner */}
       {systemNotice && (
         <div
           role="alert"
-          className="p-3 rounded-lg text-xs bg-amber-50 border border-amber-200 text-amber-900 leading-relaxed"
+          className="p-3 rounded-lg text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 leading-relaxed"
         >
           {systemNotice.message}
         </div>
@@ -125,8 +131,8 @@ export function SignupForm() {
 
       {/* OR Divider */}
       <div className="relative flex items-center justify-center my-3.5">
-        <div className="border-t border-gray-200 w-full" />
-        <span className="bg-white px-3 text-[11px] font-medium text-gray-400 uppercase tracking-widest relative">
+        <div className="border-t border-gray-200 dark:border-zinc-700/80 w-full" />
+        <span className="bg-white dark:bg-[#111827] px-3 text-[11px] font-medium text-gray-400 dark:text-zinc-500 uppercase tracking-widest relative">
           OR
         </span>
       </div>
@@ -135,8 +141,8 @@ export function SignupForm() {
       <form onSubmit={handleSubmit} className="space-y-3" noValidate>
         {/* Full Name */}
         <div>
-          <div className="h-11 rounded-lg border border-gray-200 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-300 transition-all bg-white flex items-center px-3.5">
-            <UserIcon className="w-4 h-4 text-gray-400 shrink-0 mr-2.5" />
+          <div className="h-11 rounded-lg border border-gray-200 dark:border-zinc-700/80 focus-within:border-[#C84B31] dark:focus-within:border-[#DE4B31] focus-within:ring-1 focus-within:ring-[#C84B31]/30 transition-all bg-white dark:bg-[#0d131f] flex items-center px-3.5">
+            <UserIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500 shrink-0 mr-2.5" />
             <input
               id="signup-name"
               type="text"
@@ -147,13 +153,13 @@ export function SignupForm() {
                 if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: undefined }));
               }}
               placeholder="Full name"
-              className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+              className="w-full text-sm text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none bg-transparent"
               aria-invalid={!!errors.fullName}
               aria-describedby={errors.fullName ? "signup-name-error" : undefined}
             />
           </div>
           {errors.fullName && (
-            <p id="signup-name-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">
+            <p id="signup-name-error" role="alert" className="mt-1 text-xs text-rose-600 dark:text-rose-400 font-medium">
               {errors.fullName}
             </p>
           )}
@@ -161,8 +167,8 @@ export function SignupForm() {
 
         {/* Email */}
         <div>
-          <div className="h-11 rounded-lg border border-gray-200 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-300 transition-all bg-white flex items-center px-3.5">
-            <MailIcon className="w-4 h-4 text-gray-400 shrink-0 mr-2.5" />
+          <div className="h-11 rounded-lg border border-gray-200 dark:border-zinc-700/80 focus-within:border-[#C84B31] dark:focus-within:border-[#DE4B31] focus-within:ring-1 focus-within:ring-[#C84B31]/30 transition-all bg-white dark:bg-[#0d131f] flex items-center px-3.5">
+            <MailIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500 shrink-0 mr-2.5" />
             <input
               id="signup-email"
               type="email"
@@ -173,13 +179,13 @@ export function SignupForm() {
                 if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
               }}
               placeholder="Email address"
-              className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+              className="w-full text-sm text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none bg-transparent"
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? "signup-email-error" : undefined}
             />
           </div>
           {errors.email && (
-            <p id="signup-email-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">
+            <p id="signup-email-error" role="alert" className="mt-1 text-xs text-rose-600 dark:text-rose-400 font-medium">
               {errors.email}
             </p>
           )}
@@ -187,8 +193,8 @@ export function SignupForm() {
 
         {/* Password */}
         <div>
-          <div className="h-11 rounded-lg border border-gray-200 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-300 transition-all bg-white flex items-center px-3.5">
-            <LockIcon className="w-4 h-4 text-gray-400 shrink-0 mr-2.5" />
+          <div className="h-11 rounded-lg border border-gray-200 dark:border-zinc-700/80 focus-within:border-[#C84B31] dark:focus-within:border-[#DE4B31] focus-within:ring-1 focus-within:ring-[#C84B31]/30 transition-all bg-white dark:bg-[#0d131f] flex items-center px-3.5">
+            <LockIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500 shrink-0 mr-2.5" />
             <input
               id="signup-password"
               type={showPassword ? "text" : "password"}
@@ -199,21 +205,21 @@ export function SignupForm() {
                 if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
               }}
               placeholder="Password (min. 8 characters)"
-              className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+              className="w-full text-sm text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none bg-transparent"
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? "signup-password-error" : undefined}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus:outline-none ml-2"
+              className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors cursor-pointer focus:outline-none ml-2"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
             </button>
           </div>
           {errors.password && (
-            <p id="signup-password-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">
+            <p id="signup-password-error" role="alert" className="mt-1 text-xs text-rose-600 dark:text-rose-400 font-medium">
               {errors.password}
             </p>
           )}
@@ -221,8 +227,8 @@ export function SignupForm() {
 
         {/* Confirm Password */}
         <div>
-          <div className="h-11 rounded-lg border border-gray-200 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-300 transition-all bg-white flex items-center px-3.5">
-            <LockIcon className="w-4 h-4 text-gray-400 shrink-0 mr-2.5" />
+          <div className="h-11 rounded-lg border border-gray-200 dark:border-zinc-700/80 focus-within:border-[#C84B31] dark:focus-within:border-[#DE4B31] focus-within:ring-1 focus-within:ring-[#C84B31]/30 transition-all bg-white dark:bg-[#0d131f] flex items-center px-3.5">
+            <LockIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500 shrink-0 mr-2.5" />
             <input
               id="signup-confirm-password"
               type={showConfirmPassword ? "text" : "password"}
@@ -234,21 +240,21 @@ export function SignupForm() {
                   setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
               }}
               placeholder="Confirm password"
-              className="w-full text-sm text-gray-800 placeholder-gray-400 focus:outline-none bg-transparent"
+              className="w-full text-sm text-gray-800 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none bg-transparent"
               aria-invalid={!!errors.confirmPassword}
               aria-describedby={errors.confirmPassword ? "signup-confirm-error" : undefined}
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus:outline-none ml-2"
+              className="text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors cursor-pointer focus:outline-none ml-2"
               aria-label={showConfirmPassword ? "Hide password confirmation" : "Show password confirmation"}
             >
               {showConfirmPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
             </button>
           </div>
           {errors.confirmPassword && (
-            <p id="signup-confirm-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">
+            <p id="signup-confirm-error" role="alert" className="mt-1 text-xs text-rose-600 dark:text-rose-400 font-medium">
               {errors.confirmPassword}
             </p>
           )}

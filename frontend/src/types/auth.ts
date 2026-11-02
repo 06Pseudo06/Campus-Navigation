@@ -49,4 +49,24 @@ export interface UserProfile {
   email_verified: boolean;
   created_at: string;
   last_login_at: string;
+  auth_provider?: string;
+  has_password?: boolean;
+  role?: string;
+  session_id?: string | null;
+  session_expires_at?: string | null;
+}
+
+export interface ProfileUpdateData {
+  name: string;
+}
+
+export interface ChangePasswordData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface DeleteAccountData {
+  confirmText: string;
+  password?: string;
 }

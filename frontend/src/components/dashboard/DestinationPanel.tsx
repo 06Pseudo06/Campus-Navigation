@@ -84,21 +84,21 @@ export function DestinationPanel({
   };
 
   return (
-    <aside className="w-full lg:w-96 shrink-0 h-full bg-[#0d131f] border-l border-zinc-800 flex flex-col justify-between overflow-y-auto z-10">
+    <aside className="w-full lg:w-96 shrink-0 h-full bg-white dark:bg-[#0d131f] border-l border-slate-200 dark:border-zinc-800 flex flex-col justify-between overflow-y-auto z-10 transition-colors">
       <div className="p-4 sm:p-5 space-y-5">
         {/* Header */}
         <div>
-          <h2 className="text-lg font-bold text-white tracking-tight">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
             Where do you want to go?
           </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
             Search buildings, rooms, or select campus points
           </p>
         </div>
 
         {/* Search input in destination panel */}
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-400">
             <SearchIcon className="w-4 h-4" />
           </div>
           <input
@@ -106,12 +106,12 @@ export function DestinationPanel({
             value={panelSearch}
             onChange={(e) => setPanelSearch(e.target.value)}
             placeholder="Search destination..."
-            className="w-full h-10 pl-9 pr-8 rounded-xl bg-zinc-900 border border-zinc-700/80 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31] transition-all"
+            className="w-full h-10 pl-9 pr-8 rounded-xl bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/80 text-xs sm:text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31] transition-all"
           />
           {panelSearch && (
             <button
               onClick={() => setPanelSearch("")}
-              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-white"
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
               aria-label="Clear search"
             >
               <CloseIcon className="w-4 h-4" />
@@ -128,8 +128,8 @@ export function DestinationPanel({
               onClick={() => setSelectedCategory(cat.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
                 selectedCategory === cat.id
-                  ? "bg-[#DE4B31] text-white shadow-sm"
-                  : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                  ? "bg-[#DE4B31] text-white shadow-xs"
+                  : "bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-800"
               }`}
             >
               {cat.label}
@@ -139,21 +139,21 @@ export function DestinationPanel({
 
         {/* Selected Destination Card */}
         {selectedLocation && (
-          <div className="rounded-2xl bg-gradient-to-b from-zinc-800/90 to-zinc-900/90 border border-zinc-700 p-4 shadow-xl space-y-3 relative overflow-hidden">
+          <div className="rounded-2xl bg-gradient-to-b from-white to-slate-50 dark:from-zinc-800/90 dark:to-zinc-900/90 border border-slate-200 dark:border-zinc-700 p-4 shadow-md dark:shadow-xl space-y-3 relative overflow-hidden transition-colors">
             {/* Ambient accent glow */}
             <div className="absolute top-0 right-0 w-28 h-28 bg-[#DE4B31]/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-[#fca5a5] uppercase">
+                  <span className="px-2 py-0.5 rounded-xs text-[10px] font-bold bg-[#DE4B31]/15 dark:bg-[#DE4B31]/20 border border-[#DE4B31]/30 dark:border-[#DE4B31]/40 text-[#DE4B31] dark:text-[#fca5a5] uppercase">
                     {selectedLocation.code}
                   </span>
-                  <span className="text-[11px] text-zinc-400 capitalize">
+                  <span className="text-[11px] text-slate-500 dark:text-zinc-400 capitalize">
                     {selectedLocation.category}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white mt-1 leading-snug">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1 leading-snug">
                   {selectedLocation.name}
                 </h3>
               </div>
@@ -164,8 +164,8 @@ export function DestinationPanel({
                 onClick={handleSaveClick}
                 className={`p-2 rounded-xl border transition-colors cursor-pointer ${
                   isSaved
-                    ? "bg-[#DE4B31]/20 border-[#DE4B31] text-[#DE4B31]"
-                    : "bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-white"
+                    ? "bg-[#DE4B31]/15 border-[#DE4B31] text-[#DE4B31]"
+                    : "bg-slate-100 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title={isSaved ? "Saved" : "Save location"}
                 aria-label={isSaved ? "Saved location" : "Save location"}
@@ -174,27 +174,27 @@ export function DestinationPanel({
               </button>
             </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed font-light">
+            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed font-normal">
               {selectedLocation.description}
             </p>
 
             {/* Meta tags: Floors, Hours, Accessibility */}
-            <div className="space-y-1.5 pt-1 text-[11px] text-zinc-400">
+            <div className="space-y-1.5 pt-1 text-[11px] text-slate-500 dark:text-zinc-400">
               {selectedLocation.floors && (
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-500 font-medium">Floors:</span>
-                  <span className="text-zinc-200">{selectedLocation.floors}</span>
+                  <span className="text-slate-400 dark:text-zinc-500 font-medium">Floors:</span>
+                  <span className="text-slate-700 dark:text-zinc-200">{selectedLocation.floors}</span>
                 </div>
               )}
               {selectedLocation.operatingHours && (
                 <div className="flex items-center gap-2">
-                  <ClockIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                  <span className="text-zinc-300">{selectedLocation.operatingHours}</span>
+                  <ClockIcon className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400 shrink-0" />
+                  <span className="text-slate-700 dark:text-zinc-300">{selectedLocation.operatingHours}</span>
                 </div>
               )}
               <div className="flex items-start gap-2 pt-0.5">
-                <AccessibilityIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                <span className="text-zinc-300 text-[10px] leading-tight">
+                <AccessibilityIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                <span className="text-slate-700 dark:text-zinc-300 text-[10px] leading-tight">
                   {selectedLocation.accessibility}
                 </span>
               </div>
@@ -202,12 +202,12 @@ export function DestinationPanel({
 
             {/* Route summary metric if generated */}
             {activeRoute && (
-              <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-700/60 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2 text-zinc-300">
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-700/60 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-700 dark:text-zinc-300">
                   <WalkingIcon className="w-4 h-4 text-[#DE4B31]" />
                   <span>Main Gate → {selectedLocation.code}</span>
                 </div>
-                <div className="font-semibold text-white">
+                <div className="font-semibold text-slate-900 dark:text-white">
                   ~{activeRoute.estimatedWalkingMinutes} min ({activeRoute.distanceMeters}m)
                 </div>
               </div>
@@ -217,10 +217,10 @@ export function DestinationPanel({
             <button
               type="button"
               onClick={onToggleRoute}
-              className={`w-full py-2.5 px-4 rounded-xl font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg ${
+              className={`w-full py-2.5 px-4 rounded-xl font-semibold text-xs tracking-wide flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
                 showRoute
-                  ? "bg-zinc-700 hover:bg-zinc-600 text-white border border-zinc-600"
-                  : "bg-[#DE4B31] hover:bg-[#c93f27] text-white shadow-[#DE4B31]/30"
+                  ? "bg-slate-200 hover:bg-slate-300 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-slate-800 dark:text-white border border-slate-300 dark:border-zinc-600"
+                  : "bg-[#DE4B31] hover:bg-[#c93f27] text-white shadow-[#DE4B31]/25"
               }`}
             >
               <RouteIcon className="w-4 h-4" />
@@ -228,7 +228,7 @@ export function DestinationPanel({
             </button>
 
             {saveNotice && (
-              <div className="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 rounded-lg p-2 text-center flex items-center justify-center gap-1.5 animate-in fade-in">
+              <div className="text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-lg p-2 text-center flex items-center justify-center gap-1.5 animate-in fade-in">
                 <CheckCircleIcon className="w-3.5 h-3.5" />
                 <span>{saveNotice}</span>
               </div>
@@ -239,10 +239,10 @@ export function DestinationPanel({
         {/* Filtered or Recent Destinations List */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
               {panelSearch ? "Matching Locations" : "Campus Destinations"}
             </h4>
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500">
               {filteredLocations.length} locations
             </span>
           </div>
@@ -257,8 +257,8 @@ export function DestinationPanel({
                   onClick={() => onSelectLocation(loc)}
                   className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
                     isSelected
-                      ? "bg-zinc-800 border-[#DE4B31]/80 text-white"
-                      : "bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/70 hover:border-zinc-700 text-zinc-300"
+                      ? "bg-slate-100 dark:bg-zinc-800 border-[#DE4B31]/80 text-slate-900 dark:text-white font-medium"
+                      : "bg-slate-50 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800/80 hover:bg-slate-100 dark:hover:bg-zinc-800/70 hover:border-slate-300 dark:hover:border-zinc-700 text-slate-700 dark:text-zinc-300"
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -266,22 +266,22 @@ export function DestinationPanel({
                       className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                         isSelected
                           ? "bg-[#DE4B31] text-white"
-                          : "bg-zinc-800 text-zinc-400 group-hover:text-zinc-200"
+                          : "bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-200"
                       }`}
                     >
                       <MapPinIcon className="w-3.5 h-3.5" />
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-zinc-100 truncate">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
                         {loc.name}
                       </p>
-                      <p className="text-[10px] text-zinc-400 truncate">
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
                         {loc.code} &bull; {loc.category}
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-xs text-zinc-500 group-hover:text-zinc-300 shrink-0 ml-2">
+                  <span className="text-xs text-slate-400 group-hover:text-slate-600 dark:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0 ml-2">
                     →
                   </span>
                 </button>
@@ -289,7 +289,7 @@ export function DestinationPanel({
             })}
 
             {filteredLocations.length === 0 && (
-              <div className="p-6 text-center text-zinc-500 text-xs rounded-xl bg-zinc-900/40 border border-zinc-800">
+              <div className="p-6 text-center text-slate-500 dark:text-zinc-500 text-xs rounded-xl bg-slate-50 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800">
                 No matching locations found for &quot;{panelSearch}&quot;.
               </div>
             )}
@@ -298,7 +298,7 @@ export function DestinationPanel({
       </div>
 
       {/* Demonstration Boundary Notice at footer */}
-      <div className="p-3 bg-zinc-900/80 border-t border-zinc-800 text-[10px] text-zinc-500 text-center">
+      <div className="p-3 bg-slate-50 dark:bg-zinc-900/80 border-t border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 dark:text-zinc-500 text-center">
         <span>Demonstration prototype &bull; Sample routes and distances</span>
       </div>
     </aside>

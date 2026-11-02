@@ -3,21 +3,22 @@ import {
   SignupFormData,
   ApiResponse,
   UserProfile,
+  ProfileUpdateData,
+  ChangePasswordData,
+  DeleteAccountData,
 } from "@/types/auth";
 
 /**
  * CampusWay Authentication Service
  * 
- * Prepares the frontend for future FastAPI backend integration.
- * In Phase 1, network calls attempt to contact the FastAPI backend URL configured
- * via NEXT_PUBLIC_API_BASE_URL. If the backend is offline or unconfigured,
- * an informative response is returned without fabricating tokens, fake users, or mock sessions.
+ * Handles authentication, user profile management, security settings,
+ * and account deletion against the FastAPI backend.
  */
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 10000;
 
 async function fetchWithTimeout(
   url: string,
@@ -80,7 +81,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not running or unreachable at ${API_BASE_URL}. In Phase 1, form validation is complete, but live authentication requires starting the Phase 2 backend.`,
+        message: `FastAPI backend is not running or unreachable at ${API_BASE_URL}.`,
         isBackendConnected: false,
       };
     }
@@ -127,7 +128,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not connected at ${API_BASE_URL}. Frontend registration inputs are validated, but real user creation will be executed once the FastAPI + PostgreSQL backend is deployed in Phase 2.`,
+        message: `FastAPI backend is not connected at ${API_BASE_URL}.`,
         isBackendConnected: false,
       };
     }
@@ -171,7 +172,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `SMS gateway is not configured yet. Live OTP delivery will be connected to the SMS service provider via FastAPI in Phase 2.`,
+        message: `SMS gateway is not configured yet.`,
         isBackendConnected: false,
       };
     }
@@ -222,7 +223,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `SMS authentication service is not connected to a live backend. Real verification requires the Phase 2 FastAPI backend and SMS gateway.`,
+        message: `SMS authentication service is not connected to a live backend.`,
         isBackendConnected: false,
       };
     }
@@ -250,7 +251,6 @@ export const authService = {
 
   /**
    * Get FastAPI Google OAuth authorization initiation URL.
-   * Directs browser to FastAPI endpoint which validates state and forwards to Google.
    */
   getGoogleLoginUrl(): string {
     return `${API_BASE_URL}/api/v1/auth/google/login`;
@@ -279,6 +279,132 @@ export const authService = {
       return user;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Update authenticated user profile name.
+   */
+  async updateProfile(data: ProfileUpdateData): Promise<ApiResponse<UserProfile>> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/profile`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ full_name: data.name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          success: false,
+          message: errorData?.detail || `Profile update failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      const user: UserProfile = await response.json();
+      return {
+        success: true,
+        message: "Profile updated successfully.",
+        data: user,
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
+   * Change password for email-authenticated user.
+   */
+  async changePassword(data: ChangePasswordData): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/change-password`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          current_password: data.currentPassword,
+          new_password: data.newPassword,
+          confirm_password: data.confirmPassword || data.newPassword,
+        }),
+      });
+
+      const resData = await response.json().catch(() => null);
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData?.detail || `Password change failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      return {
+        success: true,
+        message: resData?.message || "Password changed successfully.",
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
+   * Permanently delete user account.
+   */
+  async deleteAccount(data: DeleteAccountData): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/account`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          confirm_text: data.confirmText,
+          current_password: data.password || null,
+        }),
+      });
+
+      const resData = await response.json().catch(() => null);
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData?.detail || `Account deletion failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      return {
+        success: true,
+        message: resData?.message || "Your account has been permanently deleted.",
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
     }
   },
 

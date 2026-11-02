@@ -56,7 +56,7 @@ export function Sidebar({
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full justify-between p-4 bg-[#0d131f] text-zinc-100 border-r border-zinc-800/80 select-none">
+    <div className="flex flex-col h-full justify-between p-4 bg-white dark:bg-[#0d131f] text-slate-900 dark:text-zinc-100 border-r border-slate-200 dark:border-zinc-800/80 select-none transition-colors">
       {/* Top Branding */}
       <div>
         <div className="flex items-center justify-between px-2 pt-2 pb-6">
@@ -69,10 +69,10 @@ export function Sidebar({
               <CampusWayLogo className="w-5 h-5 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight text-white leading-tight">
+              <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-tight">
                 CampusWay
               </span>
-              <span className="text-[10px] tracking-wider uppercase text-zinc-400 font-medium">
+              <span className="text-[10px] tracking-wider uppercase text-slate-500 dark:text-zinc-400 font-medium">
                 Wayfinding System
               </span>
             </div>
@@ -82,7 +82,7 @@ export function Sidebar({
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="md:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="md:hidden p-1.5 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               aria-label="Close navigation"
             >
               <CloseIcon className="w-5 h-5" />
@@ -106,14 +106,14 @@ export function Sidebar({
                 className={`w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-medium transition-all group cursor-pointer ${
                   isActive
                     ? "bg-[#DE4B31] text-white shadow-md shadow-[#DE4B31]/25 font-semibold"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/60"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
                 <div className="flex items-center gap-3">
                   <Icon
                     className={`w-5 h-5 transition-transform ${
-                      isActive ? "text-white scale-110" : "text-zinc-400 group-hover:text-zinc-200"
+                      isActive ? "text-white scale-110" : "text-slate-500 group-hover:text-slate-800 dark:text-zinc-400 dark:group-hover:text-zinc-200"
                     }`}
                   />
                   <span>{item.label}</span>
@@ -124,7 +124,7 @@ export function Sidebar({
                     className={`text-[11px] px-2 py-0.5 rounded-full font-bold ${
                       isActive
                         ? "bg-white text-[#DE4B31]"
-                        : "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                        : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700"
                     }`}
                   >
                     {item.badge}
@@ -137,25 +137,25 @@ export function Sidebar({
       </div>
 
       {/* Slogan Branding Card at bottom */}
-      <div className="pt-4 border-t border-zinc-800/80">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-zinc-800/70 to-zinc-900/90 p-4 border border-zinc-700/60 shadow-inner">
+      <div className="pt-4 border-t border-slate-200 dark:border-zinc-800/80">
+        <div className="relative overflow-hidden rounded-2xl bg-slate-100/90 dark:bg-gradient-to-b dark:from-zinc-800/70 dark:to-zinc-900/90 p-4 border border-slate-200 dark:border-zinc-700/60 shadow-xs">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#DE4B31]/15 rounded-full blur-xl pointer-events-none" />
           
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2 h-2 rounded-full bg-[#DE4B31] animate-pulse" />
-            <span className="text-[10px] font-semibold tracking-wider uppercase text-zinc-400">
+            <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-500 dark:text-zinc-400">
               Campus Experience
             </span>
           </div>
 
-          <h4 className="text-xs font-bold text-white tracking-wide leading-snug">
+          <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wide leading-snug">
             Navigate. Explore. Belong.
           </h4>
-          <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-            Smart wayfinding across lecture halls, departments & campus landmarks.
+          <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-1 leading-relaxed">
+            Smart wayfinding across lecture halls, departments &amp; campus landmarks.
           </p>
 
-          <div className="mt-3 flex items-center justify-between text-[10px] text-zinc-500 pt-2 border-t border-zinc-700/40">
+          <div className="mt-3 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-500 pt-2 border-t border-slate-200 dark:border-zinc-700/40">
             <span>v1.0 &bull; Prototype</span>
             <span className="text-[#DE4B31] font-medium">Phase 3</span>
           </div>

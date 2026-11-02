@@ -42,17 +42,11 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
     original_host = url.host or ""
     is_neon = "neon.tech" in original_host
 
+    # Set a fast failover connection timeout (1.5 seconds) so blocked ports fail fast without freezing requests
+    connect_args["timeout"] = 1.5
+
     if is_neon:
         endpoint_id = original_host.split(".")[0]
-        # Resolve IPv4 to avoid Windows IPv6 blackhole connection delays
-        try:
-            addr_info = socket.getaddrinfo(original_host, url.port or 5432, socket.AF_INET)
-            if addr_info:
-                ipv4 = addr_info[0][4][0]
-                url = url.set(host=ipv4)
-        except Exception:
-            pass  # Fall back to original host if resolution fails
-
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_REQUIRED

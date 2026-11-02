@@ -42,32 +42,32 @@ export function HelpTab() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-xs font-semibold text-[#fca5a5] mb-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/15 dark:bg-[#DE4B31]/20 border border-[#DE4B31]/30 dark:border-[#DE4B31]/40 text-xs font-semibold text-[#DE4B31] dark:text-[#fca5a5] mb-2">
           <HelpCircleIcon className="w-3.5 h-3.5" />
-          <span>Visitor & Campus Assistance</span>
+          <span>Visitor &amp; Campus Assistance</span>
         </div>
-        <h2 className="text-2xl font-bold text-white tracking-tight">
-          Help & Navigation Support
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+          Help &amp; Navigation Support
         </h2>
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1">
           Assistance for first-time campus visitors, students, and accessibility requests.
         </p>
       </div>
 
       {/* Emergency Contacts */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
-          Essential Contacts & Emergency
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-300">
+          Essential Contacts &amp; Emergency
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {emergencyContacts.map((contact, idx) => (
             <div
               key={idx}
-              className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between"
+              className="p-3.5 rounded-xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 flex items-center justify-between shadow-xs"
             >
               <div>
-                <p className="text-xs font-bold text-white">{contact.label}</p>
-                <p className="text-[11px] text-zinc-400">{contact.location}</p>
+                <p className="text-xs font-bold text-slate-900 dark:text-white">{contact.label}</p>
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400">{contact.location}</p>
               </div>
               <span className="text-xs font-mono font-semibold text-[#DE4B31] bg-[#DE4B31]/10 px-2.5 py-1 rounded-lg border border-[#DE4B31]/20">
                 {contact.number}
@@ -79,31 +79,31 @@ export function HelpTab() {
 
       {/* Frequently Asked Questions */}
       <div className="space-y-3">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-300">
           Frequently Asked Questions
         </h3>
         <div className="space-y-2.5">
           {faqs.map((faq, idx) => (
-            <div key={idx} className="p-4 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-1">
-              <h4 className="text-xs font-bold text-zinc-100">{faq.q}</h4>
-              <p className="text-xs text-zinc-400 leading-relaxed font-light">{faq.a}</p>
+            <div key={idx} className="p-4 rounded-xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-1 shadow-xs">
+              <h4 className="text-xs font-bold text-slate-900 dark:text-zinc-100">{faq.q}</h4>
+              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed font-normal">{faq.a}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Visitor Assistance Request Form */}
-      <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-3">
-        <h3 className="text-sm font-bold text-white">
+      <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-3 shadow-xs">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
           Need Guided Wayfinding Assistance?
         </h3>
-        <p className="text-xs text-zinc-400 leading-relaxed">
+        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
           Submit a navigation question to the campus information desk.
         </p>
 
         {ticketSent ? (
-          <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-700 text-xs text-emerald-300 flex items-center gap-2">
-            <CheckCircleIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-700 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+            <CheckCircleIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span>Demonstration inquiry received! A campus guide notification would trigger here in Phase 4.</span>
           </div>
         ) : (
@@ -113,12 +113,12 @@ export function HelpTab() {
               onChange={(e) => setTicketMessage(e.target.value)}
               placeholder="e.g. Where is the Dean of Engineering's office located in Block 34?"
               rows={3}
-              className="w-full p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31]"
+              className="w-full p-3 text-xs bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-800 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31]"
               required
             />
             <button
               type="submit"
-              className="py-2.5 px-4 rounded-xl bg-[#DE4B31] hover:bg-[#c93f27] text-xs font-semibold text-white transition-colors cursor-pointer"
+              className="py-2.5 px-4 rounded-xl bg-[#DE4B31] hover:bg-[#c93f27] text-xs font-semibold text-white transition-colors cursor-pointer shadow-xs"
             >
               Send Request (Demo)
             </button>
@@ -126,7 +126,7 @@ export function HelpTab() {
         )}
       </div>
 
-      <div className="p-3.5 rounded-xl bg-zinc-900/40 border border-zinc-800 text-[11px] text-zinc-500">
+      <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-zinc-900/40 border border-slate-200 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-500">
         Help desk interactions are simulated for Phase 3. Live ticketing will be connected to the FastAPI notification service in future releases.
       </div>
     </div>

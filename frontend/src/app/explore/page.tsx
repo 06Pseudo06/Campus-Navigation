@@ -173,14 +173,14 @@ export default function ExploreDashboardPage() {
   // If not authenticated, the useEffect is redirecting to /login
   if (!user) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#0a0f1d] text-zinc-400 text-xs">
+      <div className="h-screen w-screen flex items-center justify-center bg-[#F5F7FB] dark:bg-[#0a0f1d] text-slate-500 dark:text-zinc-400 text-xs">
         Redirecting to sign-in...
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#0a0f1d] text-zinc-100 font-sans">
+    <div className="h-screen w-screen flex overflow-hidden bg-[#F5F7FB] dark:bg-[#0a0f1d] text-[#172033] dark:text-zinc-100 font-sans transition-colors">
       {/* 1. Left Sidebar */}
       <Sidebar
         currentTab={currentTab}

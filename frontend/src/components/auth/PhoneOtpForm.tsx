@@ -90,13 +90,11 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
         phoneNumber.trim()
       );
 
-      // Display real backend status or Phase 1 unconfigured notice
       setSystemNotice({
         type: response.isBackendConnected ? "info" : "warning",
         message: response.message,
       });
 
-      // Advance to OTP input view to demonstrate interface interactions
       setStep("otp");
       setCountdown(30);
     } catch {
@@ -159,16 +157,16 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
 
   return (
     <div className="space-y-4">
-      {/* System Status / Phase 1 Notice Banner */}
+      {/* System Status Banner */}
       {systemNotice && (
         <div
           role="alert"
           className={`p-3.5 rounded-xl text-xs sm:text-sm flex items-start gap-2.5 transition-all ${
             systemNotice.type === "warning"
-              ? "bg-amber-50 border border-amber-200 text-amber-900"
+              ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300"
               : systemNotice.type === "error"
-              ? "bg-rose-50 border border-rose-200 text-rose-900"
-              : "bg-blue-50 border border-blue-200 text-blue-900"
+              ? "bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-300"
+              : "bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-300"
           }`}
         >
           <InfoIcon className="w-5 h-5 shrink-0 mt-0.5 text-current opacity-80" />
@@ -184,26 +182,26 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
           <div>
             <label
               htmlFor="mobile-number"
-              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5"
+              className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-zinc-300 mb-1.5"
             >
               Mobile Number
             </label>
-            <div className="flex rounded-xl border border-gray-300 focus-within:ring-2 focus-within:ring-[#DE4B31]/40 focus-within:border-[#DE4B31] transition-all bg-white overflow-hidden shadow-xs">
+            <div className="flex rounded-xl border border-gray-300 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-[#DE4B31]/40 focus-within:border-[#DE4B31] transition-all bg-white dark:bg-[#0d131f] overflow-hidden shadow-xs">
               {/* Country Code Select */}
-              <div className="relative border-r border-gray-200 bg-gray-50 flex items-center">
+              <div className="relative border-r border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800/60 flex items-center">
                 <select
                   value={selectedCountry}
                   onChange={(e) => setSelectedCountry(e.target.value)}
-                  className="appearance-none bg-transparent pl-3 pr-7 py-2.5 text-xs sm:text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
+                  className="appearance-none bg-transparent pl-3 pr-7 py-2.5 text-xs sm:text-sm font-medium text-gray-700 dark:text-zinc-200 focus:outline-none cursor-pointer"
                   aria-label="Country calling code"
                 >
                   {COUNTRIES.map((c) => (
-                    <option key={`${c.code}-${c.dialCode}`} value={c.dialCode}>
+                    <option key={`${c.code}-${c.dialCode}`} value={c.dialCode} className="dark:bg-zinc-900 dark:text-zinc-100">
                       {c.flag} {c.dialCode} ({c.name})
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute right-2 text-gray-400">
+                <div className="pointer-events-none absolute right-2 text-gray-400 dark:text-zinc-500">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
@@ -221,22 +219,22 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
                     if (errors.phoneNumber) setErrors((prev) => ({ ...prev, phoneNumber: undefined }));
                   }}
                   placeholder="9876543210"
-                  className="w-full px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+                  className="w-full px-3.5 py-2.5 text-sm text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none bg-transparent"
                   aria-invalid={!!errors.phoneNumber}
                   aria-describedby={errors.phoneNumber ? "phone-error" : undefined}
                 />
-                <PhoneIcon className="w-4 h-4 text-gray-400 mr-3 pointer-events-none" />
+                <PhoneIcon className="w-4 h-4 text-gray-400 dark:text-zinc-500 mr-3 pointer-events-none" />
               </div>
             </div>
 
             {errors.phoneNumber && (
-              <p id="phone-error" role="alert" className="mt-1.5 text-xs text-rose-600 font-medium">
+              <p id="phone-error" role="alert" className="mt-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
                 {errors.phoneNumber}
               </p>
             )}
           </div>
 
-          <p className="text-xs text-gray-500 leading-normal">
+          <p className="text-xs text-gray-500 dark:text-zinc-400 leading-normal">
             We will send a one-time verification code to verify your mobile number.
           </p>
 
@@ -256,7 +254,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
             <div className="flex items-center justify-between mb-1.5">
               <label
                 htmlFor="otp-code"
-                className="block text-xs font-semibold uppercase tracking-wider text-gray-700"
+                className="block text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
               >
                 Enter 6-Digit OTP
               </label>
@@ -269,7 +267,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
               </button>
             </div>
 
-            <div className="relative rounded-xl border border-gray-300 focus-within:ring-2 focus-within:ring-[#DE4B31]/40 focus-within:border-[#DE4B31] transition-all bg-white shadow-xs">
+            <div className="relative rounded-xl border border-gray-300 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-[#DE4B31]/40 focus-within:border-[#DE4B31] transition-all bg-white dark:bg-[#0d131f] shadow-xs">
               <input
                 id="otp-code"
                 type="text"
@@ -281,7 +279,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
                   if (errors.otp) setErrors((prev) => ({ ...prev, otp: undefined }));
                 }}
                 placeholder="• • • • • •"
-                className="w-full px-3.5 py-2.5 text-center tracking-[0.5em] text-lg font-mono text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
+                className="w-full px-3.5 py-2.5 text-center tracking-[0.5em] text-lg font-mono text-gray-900 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none bg-transparent"
                 aria-invalid={!!errors.otp}
                 aria-describedby={errors.otp ? "otp-error" : undefined}
                 autoFocus
@@ -289,13 +287,13 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
             </div>
 
             {errors.otp && (
-              <p id="otp-error" role="alert" className="mt-1.5 text-xs text-rose-600 font-medium text-center">
+              <p id="otp-error" role="alert" className="mt-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium text-center">
                 {errors.otp}
               </p>
             )}
 
             {/* Resend Countdown */}
-            <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+            <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
               <span>Didn&apos;t receive code?</span>
               {canResend ? (
                 <button
@@ -307,7 +305,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
                   Resend OTP
                 </button>
               ) : (
-                <span className="text-gray-400 font-mono">
+                <span className="text-gray-400 dark:text-zinc-500 font-mono">
                   Resend in {countdown}s
                 </span>
               )}
@@ -330,7 +328,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
         <button
           type="button"
           onClick={onBackToEmail}
-          className="w-full py-2 px-3 text-xs text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-xl bg-gray-50/70 hover:bg-gray-100/70 font-medium transition-colors cursor-pointer"
+          className="w-full py-2 px-3 text-xs text-gray-600 dark:text-zinc-300 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600 rounded-xl bg-gray-50/70 dark:bg-zinc-800/50 hover:bg-gray-100/70 dark:hover:bg-zinc-800 font-medium transition-colors cursor-pointer"
         >
           ← Use Email & Password instead
         </button>

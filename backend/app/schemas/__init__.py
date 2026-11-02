@@ -1,10 +1,15 @@
 """Pydantic request and response schemas package."""
 
 from app.schemas.user import (
+    ActionMessageResponse,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
+    ProfileUpdateRequest,
     UserBase,
     UserCreate,
     UserIdentityRead,
     UserRead,
+    UserResponse,
     UserRole,
     UserUpdate,
 )
@@ -42,10 +47,15 @@ from app.schemas.report import (
 )
 
 __all__ = [
+    "ActionMessageResponse",
+    "ChangePasswordRequest",
+    "DeleteAccountRequest",
+    "ProfileUpdateRequest",
     "UserBase",
     "UserCreate",
     "UserUpdate",
     "UserRead",
+    "UserResponse",
     "UserIdentityRead",
     "UserRole",
     "LocationBase",
