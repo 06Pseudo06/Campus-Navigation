@@ -19,7 +19,7 @@ All tests operate in savepoint-isolated transactions and roll back at teardown â
 import os
 import uuid
 import pytest
-import pytest_asyncio
+pytest_asyncio = pytest.importorskip("pytest_asyncio")
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine

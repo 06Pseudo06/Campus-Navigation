@@ -15,11 +15,11 @@ def test_migration_revision_chain():
     heads = script.get_heads()
     assert len(heads) == 1
     head_rev = heads[0]
-    assert head_rev == "004_report_resolution_notes"
+    assert head_rev == "005_add_user_credentials_and_sessions"
 
     revision = script.get_revision(head_rev)
     assert revision is not None
-    assert revision.down_revision == "003_assistance_requests"
+    assert revision.down_revision == "004_report_resolution_notes"
 
 
 def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
@@ -30,7 +30,6 @@ def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
     config = Config("alembic.ini")
     config.set_main_option("sqlalchemy.url", test_db_url)
 
-    # Set environment variable so env.py connects to disposable test DB
     old_env = os.environ.get("ALEMBIC_DATABASE_URL")
     os.environ["ALEMBIC_DATABASE_URL"] = test_db_url
 
@@ -55,6 +54,8 @@ def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
             "map_import_batches",
             "staged_locations",
             "assistance_requests",
+            "user_credentials",
+            "user_sessions",
         }
         assert expected_tables.issubset(tables)
 

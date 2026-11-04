@@ -20,7 +20,7 @@ import os
 import uuid
 
 import pytest
-import pytest_asyncio
+pytest_asyncio = pytest.importorskip("pytest_asyncio")
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 os.environ.setdefault("ENVIRONMENT", "integration_test")

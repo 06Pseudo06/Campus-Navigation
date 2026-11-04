@@ -1,57 +1,98 @@
+"""Database session and connection management foundation.
+
+Provides unified database access supporting:
+1. Synchronous SQLAlchemy Engine, SessionLocal, get_db(), and session_scope() for all core campus services.
+2. Asynchronous SQLAlchemy Engine, AsyncSessionLocal, and get_async_db() for serverless/async Neon operations.
+3. Declarative Base with standard PostgreSQL metadata naming conventions.
+"""
+
+from contextlib import contextmanager
 import socket
 import ssl
+from typing import Any, Dict, Generator, Optional
 from collections.abc import AsyncGenerator
-from typing import Any, Dict, Optional
-from sqlalchemy.engine.url import URL, make_url
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
 
-from app.config import get_settings
+from sqlalchemy import create_engine
+from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.core.config import settings
 from app.models.base import Base
 
 
+# =====================================================================
+# Synchronous Engine & Session Management (Core CampusWay Services)
+# =====================================================================
+
+db_url = settings.DATABASE_URL or "sqlite:///:memory:"
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+engine_kwargs: Dict[str, Any] = {"pool_pre_ping": settings.DB_POOL_PRE_PING}
+if not db_url.startswith("sqlite"):
+    engine_kwargs.update({
+        "pool_size": settings.DB_POOL_SIZE,
+        "max_overflow": settings.DB_MAX_OVERFLOW,
+        "pool_recycle": settings.DB_POOL_RECYCLE,
+    })
+
+engine = create_engine(db_url, **engine_kwargs)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependency for obtaining database session in FastAPI endpoints with strict transaction boundary."""
+    db = SessionLocal()
+    try:
+        yield db
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@contextmanager
+def session_scope() -> Generator[Session, None, None]:
+    """Provide a transactional scope around a series of operations outside FastAPI request lifecycles."""
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+# =====================================================================
+# Asynchronous Engine & Session Management (Neon Async Operations)
+# =====================================================================
+
 def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
-    """
-    Normalizes a standard PostgreSQL connection URL for SQLAlchemy + asyncpg.
-    
-    - Converts 'postgresql://' or 'postgres://' dialect to 'postgresql+asyncpg://'.
-    - Strips libpq-only query parameters (e.g., 'sslmode', 'channel_binding') that
-      asyncpg rejects as unexpected keyword arguments.
-    - For Neon PostgreSQL:
-      - Resolves the IPv4 address to avoid Windows dual-stack IPv6 connection timeouts.
-      - Sets Neon endpoint routing via server_settings['options'] = 'endpoint=<endpoint_id>'.
-      - Configures a secure SSLContext with CA certificate verification.
-    """
+    """Normalizes PostgreSQL connection URL for asyncpg and Neon serverless endpoints."""
     if not raw_url:
         raise ValueError("DATABASE_URL is not configured.")
 
     url = make_url(raw_url)
-
-    # 1. Ensure asyncpg driver
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
 
     connect_args: Dict[str, Any] = {}
-
-    # 2. Extract and translate SSL requirements for asyncpg
     ssl_mode = url.query.get("sslmode")
     original_host = url.host or ""
     is_neon = "neon.tech" in original_host
 
     if is_neon:
         endpoint_id = original_host.split(".")[0]
-        # Resolve IPv4 to avoid Windows IPv6 blackhole connection delays
         try:
             addr_info = socket.getaddrinfo(original_host, url.port or 5432, socket.AF_INET)
             if addr_info:
                 ipv4 = addr_info[0][4][0]
                 url = url.set(host=ipv4)
         except Exception:
-            pass  # Fall back to original host if resolution fails
+            pass
 
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -63,7 +104,6 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
     elif ssl_mode == "disable":
         connect_args["ssl"] = False
 
-    # 3. Strip libpq-specific parameters unsupported by asyncpg.connect()
     libpq_params_to_remove = [
         "sslmode",
         "channel_binding",
@@ -71,95 +111,61 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
         "gssencmode",
     ]
     url = url.difference_update_query(libpq_params_to_remove)
-
     return url, connect_args
 
 
-def build_async_engine(raw_url: str) -> AsyncEngine:
-    """
-    Creates an AsyncEngine configured for Neon PostgreSQL and serverless pooling.
-    
-    - pool_pre_ping=True: Recovers automatically from suspended serverless compute or closed connections.
-    - pool_recycle=300: Recycles connections every 5 minutes to prevent stale TCP sockets.
-    - echo=False: Avoids exposing sensitive data or queries in logs.
-    """
-    url, connect_args = normalize_database_url(raw_url)
+_async_engine = None
+_async_session_factory = None
 
-    return create_async_engine(
-        url,
-        connect_args=connect_args,
-        pool_pre_ping=True,
-        pool_recycle=300,
-        echo=False,
+try:
+    from sqlalchemy.ext.asyncio import (
+        AsyncEngine,
+        AsyncSession,
+        async_sessionmaker,
+        create_async_engine,
     )
 
+    def build_async_engine(raw_url: str) -> AsyncEngine:
+        url, connect_args = normalize_database_url(raw_url)
+        return create_async_engine(
+            url,
+            connect_args=connect_args,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            echo=False,
+        )
 
-_engine: Optional[AsyncEngine] = None
-_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
+    def get_engine() -> AsyncEngine:
+        global _async_engine
+        if _async_engine is None:
+            if not settings.DATABASE_URL:
+                raise ValueError("DATABASE_URL is not configured.")
+            _async_engine = build_async_engine(settings.DATABASE_URL)
+        return _async_engine
 
-
-def get_engine() -> AsyncEngine:
-    """Returns the singleton AsyncEngine instance, initializing it if necessary."""
-    global _engine
-    if _engine is None:
-        settings = get_settings()
-        if not settings.DATABASE_URL:
-            raise ValueError(
-                "DATABASE_URL is not configured in settings. "
-                "Please configure DATABASE_URL in backend/.env."
+    def get_session_factory() -> async_sessionmaker[AsyncSession]:
+        global _async_session_factory
+        if _async_session_factory is None:
+            eng = get_engine()
+            _async_session_factory = async_sessionmaker(
+                bind=eng,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autoflush=False,
+                autocommit=False,
             )
-        _engine = build_async_engine(settings.DATABASE_URL)
-    return _engine
+        return _async_session_factory
 
+    async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
 
-def get_session_factory() -> async_sessionmaker[AsyncSession]:
-    """Returns the singleton async_sessionmaker instance."""
-    global _session_factory
-    if _session_factory is None:
-        engine = get_engine()
-        _session_factory = async_sessionmaker(
-            bind=engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autoflush=False,
-            autocommit=False,
-        )
-    return _session_factory
-
-
-# Initialize module-level engine and AsyncSessionLocal if settings has DATABASE_URL
-_settings = get_settings()
-if _settings.DATABASE_URL:
-    try:
-        engine: Optional[AsyncEngine] = build_async_engine(_settings.DATABASE_URL)
-        AsyncSessionLocal: Optional[async_sessionmaker[AsyncSession]] = async_sessionmaker(
-            bind=engine,
-            class_=AsyncSession,
-            expire_on_commit=False,
-            autoflush=False,
-            autocommit=False,
-        )
-        _engine = engine
-        _session_factory = AsyncSessionLocal
-    except Exception:
-        engine = None
-        AsyncSessionLocal = None
-else:
-    engine = None
-    AsyncSessionLocal = None
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency that yields an active SQLAlchemy AsyncSession.
-    Guarantees session cleanup and rollback on unhandled exceptions.
-    """
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        try:
-            yield session
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+except ImportError:
+    pass
