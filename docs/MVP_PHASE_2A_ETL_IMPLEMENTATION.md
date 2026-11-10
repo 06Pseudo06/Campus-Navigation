@@ -1,23 +1,22 @@
-# CampusWay — Phase 2A: Carleton Dataset ETL Implementation Report
+# CampusWay — Phase 2A & 2A.1: Carleton Dataset ETL Implementation & Verification Report
 
-**Document Version:** 1.0  
-**Phase:** 2A — Carleton Dataset ETL Implementation  
+**Document Version:** 2.0 (Phase 2A.1 Audit & Persistence Verification)  
 **Working Branch:** `demo/submission-mvp`  
-**Execution Status:** Dry-Run & Automated Testing Verified (100% Pass)  
-**Safety Status:** Zero Writes to Remote/Neon DB; Ready for Local Ingestion  
+**Execution Status:** In-Memory Dry-Run & File-Backed SQLite Automated Testing Verified (15/15 Tests Passed)  
+**Safety Status:** Zero Writes to Remote/Neon DB; Verified with Atomic Rollback & Pre-Connection Guard  
 
 ---
 
 ## 1. Executive Summary
 
-In Phase 2A, the ETL transformation pipeline for the Gapwise Carleton University campus dataset was implemented and verified. The pipeline adapts the external dataset into CampusWay's existing backend architecture without altering database schemas, migrations, or application data models.
+In Phase 2A and 2A.1, the ETL transformation and persistence pipeline for the Gapwise Carleton University campus dataset was implemented, audited, and verified. The pipeline adapts the external dataset into CampusWay's existing backend architecture without altering database schemas, migrations, or application data models.
 
-The transformation addresses all data contract gaps identified in Phase 1B:
-- Synthesizes 5 inferred connector edges to bridge isolated entrance nodes into the giant component ($\le 60.0\text{ m}$).
-- Identifies exterior perimeter access points for the 36 entrance-less buildings, creating 35 synthetic access nodes and inferred access edges ($\le 35.0\text{ m}$).
-- Detects and reports 1 building requiring manual review (`social-sciences-research-building` at $51.92\text{ m}$).
-- Preserves all 12 sub-metre walkway edges without losing precision or violating positive distance constraints.
-- Unifies the entire campus pedestrian network into a **single connected component of 1,957 nodes and 2,049 edges**.
+### Key Achievements:
+1. **Genuine Persistence Validation:** Replaced previous mock fixtures with genuine persistence tests against a temporary file-backed SQLite database (`tmp_path`). Confirmed exact persistence of all 48 locations, 89 aliases, 1,957 nodes, 2,049 edges, and 1 batch record.
+2. **Idempotency & Rerun Safety:** Demonstrated that running `commit_to_database()` repeatedly against an existing database succeeds without creating duplicate rows, violating unique constraints, or performing destructive deletions.
+3. **Atomic Transaction Rollback:** Confirmed that any failure during persistence triggers an immediate database rollback via `with session.begin()`, ensuring no partial records persist.
+4. **Pre-Connection Safety Guard:** Verified that any remote host or Neon PostgreSQL URL (e.g. `*.neon.tech`, `pooler`) raises `PermissionError` immediately before any database connection attempt.
+5. **Inferred Access Connection Audit:** Audited all 40 inferred connections. Explicitly identified 6 zero-distance coincident connections, documenting that the stored $0.5\text{ m}$ value is strictly a database compatibility value (`CheckConstraint("distance_m > 0")`), not an empirical physical measurement.
 
 ---
 
@@ -25,10 +24,10 @@ The transformation addresses all data contract gaps identified in Phase 1B:
 
 | File | Purpose |
 | :--- | :--- |
-| [`backend/scripts/etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/scripts/etl_carleton.py) | Full ETL transformation script supporting deterministic UUID generation, polygon centroid computation, Haversine distance calculation, topology bridging, validation, dry-run, and machine-readable report export. |
-| [`backend/tests/test_etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/tests/test_etl_carleton.py) | Pytest test suite containing 8 unit and integration tests verifying transformation accuracy, database persistence, and Dijkstra / A* routing on SQLite. |
-| [`reports/carleton_etl_dry_run_report.json`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/reports/carleton_etl_dry_run_report.json) | Exported machine-readable summary of transformation metrics and validation status. |
-| [`docs/MVP_PHASE_2A_ETL_IMPLEMENTATION.md`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/docs/MVP_PHASE_2A_ETL_IMPLEMENTATION.md) | This implementation and validation deliverable report. |
+| [`backend/scripts/etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/scripts/etl_carleton.py) | Full ETL transformation and persistence script. Supports deterministic UUIDv5 generation, Green-formula centroid computation, Haversine distance calculation, topology bridging, zero-distance audit, dry-run, and transactional database persistence with remote/Neon rejection. |
+| [`backend/tests/test_etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/tests/test_etl_carleton.py) | Comprehensive pytest test suite with 15 tests. Separates pure in-memory transformation tests from genuine file-backed SQLite persistence, idempotency, foreign-key, rollback, and routing tests. |
+| [`reports/carleton_etl_dry_run_report.json`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/reports/carleton_etl_dry_run_report.json) | Exported machine-readable summary containing source counts, transformed counts, validation status, unroutable buildings, sub-metre edges, and zero-distance compatibility connection records. |
+| [`docs/MVP_PHASE_2A_ETL_IMPLEMENTATION.md`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/docs/MVP_PHASE_2A_ETL_IMPLEMENTATION.md) | This implementation, audit, and verification deliverable report. |
 
 ---
 
@@ -64,32 +63,60 @@ To guarantee idempotency across repeated runs without generating duplicate recor
 - Distance derived via spherical Haversine formula with mean Earth radius $R = 6,371,000.0\text{ m}$.
 - 12 sub-metre edges ($0.29\text{ m}$ to $0.99\text{ m}$) are stored with 3-decimal precision (`round(d, 3)`), strictly satisfying `distance_m > 0` without precision loss.
 
-### 3.5 Isolated Entrance Bridging Policy
-- 5 entrance nodes in the raw dataset were degree 0 (isolated from the giant component).
-- An explicit threshold policy of $\text{MAX\_CONNECTOR\_DISTANCE\_M} = 60.0\text{ m}$ bridges all 5 entrance nodes to their nearest giant component neighbors:
-  1. `tory-building` (`osm-node-5158185088`): $8.90\text{ m}$
-  2. `nideyinan-centre` (`osm-node-5159634560`): $3.95\text{ m}$
-  3. `alumni-hall` (`osm-node-5158598331`): $15.05\text{ m}$
-  4. `stormont-house` (`osm-node-11390925448`): $21.00\text{ m}$
-  5. `maintenance-building` (`osm-node-13936769981`): $57.67\text{ m}$
-- These 5 edges are designated `path_type = "inferred_connector"`, preserving provenance distinction.
+---
 
-### 3.6 Obstacle-Aware Exterior Building Access Policy
-- For the 36 buildings without entrances:
-  - Extract all exterior perimeter boundary vertices from the building polygon.
-  - Find the boundary vertex $V$ closest to an existing giant component path node.
-  - Threshold policy: $\text{MAX\_ACCESS\_DISTANCE\_M} = 35.0\text{ m}$.
-  - For 35 buildings ($\le 35.0\text{ m}$):
-    - A synthetic access node (`node_type = "synthetic_access"`) is placed on the exterior boundary vertex $V$.
-    - An inferred access edge (`path_type = "inferred_access"`) connects $V$ to the adjacent walkway node.
-    - If $V$ is coincident with an existing walkway ($d = 0.0\text{ m}$, 6 buildings), distance is set to a standard $0.5\text{ m}$ threshold crossing to satisfy `distance_m > 0`.
-  - For 1 building (`social-sciences-research-building` at $51.92\text{ m} > 35.0\text{ m}$):
-    - Connection is rejected to prevent unrealistic straight-line paths through obstacle zones.
-    - Flagged as unroutable and reported for manual administrative survey.
+## 4. Inferred Connection & Zero-Distance Audit
+
+### 4.1 Topology Bridging for Isolated Entrances
+5 entrance nodes in the raw OpenStreetMap dataset were degree 0 (isolated from the giant component). An explicit threshold policy of $\text{MAX\_CONNECTOR\_DISTANCE\_M} = 60.0\text{ m}$ bridges all 5 entrance nodes to their nearest giant component neighbors:
+1. `tory-building` (`osm-node-5158185088`): $8.90\text{ m}$
+2. `nideyinan-centre` (`osm-node-5159634560`): $3.95\text{ m}$
+3. `alumni-hall` (`osm-node-5158598331`): $15.05\text{ m}$
+4. `stormont-house` (`osm-node-11390925448`): $21.00\text{ m}$
+5. `maintenance-building` (`osm-node-13936769981`): $57.67\text{ m}$
+
+### 4.2 Obstacle-Aware Building Access & Zero-Distance Connections
+For the 36 buildings without entrance records:
+- The closest exterior boundary vertex to an existing pedestrian node was identified.
+- **35 buildings ($\le 35.0\text{ m}$):** Synthetic access nodes (`node_type = "synthetic_access"`) and inferred edges (`path_type = "inferred_access"`) were created on the exterior boundary without penetrating building interiors.
+- **1 building ($> 35.0\text{ m}$):** Social Sciences Research Building ($51.92\text{ m}$) was left unroutable and flagged for manual administrative survey.
+
+### 4.3 Coincident Zero-Distance Connections Table
+
+In 6 buildings, OpenStreetMap walkway nodes were mapped directly onto a vertex of the building polygon ($d = 0.0\text{ m}$):
+
+| Building ID | Building Name | Boundary Vertex $[lon, lat]$ | Coincident Node UUID | Stored Value | Nature of Value |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `paterson-hall` | Paterson Hall | `[-75.6983359, 45.382136]` | `781d2fed-7b51-5484-8d97-669fb63d7abd` | $0.5\text{ m}$ | Database compatibility fallback |
+| `mackenzie-building` | Mackenzie Building | `[-75.6982204, 45.3845097]` | `1d133af8-1725-5350-aa74-e4733d43231c` | $0.5\text{ m}$ | Database compatibility fallback |
+| `richcraft-hall` | Richcraft Hall | `[-75.6960068, 45.3824247]` | `46ffddf6-7fe9-54c7-8d9d-e573e1efd6c7` | $0.5\text{ m}$ | Database compatibility fallback |
+| `glengarry-house` | Glengarry House | `[-75.696882, 45.3866791]` | `38774f2d-4857-5131-9c84-e8a781d8253e` | $0.5\text{ m}$ | Database compatibility fallback |
+| `lennox-and-addington-house` | Lennox & Addington House | `[-75.6973287, 45.3862943]` | `8f5d0f11-c96f-5460-93cb-5b6d516ca47a` | $0.5\text{ m}$ | Database compatibility fallback |
+| `russell-house` | Russell House | `[-75.698456, 45.3868566]` | `f9bf4553-639a-5fa3-80bc-65efc1374523` | $0.5\text{ m}$ | Database compatibility fallback |
+
+> [!IMPORTANT]
+> **Audit Disclosure on Fallback Distance:**  
+> The stored $0.5\text{ m}$ distance on these 6 edges is strictly a **database compatibility value** required by the database constraint `CheckConstraint("distance_m > 0", name="ck_edges_positive_distance")` and Dijkstra priority queue invariants. It is **NOT** a physical measurement, nor does it guarantee an obstacle-free or wheelchair-accessible doorway. All 40 inferred edges remain distinguishable via `is_inferred = True` and dedicated `path_type` values (`inferred_connector`, `inferred_access`).
 
 ---
 
-## 4. Entity & Transformation Counts
+## 5. Import Idempotency Contract
+
+The persistence method (`commit_to_database()`) strictly honors the following idempotency contract:
+
+1. **Inserted When Absent:** If an entity's deterministic UUID does not exist in the database, it is inserted via `session.add()`.
+2. **Updated Non-Destructively When Present:** If an entity's deterministic UUID already exists:
+   - `Location`: Mutable fields (`name`, `slug`, `location_type`, `description`, `latitude`, `longitude`, `address_details`, `is_verified`, `is_active`) are updated in-place.
+   - `LocationAlias`: Mutable fields (`alias`, `normalized_alias`) are updated in-place.
+   - `Node`: Mutable fields (`location_id`, `node_type`, `latitude`, `longitude`, `is_accessible`, `is_active`) are updated in-place.
+   - `Edge`: Mutable fields (`source_node_id`, `target_node_id`, `distance_m`, `path_type`, `is_bidirectional`, `is_accessible`, `is_active`) are updated in-place.
+   - `MapImportBatch`: Metrics (`total_records`, `promoted_records`, `rejected_records`, `status`) are updated in-place.
+3. **Zero Destructive Deletions:** No existing records in `locations`, `nodes`, `edges`, or unrelated tables are deleted or cleared during ingestion.
+4. **Repeated Ingestion Safety:** Executing `commit_to_database()` $N$ times produces the exact same state as executing it once, with zero primary key collisions or unique constraint errors.
+
+---
+
+## 6. Entity & Transformation Counts
 
 | Entity Category | Source Dataset Count | Transformed / Inferred Count | Total Ingested Count |
 | :--- | :--- | :--- | :--- |
@@ -107,7 +134,7 @@ To guarantee idempotency across repeated runs without generating duplicate recor
 
 ---
 
-## 5. Validation Results Matrix
+## 7. Validation Results Matrix
 
 All 10 required validation checks were executed and passed with zero errors:
 
@@ -126,65 +153,62 @@ All 10 required validation checks were executed and passed with zero errors:
 
 ---
 
-## 6. Test Suite & Verification Results
+## 8. Complete Test Suite Execution Results
 
-An automated pytest test suite was added to [`backend/tests/test_etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/tests/test_etl_carleton.py):
+Automated unit and integration test suite in [`backend/tests/test_etl_carleton.py`](file:///c:/Users/KK/Desktop/Projects/Campus%20Navigation/backend/tests/test_etl_carleton.py):
 
 ```
-backend\tests\test_etl_carleton.py::test_haversine_distance_accuracy PASSED [ 12%]
-backend\tests\test_etl_carleton.py::test_compute_polygon_centroid PASSED     [ 25%]
-backend\tests\test_etl_carleton.py::test_deterministic_uuids PASSED          [ 37%]
-backend\tests\test_etl_carleton.py::test_transformation_counts PASSED        [ 50%]
-backend\tests\test_etl_carleton.py::test_all_validation_checks_pass PASSED  [ 62%]
-backend\tests\test_etl_carleton.py::test_sub_metre_edge_preservation PASSED [ 75%]
-backend\tests\test_etl_carleton.py::test_isolated_entrance_resolution PASSED [ 87%]
-backend\tests\test_etl_carleton.py::test_database_persistence_and_routing PASSED [100%]
-============================== 8 passed in 7.69s ===============================
+backend/tests/test_etl_carleton.py::test_haversine_distance_accuracy PASSED         [  6%]
+backend/tests/test_etl_carleton.py::test_compute_polygon_centroid PASSED            [ 13%]
+backend/tests/test_etl_carleton.py::test_deterministic_uuids PASSED                 [ 20%]
+backend/tests/test_etl_carleton.py::test_transformation_counts PASSED               [ 26%]
+backend/tests/test_etl_carleton.py::test_all_validation_checks_pass PASSED         [ 33%]
+backend/tests/test_etl_carleton.py::test_sub_metre_edge_preservation PASSED        [ 40%]
+backend/tests/test_etl_carleton.py::test_isolated_entrance_resolution PASSED        [ 46%]
+backend/tests/test_etl_carleton.py::test_zero_distance_connections_audit PASSED    [ 53%]
+backend/tests/test_etl_carleton.py::test_inferred_edge_distinguishability PASSED   [ 60%]
+backend/tests/test_etl_carleton.py::test_commit_to_database_file_backed PASSED      [ 66%]
+backend/tests/test_etl_carleton.py::test_persistence_idempotency_second_run PASSED [ 73%]
+backend/tests/test_etl_carleton.py::test_persistence_foreign_key_integrity PASSED  [ 80%]
+backend/tests/test_etl_carleton.py::test_persistence_rollback_on_exception PASSED [ 86%]
+backend/tests/test_etl_carleton.py::test_remote_and_neon_urls_rejected PASSED       [ 93%]
+backend/tests/test_etl_carleton.py::test_routing_on_persisted_file_backed_db PASSED [100%]
+============================== 15 passed in 19.35s ==============================
 ```
 
-### Verified Routing Behaviors:
-- **Dijkstra & A\* Routing:** Tested on an in-memory SQLite database populated with all 48 locations, 89 aliases, 1,957 nodes, and 2,049 edges. Optimal shortest path between Leeds House entrance and MacOdrum Library perimeter access was computed cleanly by both Dijkstra and A\*.
-- **Bridged Isolated Entrance Routing:** Route from Tory Building (`osm-node-5158185088`, previously isolated) to Alumni Hall (`osm-node-5158598331`, previously isolated) completed successfully across campus via inferred connector edges.
+### Verified Behaviors Across Test Categories:
+- **In-Memory Simulations (Tests 1–7):** Validates geometric formulas, deterministic UUID namespaces, sub-metre preservation, and graph connectivity.
+- **Inference Audit (Tests 8–9):** Confirms all 6 zero-distance edges are tracked with database compatibility disclosures, and verifies strict separation of source vs. inferred edges.
+- **Real File-Backed Persistence (Tests 10–12):** Directly executes `commit_to_database()` on a temporary file-backed SQLite database (`tmp_path / "carleton_test_persistence.db"`). Proves all 48 locations, 89 aliases, 1,957 nodes, 2,049 edges, and 1 batch record persist accurately. Proves that running `commit_to_database()` a second time maintains exact counts without duplicate errors. Proves all foreign keys resolve cleanly.
+- **Atomic Rollback (Test 13):** Injects a check-constraint violation into the persistence stream and verifies that `session.begin()` aborts, leaving 0 partially-committed rows.
+- **Safety Enforcement (Test 14):** Proves that Neon (`*.neon.tech`) and remote URLs raise `PermissionError` before any network or connection attempts.
+- **Routing Engine on Persisted DB (Test 15):** Loads `CampusGraph` from the persisted file-backed SQLite database and computes optimal routes using Dijkstra and A*.
 
 ---
 
-## 7. Known Limitations
+## 9. Known Limitations
 
 1. **Unroutable Building (1 of 48):**
    - **Building:** Social Sciences Research Building (`social-sciences-research-building`)
    - **Reason:** Distance from nearest boundary vertex to the pedestrian graph is $51.92\text{ m}$, exceeding the safe snapping limit of $35.0\text{ m}$.
    - **Mitigation:** Intentionally left without an automatic inferred access edge. Requires an administrator to map an exact doorway or outdoor footpath link via CampusWay's moderation API.
-2. **Pedestrian Graph Outdoor Scope:**
-   - The graph represents outdoor walkways, plazas, and building perimeter entries. Indoor hallways and tunnel networks are not part of this dataset.
-3. **Inferred Connections Unverified:**
+2. **Inferred Connections Unverified:**
    - 40 edges are mathematically inferred from proximity and topology. They must remain tagged as `inferred_connector` or `inferred_access` until ground verification.
+3. **Database Compatibility Values:**
+   - The 6 coincident zero-distance connections are assigned $0.5\text{ m}$ solely for database constraint and graph weight invariants; they do not represent physical door widths.
 
 ---
 
-## 8. Exact Commands to Execute Dry Run & Tests
+## 10. Execution Instructions for Verification
 
-### Dry Run Execution (In-memory Transformation & Validation):
+### Execute In-Memory Dry Run:
 ```powershell
 $env:PYTHONPATH='backend'
 python backend/scripts/etl_carleton.py --report "reports/carleton_etl_dry_run_report.json"
 ```
 
-### With Explicit Dataset Path:
-```powershell
-$env:PYTHONPATH='backend'
-python backend/scripts/etl_carleton.py `
-  --input "C:\Users\KK\.gemini\antigravity\brain\fb7f0586-9047-471d-9f4b-f0c1235789b6\scratch\gapwise_data\universities\carleton\campus.json" `
-  --report "reports/carleton_etl_dry_run_report.json"
-```
-
-### Run Automated Test Suite:
+### Run Automated Pytest Test Suite:
 ```powershell
 $env:PYTHONPATH='backend'
 backend/venv/Scripts/python.exe -m pytest backend/tests/test_etl_carleton.py -v
 ```
-
----
-
-## 9. Remaining Blockers
-
-- **None.** The ETL transformation is complete, tested, and idempotent. All database constraints and routing engines operate properly with the adapted dataset. Ready for local database ingestion upon authorization.
