@@ -1,0 +1,181 @@
+{
+  "timestamp": "2026-11-10T14:02:45.240319+00:00",
+  "source_file": "C:\\Users\\KK\\.gemini\\antigravity\\brain\\fb7f0586-9047-471d-9f4b-f0c1235789b6\\scratch\\gapwise_data\\universities\\carleton\\campus.json",
+  "dry_run": true,
+  "source_counts": {
+    "buildings": 48,
+    "entrances": 15,
+    "path_nodes": 1922,
+    "path_edges": 2009
+  },
+  "transformed_counts": {
+    "locations": 48,
+    "location_aliases": 89,
+    "nodes": 1957,
+    "edges": 2049
+  },
+  "inferred_counts": {
+    "synthetic_access_nodes": 35,
+    "inferred_entrance_connectors": 5,
+    "inferred_building_access_edges": 35,
+    "total_inferred_edges": 40
+  },
+  "validation_status": {
+    "expected_source_counts": {
+      "passed": true,
+      "buildings": 48,
+      "entrances": 15,
+      "path_nodes": 1922,
+      "path_edges": 2009
+    },
+    "deterministic_uuids": {
+      "passed": true,
+      "total_uuids": 4143,
+      "unique_uuids": 4143
+    },
+    "foreign_key_integrity": {
+      "passed": true,
+      "orphan_aliases": 0,
+      "orphan_nodes": 0,
+      "orphan_edges": 0
+    },
+    "duplicate_constraints": {
+      "passed": true,
+      "unique_slugs": 48,
+      "unique_alias_pairs": 89
+    },
+    "positive_edge_distances": {
+      "passed": true,
+      "non_positive_count": 0,
+      "sub_metre_count": 12
+    },
+    "valid_coordinates": {
+      "passed": true,
+      "invalid_node_count": 0
+    },
+    "connected_components": {
+      "passed": true,
+      "total_components": 1,
+      "component_sizes": [
+        1957
+      ]
+    },
+    "source_vs_inferred_edges": {
+      "passed": true,
+      "source_edges": 2009,
+      "inferred_connectors": 5,
+      "inferred_access": 35,
+      "total_inferred": 40,
+      "total_edges": 2049
+    },
+    "building_routable_status": {
+      "passed": true,
+      "total_buildings": 48,
+      "routable_buildings": 47,
+      "requiring_manual_review": 1
+    },
+    "database_constraint_compatibility": {
+      "passed": true,
+      "self_loops": 0,
+      "edge_duplicates": 0
+    }
+  },
+  "unroutable_buildings": [
+    {
+      "building_id": "social-sciences-research-building",
+      "building_name": "Social Sciences Research Building",
+      "shortest_boundary_distance_m": 51.92,
+      "reason": "Shortest boundary connection (51.92m) exceeds threshold (35.00m)"
+    }
+  ],
+  "sub_metre_edges": [
+    {
+      "edge_id": "edge-osm-53",
+      "source_id": "osm-node-7041093051",
+      "target_id": "osm-node-12318855136",
+      "original_distance_m": 0.4033,
+      "stored_distance_m": 0.403
+    },
+    {
+      "edge_id": "edge-osm-1068",
+      "source_id": "osm-node-6369497127",
+      "target_id": "osm-node-6369494441",
+      "original_distance_m": 0.2946,
+      "stored_distance_m": 0.295
+    },
+    {
+      "edge_id": "edge-osm-1254",
+      "source_id": "osm-node-11772926290",
+      "target_id": "osm-node-6369495783",
+      "original_distance_m": 0.8674,
+      "stored_distance_m": 0.867
+    },
+    {
+      "edge_id": "edge-osm-1359",
+      "source_id": "osm-node-7004613378",
+      "target_id": "osm-node-7004613377",
+      "original_distance_m": 0.4951,
+      "stored_distance_m": 0.495
+    },
+    {
+      "edge_id": "edge-osm-1360",
+      "source_id": "osm-node-7004613375",
+      "target_id": "osm-node-7004613376",
+      "original_distance_m": 0.7236,
+      "stored_distance_m": 0.724
+    },
+    {
+      "edge_id": "edge-osm-1361",
+      "source_id": "osm-node-7004613377",
+      "target_id": "osm-node-1435832264",
+      "original_distance_m": 0.7996,
+      "stored_distance_m": 0.8
+    },
+    {
+      "edge_id": "edge-osm-1368",
+      "source_id": "osm-node-7004613383",
+      "target_id": "osm-node-7004613380",
+      "original_distance_m": 0.7342,
+      "stored_distance_m": 0.734
+    },
+    {
+      "edge_id": "edge-osm-1372",
+      "source_id": "osm-node-7004613386",
+      "target_id": "osm-node-7004613387",
+      "original_distance_m": 0.3777,
+      "stored_distance_m": 0.378
+    },
+    {
+      "edge_id": "edge-osm-1695",
+      "source_id": "osm-node-11807460526",
+      "target_id": "osm-node-11807460524",
+      "original_distance_m": 0.8798,
+      "stored_distance_m": 0.88
+    },
+    {
+      "edge_id": "edge-osm-1696",
+      "source_id": "osm-node-11807460524",
+      "target_id": "osm-node-11772926277",
+      "original_distance_m": 0.9192,
+      "stored_distance_m": 0.919
+    },
+    {
+      "edge_id": "edge-osm-1793",
+      "source_id": "osm-node-12289125613",
+      "target_id": "osm-node-12289125616",
+      "original_distance_m": 0.9177,
+      "stored_distance_m": 0.918
+    },
+    {
+      "edge_id": "edge-osm-1794",
+      "source_id": "osm-node-12289125616",
+      "target_id": "osm-node-12289125614",
+      "original_distance_m": 0.9861,
+      "stored_distance_m": 0.986
+    }
+  ],
+  "connected_components": [
+    1957
+  ],
+  "database_write_status": "skipped (dry-run mode)"
+}
