@@ -968,9 +968,11 @@ class CarletonETLPipeline:
         """
         # Strict guard against Neon or remote database
         remote_indicators = ["neon.tech", "pooler", "aws", "azure", "gcp", "compute.com"]
+        local_host_indicators = ["localhost", "127.0.0.1", "::1", "@postgres", "@campusway_postgres"]
         db_url_lower = db_url.lower()
+        is_local_host = any(h in db_url_lower for h in local_host_indicators)
         if any(ind in db_url_lower for ind in remote_indicators) or (
-            not db_url_lower.startswith("sqlite") and "localhost" not in db_url_lower and "127.0.0.1" not in db_url_lower
+            not db_url_lower.startswith("sqlite") and not is_local_host
         ):
             raise PermissionError(
                 "ABORTED: Refusing to write to remote or production/Neon database. "

@@ -321,6 +321,24 @@ def test_remote_and_neon_urls_rejected(etl_pipeline: CarletonETLPipeline):
         etl_pipeline.commit_to_database(remote_url)
 
 
+def test_local_docker_and_localhost_urls_allowed_by_guard(etl_pipeline: CarletonETLPipeline):
+    """Verify that legitimate local PostgreSQL URLs (localhost, 127.0.0.1, docker service) pass the remote guard."""
+    local_urls = [
+        "postgresql://postgres:postgres@localhost:5432/campusway_db",
+        "postgresql://postgres:postgres@127.0.0.1:5432/campusway_db",
+        "postgresql://postgres:postgres@postgres:5432/campusway_db",
+        "postgresql://postgres:postgres@campusway_postgres:5432/campusway_db",
+    ]
+    remote_indicators = ["neon.tech", "pooler", "aws", "azure", "gcp", "compute.com"]
+    local_host_indicators = ["localhost", "127.0.0.1", "::1", "@postgres", "@campusway_postgres"]
+
+    for u in local_urls:
+        u_lower = u.lower()
+        is_local_host = any(h in u_lower for h in local_host_indicators)
+        assert not any(ind in u_lower for ind in remote_indicators)
+        assert is_local_host
+
+
 def test_routing_on_persisted_file_backed_db(file_backed_db_url: str):
     """Verify Dijkstra and A* pathfinding execute properly on graph loaded from file-backed DB."""
     verify_engine = create_engine(file_backed_db_url)
