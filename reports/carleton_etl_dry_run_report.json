@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-10T14:02:45.240319+00:00",
+  "timestamp": "2026-11-10T14:36:08.367867+00:00",
   "source_file": "C:\\Users\\KK\\.gemini\\antigravity\\brain\\fb7f0586-9047-471d-9f4b-f0c1235789b6\\scratch\\gapwise_data\\universities\\carleton\\campus.json",
   "dry_run": true,
   "source_counts": {
@@ -172,6 +172,80 @@
       "target_id": "osm-node-12289125614",
       "original_distance_m": 0.9861,
       "stored_distance_m": 0.986
+    }
+  ],
+  "zero_distance_connections": [
+    {
+      "building_id": "paterson-hall",
+      "building_name": "Paterson Hall",
+      "boundary_vertex": [
+        -75.6983359,
+        45.382136
+      ],
+      "target_node_id": "781d2fed-7b51-5484-8d97-669fb63d7abd",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
+    },
+    {
+      "building_id": "mackenzie-building",
+      "building_name": "Mackenzie Building",
+      "boundary_vertex": [
+        -75.6982204,
+        45.3845097
+      ],
+      "target_node_id": "1d133af8-1725-5350-aa74-e4733d43231c",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
+    },
+    {
+      "building_id": "richcraft-hall",
+      "building_name": "Richcraft Hall",
+      "boundary_vertex": [
+        -75.6960068,
+        45.3824247
+      ],
+      "target_node_id": "46ffddf6-7fe9-54c7-8d9d-e573e1efd6c7",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
+    },
+    {
+      "building_id": "glengarry-house",
+      "building_name": "Glengarry House",
+      "boundary_vertex": [
+        -75.696882,
+        45.3866791
+      ],
+      "target_node_id": "38774f2d-4857-5131-9c84-e8a781d8253e",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
+    },
+    {
+      "building_id": "lennox-and-addington-house",
+      "building_name": "Lennox and Addington House",
+      "boundary_vertex": [
+        -75.6973287,
+        45.3862943
+      ],
+      "target_node_id": "c6baf1c7-27be-575c-8741-ca32638d3118",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
+    },
+    {
+      "building_id": "russell-house",
+      "building_name": "Russell House",
+      "boundary_vertex": [
+        -75.698456,
+        45.3868566
+      ],
+      "target_node_id": "9b0817c0-7136-5cf1-9fd5-897ce0e194c0",
+      "original_distance_m": 0.0,
+      "stored_distance_m": 0.5,
+      "compatibility_reason": "Database compatibility value to satisfy check constraint (distance_m > 0); boundary vertex is coincident with walkway node in source data. Not an empirical or physically surveyed measurement."
     }
   ],
   "connected_components": [

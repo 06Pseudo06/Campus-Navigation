@@ -292,6 +292,17 @@ class SubMetreEdge:
 
 
 @dataclass
+class ZeroDistanceConnection:
+    building_id: str
+    building_name: str
+    boundary_vertex: Tuple[float, float]
+    target_node_id: str
+    original_distance_m: float
+    stored_distance_m: float
+    compatibility_reason: str
+
+
+@dataclass
 class ETLReport:
     timestamp: str
     source_file: str
@@ -302,6 +313,7 @@ class ETLReport:
     validation_status: Dict[str, Any] = field(default_factory=dict)
     unroutable_buildings: List[Dict[str, Any]] = field(default_factory=list)
     sub_metre_edges: List[Dict[str, Any]] = field(default_factory=list)
+    zero_distance_connections: List[Dict[str, Any]] = field(default_factory=list)
     connected_components: List[int] = field(default_factory=list)
     database_write_status: str = "skipped (dry-run)"
 
@@ -341,6 +353,7 @@ class CarletonETLPipeline:
         # Tracking and metrics
         self.unroutable_buildings: List[UnroutableBuilding] = []
         self.sub_metre_edges: List[SubMetreEdge] = []
+        self.zero_distance_connections: List[ZeroDistanceConnection] = []
         self.inferred_connectors_count = 0
         self.inferred_access_count = 0
         self.synthetic_nodes_count = 0
@@ -703,8 +716,26 @@ class CarletonETLPipeline:
 
                     # Connect synthetic access node to nearest path node
                     access_edge_uuid = get_inferred_access_uuid(b_id, str(best_target_node_uuid))
-                    # Handle exact overlap (boundary vertex is coincident with walkway node)
-                    stored_dist = round(max(best_dist, 0.5), 3)
+                    # Handle exact boundary overlap (boundary vertex is coincident with walkway node)
+                    if best_dist < 0.001:
+                        stored_dist = 0.5  # Database compatibility fallback (ck_edges_positive_distance requires distance_m > 0)
+                        self.zero_distance_connections.append(
+                            ZeroDistanceConnection(
+                                building_id=b_id,
+                                building_name=b.get("name", b_id),
+                                boundary_vertex=best_vertex,
+                                target_node_id=str(best_target_node_uuid),
+                                original_distance_m=round(best_dist, 4),
+                                stored_distance_m=stored_dist,
+                                compatibility_reason=(
+                                    "Database compatibility value to satisfy check constraint (distance_m > 0); "
+                                    "boundary vertex is coincident with walkway node in source data. "
+                                    "Not an empirical or physically surveyed measurement."
+                                ),
+                            )
+                        )
+                    else:
+                        stored_dist = round(best_dist, 3)
 
                     self.edges.append(
                         EdgeRecord(
@@ -924,6 +955,7 @@ class CarletonETLPipeline:
             validation_status=validation_checks,
             unroutable_buildings=[asdict(ub) for ub in self.unroutable_buildings],
             sub_metre_edges=[asdict(sme) for sme in self.sub_metre_edges],
+            zero_distance_connections=[asdict(z) for z in self.zero_distance_connections],
             connected_components=validation_checks["connected_components"]["component_sizes"],
             database_write_status="skipped (dry-run mode)",
         )
@@ -947,12 +979,16 @@ class CarletonETLPipeline:
 
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
+        from app.models.base import Base
         from app.models.location import Location, LocationAlias
         from app.models.node import Node
         from app.models.edge import Edge
         from app.models.map_import import MapImportBatch
 
         engine = create_engine(db_url)
+        # Ensure schema tables exist on the target local database
+        Base.metadata.create_all(bind=engine)
+
         Session = sessionmaker(bind=engine)
         session = Session()
 
@@ -974,6 +1010,11 @@ class CarletonETLPipeline:
                                 rejected_records=self.batch.rejected_records,
                             )
                         )
+                    else:
+                        existing_batch.total_records = self.batch.total_records
+                        existing_batch.promoted_records = self.batch.promoted_records
+                        existing_batch.rejected_records = self.batch.rejected_records
+                        existing_batch.status = self.batch.status
 
                 # 2. Locations
                 for loc in self.locations.values():
@@ -993,6 +1034,16 @@ class CarletonETLPipeline:
                                 is_active=loc.is_active,
                             )
                         )
+                    else:
+                        existing_loc.name = loc.name
+                        existing_loc.slug = loc.slug
+                        existing_loc.location_type = loc.location_type
+                        existing_loc.description = loc.description
+                        existing_loc.latitude = loc.latitude
+                        existing_loc.longitude = loc.longitude
+                        existing_loc.address_details = loc.address_details
+                        existing_loc.is_verified = loc.is_verified
+                        existing_loc.is_active = loc.is_active
 
                 # 3. Location Aliases
                 for alias in self.aliases:
@@ -1006,6 +1057,9 @@ class CarletonETLPipeline:
                                 normalized_alias=alias.normalized_alias,
                             )
                         )
+                    else:
+                        existing_alias.alias = alias.alias
+                        existing_alias.normalized_alias = alias.normalized_alias
 
                 # 4. Nodes
                 for node in self.nodes.values():
@@ -1022,6 +1076,13 @@ class CarletonETLPipeline:
                                 is_active=node.is_active,
                             )
                         )
+                    else:
+                        existing_node.location_id = node.location_id
+                        existing_node.node_type = node.node_type
+                        existing_node.latitude = node.latitude
+                        existing_node.longitude = node.longitude
+                        existing_node.is_accessible = node.is_accessible
+                        existing_node.is_active = node.is_active
 
                 # 5. Edges
                 for edge in self.edges:
@@ -1039,6 +1100,14 @@ class CarletonETLPipeline:
                                 is_active=edge.is_active,
                             )
                         )
+                    else:
+                        existing_edge.source_node_id = edge.source_node_id
+                        existing_edge.target_node_id = edge.target_node_id
+                        existing_edge.distance_m = edge.distance_m
+                        existing_edge.path_type = edge.path_type
+                        existing_edge.is_bidirectional = edge.is_bidirectional
+                        existing_edge.is_accessible = edge.is_accessible
+                        existing_edge.is_active = edge.is_active
             print(f"Successfully committed {len(self.locations)} locations, {len(self.aliases)} aliases, {len(self.nodes)} nodes, {len(self.edges)} edges to {db_url}")
         except Exception:
             session.rollback()
@@ -1174,6 +1243,13 @@ def main() -> int:
             for ub in report.unroutable_buildings:
                 print(f"    * {ub['building_name']} ({ub['building_id']}): {ub['reason']}")
 
+        print("\n--- INFERRED CONNECTION AUDIT ---")
+        print(f"  Inferred Entrance Connectors:    {report.inferred_counts['inferred_entrance_connectors']} (<= {pipeline.max_connector_dist}m)")
+        print(f"  Inferred Building Access Edges:  {report.inferred_counts['inferred_building_access_edges']} (<= {pipeline.max_access_dist}m)")
+        print(f"  Zero-Distance Coincident Edges:  {len(report.zero_distance_connections)} (stored as 0.5m database compatibility fallback, NOT physical measurement)")
+        for zd in report.zero_distance_connections:
+            print(f"    * {zd['building_name']} ({zd['building_id']}): 0.0m -> 0.5m compatibility fallback")
+
         print(f"\n--- GRAPH TOPOLOGY ---")
         comp_sizes = report.connected_components
         print(f"  Connected Components:       {len(comp_sizes)}")
@@ -1207,3 +1283,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
