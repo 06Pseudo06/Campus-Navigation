@@ -17,6 +17,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 0. Expand alembic_version.version_num if running on PostgreSQL to accommodate >32 character revision ID
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);")
+
     # 1. user_credentials table
     op.create_table(
         "user_credentials",

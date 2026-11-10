@@ -987,7 +987,11 @@ class CarletonETLPipeline:
         from app.models.edge import Edge
         from app.models.map_import import MapImportBatch
 
-        engine = create_engine(db_url)
+        norm_db_url = db_url
+        if norm_db_url.startswith("postgresql://"):
+            norm_db_url = norm_db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+        engine = create_engine(norm_db_url)
         # Ensure schema tables exist on the target local database
         Base.metadata.create_all(bind=engine)
 
