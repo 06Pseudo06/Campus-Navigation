@@ -12,6 +12,7 @@ import { HelpTab } from "@/components/dashboard/HelpTab";
 import { SAMPLE_LOCATIONS } from "@/data/campusData";
 import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
+import { favoriteService } from "@/services/favoriteService";
 import {
   CampusLocation,
   CampusRoute,
@@ -55,15 +56,52 @@ export default function ExploreDashboardPage() {
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
   const [routeError, setRouteError] = useState<string | null>(null);
 
-  // Saved location IDs
+  // Saved location IDs & state
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState<boolean>(false);
+  const [savedError, setSavedError] = useState<string | null>(null);
 
   // Success toast for OAuth redirect (?auth=success)
   const [authSuccessToast, setAuthSuccessToast] = useState<string | null>(null);
 
-  // 1. Session verification (Non-blocking: supports both guest visitors and authenticated users)
-  // Public wayfinding is accessible to everyone; authenticated users have their identity shown in Topbar.
+  // Load and synchronize user or guest favorites
+  const loadFavorites = useCallback(async (currentUser: typeof user) => {
+    setIsLoadingSaved(true);
+    setSavedError(null);
+    try {
+      if (currentUser && currentUser.id) {
+        // Authenticated user: fetch from PostgreSQL
+        try {
+          const userFavs = await favoriteService.getMyFavorites();
+          const backendIds = userFavs.map((f) => f.location_id);
 
+          // Check if guest has any unsaved bookmarks to safely migrate
+          const guestIds = favoriteService.getGuestFavorites();
+          if (guestIds.length > 0) {
+            const merged = await favoriteService.syncGuestFavoritesToUser(currentUser.id, backendIds);
+            setSavedIds(merged);
+          } else {
+            setSavedIds(backendIds);
+          }
+        } catch (err: unknown) {
+          const guestIds = favoriteService.getGuestFavorites();
+          setSavedIds(guestIds);
+          setSavedError(err instanceof Error ? err.message : "Failed to load saved favorites from server.");
+        }
+      } else {
+        // Guest user: load from localStorage
+        const guestIds = favoriteService.getGuestFavorites();
+        setSavedIds(guestIds);
+      }
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  }, []);
+
+  // Sync favorites whenever user authentication state changes
+  useEffect(() => {
+    loadFavorites(user);
+  }, [user, loadFavorites]);
 
   // Check URL search parameters on mount
   useEffect(() => {
@@ -223,9 +261,13 @@ export default function ExploreDashboardPage() {
         setOriginLocation(defaultOrigin);
         setSelectedLocation(defaultDest);
 
-        // Pre-save default library bookmark
-        if (defaultOrigin) {
-          setSavedIds([defaultOrigin.id]);
+        // Pre-save default library bookmark if guest has no saved places
+        if (defaultOrigin && !user) {
+          const currentGuest = favoriteService.getGuestFavorites();
+          if (currentGuest.length === 0) {
+            favoriteService.addGuestFavorite(defaultOrigin.id);
+            setSavedIds([defaultOrigin.id]);
+          }
         }
 
         // Calculate initial route between default pair
@@ -243,7 +285,12 @@ export default function ExploreDashboardPage() {
         const defaultDest = SAMPLE_LOCATIONS.find((l) => l.id === "loc-block-34") || SAMPLE_LOCATIONS[1];
         setOriginLocation(defaultOrigin);
         setSelectedLocation(defaultDest);
-        setSavedIds(["loc-block-34", "loc-library"]);
+        if (!user) {
+          const currentGuest = favoriteService.getGuestFavorites();
+          if (currentGuest.length === 0) {
+            setSavedIds(["loc-block-34", "loc-library"]);
+          }
+        }
       }
     } catch {
       setLocations(SAMPLE_LOCATIONS);
@@ -259,7 +306,7 @@ export default function ExploreDashboardPage() {
     } finally {
       setIsLoadingLocations(false);
     }
-  }, [calculateRoutePath, selectedAlgorithm]);
+  }, [calculateRoutePath, selectedAlgorithm, user]);
 
   useEffect(() => {
     loadCampusData();
@@ -324,10 +371,40 @@ export default function ExploreDashboardPage() {
   };
 
   // Handler: Toggle bookmark for a location
-  const handleToggleSaveLocation = (locId: string) => {
-    setSavedIds((prev) =>
-      prev.includes(locId) ? prev.filter((id) => id !== locId) : [...prev, locId]
-    );
+  const handleToggleSaveLocation = async (locId: string) => {
+    const isCurrentlySaved = savedIds.includes(locId);
+    setSavedError(null);
+
+    // Optimistic UI state update
+    const previousSavedIds = savedIds;
+    const nextSavedIds = isCurrentlySaved
+      ? savedIds.filter((id) => id !== locId)
+      : [...savedIds, locId];
+    setSavedIds(nextSavedIds);
+
+    try {
+      if (user && user.id) {
+        // Authenticated user: persist to PostgreSQL
+        if (isCurrentlySaved) {
+          await favoriteService.removeFavorite(user.id, locId);
+        } else {
+          await favoriteService.addFavorite(user.id, locId);
+        }
+      } else {
+        // Guest user: persist to localStorage
+        if (isCurrentlySaved) {
+          favoriteService.removeGuestFavorite(locId);
+        } else {
+          favoriteService.addGuestFavorite(locId);
+        }
+      }
+    } catch (err: unknown) {
+      // Revert optimistic update on failure
+      setSavedIds(previousSavedIds);
+      setSavedError(
+        err instanceof Error ? err.message : "Failed to update bookmark in database."
+      );
+    }
   };
 
   // Filter locations if search query is provided in topbar
@@ -485,13 +562,16 @@ export default function ExploreDashboardPage() {
                 savedLocations={savedLocationsList}
                 onSelectLocation={handleSelectLocation}
                 onRemoveSaved={handleToggleSaveLocation}
+                isAuthenticated={Boolean(user)}
+                isLoading={isLoadingSaved}
+                error={savedError}
               />
             </main>
           )}
 
           {currentTab === "help" && (
             <main className="flex-1 h-full overflow-y-auto">
-              <HelpTab />
+              <HelpTab locations={locations} />
             </main>
           )}
         </div>

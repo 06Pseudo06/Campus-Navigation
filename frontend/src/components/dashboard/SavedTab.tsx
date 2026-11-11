@@ -2,35 +2,70 @@
 
 import React from "react";
 import { CampusLocation } from "@/types/campus";
-import { BookmarkIcon, ArrowRightIcon } from "./DashboardIcons";
+import { BookmarkIcon, ArrowRightIcon, CheckCircleIcon } from "./DashboardIcons";
+import { Spinner } from "@/components/icons/Icons";
 
 interface SavedTabProps {
   savedLocations: CampusLocation[];
   onSelectLocation: (loc: CampusLocation) => void;
   onRemoveSaved: (id: string) => void;
+  isAuthenticated?: boolean;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export function SavedTab({
   savedLocations,
   onSelectLocation,
   onRemoveSaved,
+  isAuthenticated = false,
+  isLoading = false,
+  error = null,
 }: SavedTabProps) {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-xs font-semibold text-[#fca5a5] mb-2">
-          <BookmarkIcon className="w-3.5 h-3.5" filled />
-          <span>Saved Locations</span>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-xs font-semibold text-[#fca5a5] mb-2">
+            <BookmarkIcon className="w-3.5 h-3.5" filled />
+            <span>Saved Locations</span>
+          </div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Your Bookmarked Places
+          </h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            Quickly access your frequent lecture halls, labs, and department offices.
+          </p>
         </div>
-        <h2 className="text-2xl font-bold text-white tracking-tight">
-          Your Bookmarked Places
-        </h2>
-        <p className="text-sm text-zinc-400 mt-1">
-          Quickly access your frequent lecture halls, labs, and department offices.
-        </p>
+
+        {/* Persistence Status Badge */}
+        <div className="self-start sm:self-auto">
+          {isAuthenticated ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 border border-emerald-800 text-xs font-medium text-emerald-300">
+              <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" />
+              <span>PostgreSQL Synced</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800/80 border border-zinc-700 text-xs font-medium text-zinc-300">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>Guest Local Storage</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      {savedLocations.length > 0 ? (
+      {error && (
+        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800 text-xs text-rose-300 flex items-center justify-between">
+          <span>{error}</span>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="p-12 text-center rounded-2xl bg-zinc-900/40 border border-zinc-800 space-y-3">
+          <Spinner className="w-6 h-6 text-[#DE4B31] mx-auto" />
+          <p className="text-xs text-zinc-400">Loading saved bookmarks from database...</p>
+        </div>
+      ) : savedLocations.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {savedLocations.map((loc) => (
             <div
@@ -84,7 +119,10 @@ export function SavedTab({
 
       <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 text-xs text-zinc-500">
         <p>
-          <strong className="text-zinc-400">Session Storage Notice:</strong> Saved items are currently stored in frontend session state for demonstration. Persistent database storage will be connected when PostgreSQL is linked in Phase 4.
+          <strong className="text-zinc-400">Persistence Architecture:</strong>{" "}
+          {isAuthenticated
+            ? "Your saved locations are persisted directly in PostgreSQL under your authenticated account."
+            : "You are currently viewing saved locations as a guest. Bookmarks are saved in your local browser storage and will be safely preserved."}
         </p>
       </div>
     </div>

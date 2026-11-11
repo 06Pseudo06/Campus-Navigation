@@ -160,6 +160,10 @@ export function LoginForm() {
             message: msg,
           })
         }
+        onSuccess={async () => {
+          await refreshUser();
+          router.push("/explore");
+        }}
       />
 
       {/* OR Divider */}

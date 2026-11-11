@@ -140,21 +140,23 @@ export const authService = {
   },
 
   /**
-   * Request OTP for mobile number authentication
+   * Request OTP for mobile number authentication via FastAPI /api/v1/auth/phone/send-otp
    */
   async requestPhoneOtp(countryCode: string, phoneNumber: string): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/otp/send`;
+    const cleanedDial = countryCode.trim().startsWith("+") ? countryCode.trim() : `+${countryCode.trim()}`;
+    const cleanedNumber = phoneNumber.trim().replace(/\D/g, "");
+    const fullPhone = `${cleanedDial}${cleanedNumber}`;
+    const endpoint = `${API_BASE_URL}/api/v1/auth/phone/send-otp`;
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
-          country_code: countryCode,
-          phone_number: phoneNumber,
+          phone: fullPhone,
         }),
       });
 
@@ -169,41 +171,46 @@ export const authService = {
         };
       }
 
+      const result = await response.json().catch(() => null);
       return {
         success: true,
-        message: "OTP sent successfully to your phone.",
+        message: result?.message || `Verification passcode sent successfully to ${fullPhone}.`,
         isBackendConnected: true,
       };
     } catch {
       return {
         success: false,
-        message: `SMS gateway is not configured yet. Live OTP delivery will be connected to the SMS service provider via FastAPI in Phase 2.`,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}. Ensure the backend service is running on port 8000.`,
         isBackendConnected: false,
       };
     }
   },
 
   /**
-   * Verify entered OTP for mobile number authentication
+   * Verify entered OTP for mobile number authentication via FastAPI /api/v1/auth/phone/verify-otp
    */
   async verifyPhoneOtp(
     countryCode: string,
     phoneNumber: string,
-    otp: string
+    otp: string,
+    fullName?: string
   ): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/otp/verify`;
+    const cleanedDial = countryCode.trim().startsWith("+") ? countryCode.trim() : `+${countryCode.trim()}`;
+    const cleanedNumber = phoneNumber.trim().replace(/\D/g, "");
+    const fullPhone = `${cleanedDial}${cleanedNumber}`;
+    const endpoint = `${API_BASE_URL}/api/v1/auth/phone/verify-otp`;
 
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        credentials: "include",
         body: JSON.stringify({
-          country_code: countryCode,
-          phone_number: phoneNumber,
-          otp,
+          phone: fullPhone,
+          otp_code: otp.trim(),
+          full_name: fullName?.trim() || undefined,
         }),
       });
 
@@ -219,16 +226,67 @@ export const authService = {
       }
 
       const result = await response.json();
+      if (result.access_token && typeof window !== "undefined") {
+        localStorage.setItem("campusway_access_token", result.access_token);
+      }
       return {
         success: true,
-        message: "Phone number verified.",
+        message: "Phone number verified and session established.",
         data: result,
         isBackendConnected: true,
       };
     } catch {
       return {
         success: false,
-        message: `SMS authentication service is not connected to a live backend. Real verification requires the Phase 2 FastAPI backend and SMS gateway.`,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}. Ensure the backend service is running on port 8000.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
+   * Authenticate or register user via Google OAuth ID Token: POST /api/v1/auth/google
+   */
+  async loginWithGoogle(idToken: string): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/google`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          id_token: idToken.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          success: false,
+          message:
+            errorData?.detail ||
+            `Google authentication failed (${response.status}): ${response.statusText}`,
+          isBackendConnected: true,
+        };
+      }
+
+      const result = await response.json();
+      if (result.access_token && typeof window !== "undefined") {
+        localStorage.setItem("campusway_access_token", result.access_token);
+      }
+      return {
+        success: true,
+        message: "Google sign-in successful.",
+        data: result,
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}. Ensure the backend service is running on port 8000.`,
         isBackendConnected: false,
       };
     }
@@ -238,7 +296,7 @@ export const authService = {
    * Quick health check to ensure backend is accessible before navigating
    */
   async checkBackendHealth(): Promise<{ isOnline: boolean; googleConfigured: boolean; message?: string }> {
-    const endpoint = `${API_BASE_URL}/api/v1/health`;
+    const endpoint = `${API_BASE_URL}/health`;
     try {
       const response = await fetchWithTimeout(endpoint, { method: "GET" }, 2500);
       if (!response.ok) {
@@ -255,16 +313,16 @@ export const authService = {
   },
 
   /**
-   * Get FastAPI Google OAuth authorization initiation URL.
-   * Directs browser to FastAPI endpoint which validates state and forwards to Google.
+   * Note on Google OAuth:
+   * The active backend contract is POST /api/v1/auth/google with a client-supplied ID Token.
    */
   getGoogleLoginUrl(): string {
-    return `${API_BASE_URL}/api/v1/auth/google/login`;
+    return `${API_BASE_URL}/api/v1/auth/google`;
   },
 
   /**
    * Fetch currently authenticated user session via /api/v1/auth/me.
-   * Transmits credentials (HTTP-only session cookie) to backend.
+   * Transmits Bearer token in the Authorization header.
    */
   async getCurrentUser(): Promise<UserProfile | null> {
     const endpoint = `${API_BASE_URL}/api/v1/auth/me`;
@@ -273,6 +331,52 @@ export const authService = {
         typeof window !== "undefined"
           ? localStorage.getItem("campusway_access_token")
           : null;
+      if (!token) {
+        return null;
+      }
+
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+
+      const response = await fetchWithTimeout(endpoint, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 && typeof window !== "undefined") {
+          localStorage.removeItem("campusway_access_token");
+        }
+        return null;
+      }
+
+      const user = await response.json();
+      return {
+        ...user,
+        name: user.full_name || user.name || (user.email ? user.email.split("@")[0] : "Student"),
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Terminate active backend session and clear local access token.
+   */
+  async logout(): Promise<boolean> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/logout`;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("campusway_access_token")
+        : null;
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("campusway_access_token");
+    }
+
+    try {
       const headers: Record<string, string> = {
         Accept: "application/json",
       };
@@ -281,37 +385,8 @@ export const authService = {
       }
 
       const response = await fetchWithTimeout(endpoint, {
-        method: "GET",
-        headers,
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const user: UserProfile = await response.json();
-      return user;
-    } catch {
-      return null;
-    }
-  },
-
-  /**
-   * Terminate active backend session and clear session cookie.
-   */
-  async logout(): Promise<boolean> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/logout`;
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("campusway_access_token");
-    }
-    try {
-      const response = await fetchWithTimeout(endpoint, {
         method: "POST",
-        headers: {
-          "Accept": "application/json",
-        },
-        credentials: "include",
+        headers,
       });
       return response.ok;
     } catch {

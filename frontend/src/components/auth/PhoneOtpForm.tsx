@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { PhoneIcon, Spinner, InfoIcon } from "@/components/icons/Icons";
 import { authService } from "@/services/authService";
 import { CountryCode, FormErrors } from "@/types/auth";
@@ -22,6 +24,9 @@ interface PhoneOtpFormProps {
 }
 
 export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProps) {
+  const router = useRouter();
+  const { refreshUser } = useAuth();
+
   const [selectedCountry, setSelectedCountry] = useState<string>("+91");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
@@ -90,15 +95,19 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
         phoneNumber.trim()
       );
 
-      // Display real backend status or Phase 1 unconfigured notice
-      setSystemNotice({
-        type: response.isBackendConnected ? "info" : "warning",
-        message: response.message,
-      });
-
-      // Advance to OTP input view to demonstrate interface interactions
-      setStep("otp");
-      setCountdown(30);
+      if (response.success) {
+        setSystemNotice({
+          type: "info",
+          message: response.message,
+        });
+        setStep("otp");
+        setCountdown(30);
+      } else {
+        setSystemNotice({
+          type: "warning",
+          message: response.message,
+        });
+      }
     } catch {
       setSystemNotice({
         type: "error",
@@ -123,10 +132,19 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
         otp.trim()
       );
 
-      setSystemNotice({
-        type: response.isBackendConnected ? "info" : "warning",
-        message: response.message,
-      });
+      if (response.success) {
+        setSystemNotice({
+          type: "info",
+          message: response.message,
+        });
+        await refreshUser();
+        router.push("/explore");
+      } else {
+        setSystemNotice({
+          type: "error",
+          message: response.message,
+        });
+      }
     } catch {
       setSystemNotice({
         type: "error",
@@ -147,11 +165,18 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
         selectedCountry,
         phoneNumber.trim()
       );
-      setSystemNotice({
-        type: response.isBackendConnected ? "info" : "warning",
-        message: response.message,
-      });
-      setCountdown(30);
+      if (response.success) {
+        setSystemNotice({
+          type: "info",
+          message: response.message,
+        });
+        setCountdown(30);
+      } else {
+        setSystemNotice({
+          type: "warning",
+          message: response.message,
+        });
+      }
     } finally {
       setLoading(false);
     }

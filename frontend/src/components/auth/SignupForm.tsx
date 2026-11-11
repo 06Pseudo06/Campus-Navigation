@@ -121,6 +121,10 @@ export function SignupForm() {
             message: msg,
           })
         }
+        onSuccess={async () => {
+          await refreshUser();
+          router.push("/explore");
+        }}
       />
 
       {/* OR Divider */}

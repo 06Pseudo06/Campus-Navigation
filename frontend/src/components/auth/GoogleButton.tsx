@@ -8,11 +8,13 @@ import { authService } from "@/services/authService";
 interface GoogleButtonProps {
   text?: string;
   onNotice?: (message: string) => void;
+  onSuccess?: () => void;
 }
 
 export function GoogleButton({
   text = "Continue with Google",
   onNotice,
+  onSuccess,
 }: GoogleButtonProps) {
   const [loading, setLoading] = useState(false);
 
@@ -21,35 +23,57 @@ export function GoogleButton({
     setLoading(true);
 
     try {
-      // 1. Verify that FastAPI backend is reachable to avoid ERR_CONNECTION_REFUSED
+      // 1. Verify backend health
       const health = await authService.checkBackendHealth();
       if (!health.isOnline) {
         setLoading(false);
         if (onNotice) {
           onNotice(
-            "FastAPI backend is offline (port 8000). Please run 'npm run dev' in your project root to run both backend and frontend."
+            "FastAPI backend is offline (port 8000). Please ensure the backend is running."
           );
         }
         return;
       }
 
+      // 2. If provider is unconfigured on the backend, verify and display backend contract response
       if (!health.googleConfigured) {
+        const probeResult = await authService.loginWithGoogle("probe_token_unconfigured");
         setLoading(false);
         if (onNotice) {
           onNotice(
-            "Google OAuth is not configured in backend/.env. Please verify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+            probeResult.message ||
+              "Google OAuth is not configured on the backend. Client credentials (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET) must be set in backend/.env."
           );
         }
         return;
       }
 
-      // 2. Redirect browser to FastAPI Google OAuth initiation endpoint
-      const loginUrl = authService.getGoogleLoginUrl();
-      window.location.href = loginUrl;
+      // 3. When configured, execute token submission to POST /api/v1/auth/google
+      // Prompt user or handle Google One-Tap/GIS callback
+      const idToken = window.prompt("Enter Google OAuth ID Token for backend verification:");
+      if (!idToken || !idToken.trim()) {
+        setLoading(false);
+        return;
+      }
+
+      const result = await authService.loginWithGoogle(idToken.trim());
+      setLoading(false);
+
+      if (result.success) {
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          window.location.href = "/explore?auth=success";
+        }
+      } else {
+        if (onNotice) {
+          onNotice(result.message);
+        }
+      }
     } catch {
       setLoading(false);
       if (onNotice) {
-        onNotice("Unable to communicate with the backend on port 8000.");
+        onNotice("Unable to communicate with the FastAPI backend on port 8000.");
       }
     }
   };

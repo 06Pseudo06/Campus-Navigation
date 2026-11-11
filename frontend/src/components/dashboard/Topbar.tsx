@@ -55,7 +55,7 @@ export function Topbar({
   };
 
   // Derive display initials and name
-  const displayName = user?.name || user?.email?.split("@")[0] || "Campus Explorer";
+  const displayName = user?.full_name || user?.name || user?.email?.split("@")[0] || "Campus Explorer";
   const userInitials = displayName
     .split(" ")
     .map((part) => part[0])
