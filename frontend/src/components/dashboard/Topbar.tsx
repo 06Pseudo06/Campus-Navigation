@@ -18,6 +18,8 @@ interface TopbarProps {
   onOpenMobileSidebar: () => void;
   onToggleMobileDrawer?: () => void;
   isMobileDrawerOpen?: boolean;
+  campusName?: string;
+  isDemoData?: boolean;
 }
 
 export function Topbar({
@@ -26,6 +28,8 @@ export function Topbar({
   onOpenMobileSidebar,
   onToggleMobileDrawer,
   isMobileDrawerOpen,
+  campusName = "Carleton University",
+  isDemoData = true,
 }: TopbarProps) {
   const { user, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -83,14 +87,18 @@ export function Topbar({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-white truncate max-w-[140px] sm:max-w-[200px]">
-                Demo Campus
+                {campusName}
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700/70 text-zinc-400 font-mono">
-                Sample
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
+                isDemoData
+                  ? "bg-amber-950/80 text-amber-300 border border-amber-700/60"
+                  : "bg-zinc-700/70 text-zinc-400"
+              }`}>
+                {isDemoData ? "Demo Data" : "Blueprint"}
               </span>
             </div>
             <span className="text-[10px] text-zinc-400 hidden sm:inline">
-              Central University Quad
+              {isDemoData ? "Live Graph & Routing" : "Central University Quad"}
             </span>
           </div>
         </div>

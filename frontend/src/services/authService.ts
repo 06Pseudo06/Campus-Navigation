@@ -71,6 +71,9 @@ export const authService = {
       }
 
       const result = await response.json();
+      if (result.access_token && typeof window !== "undefined") {
+        localStorage.setItem("campusway_access_token", result.access_token);
+      }
       return {
         success: true,
         message: "Login successful.",
@@ -118,6 +121,9 @@ export const authService = {
       }
 
       const result = await response.json();
+      if (result.access_token && typeof window !== "undefined") {
+        localStorage.setItem("campusway_access_token", result.access_token);
+      }
       return {
         success: true,
         message: "Account created successfully.",
@@ -263,11 +269,20 @@ export const authService = {
   async getCurrentUser(): Promise<UserProfile | null> {
     const endpoint = `${API_BASE_URL}/api/v1/auth/me`;
     try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("campusway_access_token")
+          : null;
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetchWithTimeout(endpoint, {
         method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
+        headers,
         credentials: "include",
       });
 
@@ -287,6 +302,9 @@ export const authService = {
    */
   async logout(): Promise<boolean> {
     const endpoint = `${API_BASE_URL}/api/v1/auth/logout`;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("campusway_access_token");
+    }
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "POST",

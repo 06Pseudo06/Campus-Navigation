@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { CampusLocation, CampusRoute, MapLayerMode } from "@/types/campus";
+import { CampusLocation, CampusRoute, MapDisplayMode, MapLayerMode } from "@/types/campus";
+import { CarletonDemoMap } from "./CarletonDemoMap";
 import {
   ZoomInIcon,
   ZoomOutIcon,
@@ -14,18 +15,35 @@ import {
 interface CampusMapProps {
   locations: CampusLocation[];
   selectedLocation: CampusLocation | null;
+  originLocation?: CampusLocation | null;
   onSelectLocation: (location: CampusLocation) => void;
   activeRoute: CampusRoute | null;
   showRoute: boolean;
+  mapDisplayMode?: MapDisplayMode;
+  onToggleMapMode?: (mode: MapDisplayMode) => void;
 }
 
 export function CampusMap({
   locations,
   selectedLocation,
+  originLocation = null,
   onSelectLocation,
   activeRoute,
   showRoute,
+  mapDisplayMode: controlledMode,
+  onToggleMapMode,
 }: CampusMapProps) {
+  const [internalMode, setInternalMode] = useState<MapDisplayMode>("carleton_demo");
+  const currentMode = controlledMode ?? internalMode;
+
+  const handleModeChange = (mode: MapDisplayMode) => {
+    if (onToggleMapMode) {
+      onToggleMapMode(mode);
+    } else {
+      setInternalMode(mode);
+    }
+  };
+
   const [zoom, setZoom] = useState<number>(1);
   const [layer, setLayer] = useState<MapLayerMode>("standard");
   const [layerMenuOpen, setLayerMenuOpen] = useState<boolean>(false);
@@ -50,6 +68,49 @@ export function CampusMap({
 
   return (
     <div className="relative w-full h-full bg-[#0a0f1d] overflow-hidden select-none flex flex-col justify-between">
+      {/* Top Campus View Switcher Bar */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center bg-[#111827]/95 border border-zinc-700/80 p-1 rounded-xl shadow-2xl backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => handleModeChange("carleton_demo")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            currentMode === "carleton_demo"
+              ? "bg-[#DE4B31] text-white shadow-md"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          Carleton Live Demo (GPS)
+        </button>
+        <button
+          type="button"
+          onClick={() => handleModeChange("lpu_concept")}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            currentMode === "lpu_concept"
+              ? "bg-[#DE4B31] text-white shadow-md"
+              : "text-zinc-400 hover:text-white"
+          }`}
+        >
+          LPU Concept (Blueprint)
+        </button>
+      </div>
+
+      {/* Render Carleton Live GPS Projection Map */}
+      {currentMode === "carleton_demo" ? (
+        <CarletonDemoMap
+          locations={locations}
+          selectedLocation={selectedLocation}
+          originLocation={originLocation}
+          onSelectLocation={onSelectLocation}
+          activeRoute={activeRoute}
+          showRoute={showRoute}
+        />
+      ) : (
+        <>
+          {/* LPU Blueprint Campus View Mode */}
+          <div className="absolute top-16 left-4 z-20 bg-amber-950/80 border border-amber-700/60 text-amber-300 text-[11px] px-3 py-1.5 rounded-xl backdrop-blur-md shadow-xl flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span>LPU Campus Concept Blueprint &bull; Switch to Carleton Live Demo for live GPS routing data</span>
+          </div>
       {/* Map Control Toolbar (Top-Right) */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
         {/* Zoom In */}
@@ -472,6 +533,67 @@ export function CampusMap({
           </span>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
