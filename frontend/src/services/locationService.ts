@@ -18,7 +18,8 @@ export const locationService = {
   async searchLocations(
     query?: string,
     locationType?: string,
-    limit: number = 50
+    limit: number = 50,
+    signal?: AbortSignal
   ): Promise<LocationRead[]> {
     const params = new URLSearchParams();
     if (query && query.trim()) params.set("query", query.trim());
@@ -26,7 +27,7 @@ export const locationService = {
     params.set("limit", String(limit));
 
     const endpoint = `/api/v1/locations/?${params.toString()}`;
-    return apiRequest<LocationRead[]>(endpoint);
+    return apiRequest<LocationRead[]>(endpoint, { signal });
   },
 
   /**
@@ -35,7 +36,8 @@ export const locationService = {
   async getVisitorDestinations(
     query?: string,
     category?: string,
-    limit: number = 50
+    limit: number = 50,
+    signal?: AbortSignal
   ): Promise<VisitorDestinationCard[]> {
     const params = new URLSearchParams();
     if (query && query.trim()) params.set("query", query.trim());
@@ -43,7 +45,7 @@ export const locationService = {
     params.set("limit", String(limit));
 
     const endpoint = `/api/v1/assistance/destinations?${params.toString()}`;
-    return apiRequest<VisitorDestinationCard[]>(endpoint);
+    return apiRequest<VisitorDestinationCard[]>(endpoint, { signal });
   },
 
   /**

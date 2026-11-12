@@ -40,6 +40,33 @@ engine = create_engine(db_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+def is_db_available(db: Optional[Session] = None) -> bool:
+    """Fast probe to check whether target database is reachable before querying.
+    
+    If an active SQLite session is provided (e.g. during test runs), returns True immediately.
+    Otherwise checks socket reachability with a 50ms fast connection probe.
+    """
+    try:
+        if db is not None and db.bind is not None:
+            if db.bind.dialect.name == "sqlite":
+                return True
+            u = db.bind.url
+        else:
+            u = make_url(db_url)
+            if u.get_backend_name() == "sqlite":
+                return True
+
+        host = "127.0.0.1" if u.host in ("localhost", "127.0.0.1", None) else u.host
+        port = u.port or 5432
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.05)
+        res = s.connect_ex((host, port))
+        s.close()
+        return res == 0
+    except Exception:
+        return False
+
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency for obtaining database session in FastAPI endpoints with strict transaction boundary."""
     db = SessionLocal()

@@ -71,11 +71,11 @@ export function HelpTab({ locations = [] }: HelpTabProps) {
     setSubmitError(null);
   };
 
-  const emergencyContacts = [
-    { label: "Campus Security Kiosk (24/7)", number: "+1 (555) 019-2831", location: "Main Gate" },
-    { label: "Student Medical Center", number: "+1 (555) 019-2832", location: "Sports Complex Wing A" },
-    { label: "Accessibility & Disability Support", number: "+1 (555) 019-2833", location: "Admin Block, Rm 104" },
-    { label: "Campus Transit & Shuttle Dispatch", number: "+1 (555) 019-2834", location: "South Transit Hub" },
+  const campusSupportDirectory = [
+    { label: "Campus Safety & Security Operations", facility: "Robertson Hall, Room 203", hours: "24/7 Dispatch" },
+    { label: "Student Health & Wellness Services", facility: "CTTC Building, Suite 2600", hours: "Mon–Fri, 8:30–16:30" },
+    { label: "Paul Menton Centre for Accessibility", facility: "MacOdrum Library, 5th Floor", hours: "Mon–Fri, 8:30–16:30" },
+    { label: "Campus Information & Visitor Desk", facility: "University Centre (Tory Quad)", hours: "Daily, 8:00–20:00" },
   ];
 
   const faqs = [
@@ -262,7 +262,7 @@ export function HelpTab({ locations = [] }: HelpTabProps) {
                   type="tel"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="e.g. +1 (555) 234-5678"
+                  placeholder="e.g. +1 613 520 2600"
                   disabled={isSubmitting}
                   maxLength={20}
                   className="w-full p-2.5 text-xs bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#DE4B31]"
@@ -308,30 +308,33 @@ export function HelpTab({ locations = [] }: HelpTabProps) {
         )}
       </div>
 
-      {/* Emergency Contacts - Informational Directory */}
+      {/* Campus Support & Information Directory */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-300">
-            Essential Contacts & Emergency
+            Campus Service Desks & Operations
           </h3>
-          <span className="text-[10px] text-zinc-500 font-mono">Informational Directory</span>
+          <span className="text-[10px] text-zinc-500 font-mono">On-Campus Directory</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {emergencyContacts.map((contact, idx) => (
+          {campusSupportDirectory.map((contact, idx) => (
             <div
               key={idx}
               className="p-3.5 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between"
             >
               <div>
                 <p className="text-xs font-bold text-white">{contact.label}</p>
-                <p className="text-[11px] text-zinc-400">{contact.location}</p>
+                <p className="text-[11px] text-zinc-400">{contact.facility}</p>
               </div>
-              <span className="text-xs font-mono font-semibold text-[#DE4B31] bg-[#DE4B31]/10 px-2.5 py-1 rounded-lg border border-[#DE4B31]/20">
-                {contact.number}
+              <span className="text-[10px] font-mono font-medium text-[#fca5a5] bg-[#DE4B31]/10 px-2 py-1 rounded-lg border border-[#DE4B31]/20">
+                {contact.hours}
               </span>
             </div>
           ))}
         </div>
+        <p className="text-[11px] text-zinc-500 italic">
+          Note: For immediate physical assistance, use the on-campus emergency call stations equipped with blue beacon lights stationed across walkways.
+        </p>
       </div>
 
       {/* Frequently Asked Questions - Informational Guide */}

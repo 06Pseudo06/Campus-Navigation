@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { UserProfile } from "@/types/auth";
 import { authService } from "@/services/authService";
 
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -54,20 +56,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authService.logout();
       setUser(null);
       // Redirect to login page after successful logout
-      window.location.href = "/login?notice=logged_out";
+      router.push("/login?notice=logged_out");
     } catch {
       setUser(null);
-      window.location.href = "/login";
+      router.push("/login");
     }
-  };
+  }, [router]);
+
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      loading,
+      logout,
+      refreshUser,
+    }),
+    [user, loading, logout, refreshUser]
+  );
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

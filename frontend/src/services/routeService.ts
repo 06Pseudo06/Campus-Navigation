@@ -14,15 +14,15 @@ export const routeService = {
   /**
    * Fetch active nodes for a specific location.
    */
-  async getNodesForLocation(locationId: string): Promise<NodeRead[]> {
-    return apiRequest<NodeRead[]>(`/api/v1/routing/nodes?location_id=${locationId}`);
+  async getNodesForLocation(locationId: string, signal?: AbortSignal): Promise<NodeRead[]> {
+    return apiRequest<NodeRead[]>(`/api/v1/routing/nodes?location_id=${locationId}`, { signal });
   },
 
   /**
    * Fetch all active graph navigation nodes (cached where applicable).
    */
-  async getAllNodes(): Promise<NodeRead[]> {
-    return apiRequest<NodeRead[]>("/api/v1/routing/nodes");
+  async getAllNodes(signal?: AbortSignal): Promise<NodeRead[]> {
+    return apiRequest<NodeRead[]>("/api/v1/routing/nodes", { signal });
   },
 
   /**
@@ -32,7 +32,8 @@ export const routeService = {
     originNodeId: string,
     destinationNodeId: string,
     accessibleOnly: boolean = false,
-    algorithm: "dijkstra" | "astar" = "dijkstra"
+    algorithm: "dijkstra" | "astar" = "dijkstra",
+    signal?: AbortSignal
   ): Promise<RouteResponse> {
     const payload: RouteQuery = {
       origin_node_id: originNodeId,
@@ -44,6 +45,7 @@ export const routeService = {
     return apiRequest<RouteResponse>("/api/v1/routing/calculate", {
       method: "POST",
       body: JSON.stringify(payload),
+      signal,
     });
   },
 

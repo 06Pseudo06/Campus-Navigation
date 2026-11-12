@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_admin_role
+from app.core.database import is_db_available
 from app.schemas.location import (
     LocationAliasCreate,
     LocationAliasRead,
@@ -17,6 +18,7 @@ from app.schemas.location import (
     LocationVerifyRequest,
 )
 from app.services import location_service
+from app.services import carleton_fallback
 
 router = APIRouter()
 
@@ -32,12 +34,24 @@ def list_locations(
     db: Session = Depends(get_db),
 ):
     """List searchable campus locations (buildings, gates, rooms, landmarks). Excludes inactive by default."""
-    return location_service.list_locations(
-        db,
+    if is_db_available(db):
+        try:
+            results = location_service.list_locations(
+                db,
+                query=query,
+                location_type=location_type,
+                is_verified=is_verified,
+                is_active=is_active,
+                skip=skip,
+                limit=limit,
+            )
+            if results:
+                return results
+        except Exception:
+            pass
+    return carleton_fallback.get_fallback_locations(
         query=query,
         location_type=location_type,
-        is_verified=is_verified,
-        is_active=is_active,
         skip=skip,
         limit=limit,
     )

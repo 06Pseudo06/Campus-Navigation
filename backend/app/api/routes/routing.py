@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_admin_role
+from app.core.database import is_db_available
 from app.schemas.graph import (
     EdgeCreate,
     EdgeRead,
@@ -15,6 +16,7 @@ from app.schemas.graph import (
     RouteResponse,
 )
 from app.services import graph_service
+from app.services import carleton_fallback
 
 router = APIRouter()
 
@@ -26,7 +28,14 @@ def list_nodes(
     db: Session = Depends(get_db),
 ):
     """Retrieve active navigation nodes/waypoints (Public endpoint)."""
-    return graph_service.list_active_nodes(db, location_id=location_id, is_active=is_active)
+    if is_db_available(db):
+        try:
+            nodes = graph_service.list_active_nodes(db, location_id=location_id, is_active=is_active)
+            if nodes:
+                return nodes
+        except Exception:
+            pass
+    return carleton_fallback.get_fallback_nodes(location_id=location_id, is_active=is_active)
 
 
 @router.post("/nodes", response_model=NodeRead, status_code=status.HTTP_201_CREATED)
@@ -94,8 +103,21 @@ def calculate_route(
     db: Session = Depends(get_db),
 ):
     """Calculate optimal walking route between two campus nodes using Dijkstra pathfinding (Public endpoint)."""
-    route = graph_service.compute_shortest_route(
-        db,
+    if is_db_available(db):
+        try:
+            route = graph_service.compute_shortest_route(
+                db,
+                origin_node_id=query.origin_node_id,
+                destination_node_id=query.destination_node_id,
+                accessible_only=query.accessible_only,
+                algorithm=query.algorithm,
+            )
+            if route:
+                return route
+        except Exception:
+            pass
+
+    route = carleton_fallback.compute_fallback_shortest_route(
         origin_node_id=query.origin_node_id,
         destination_node_id=query.destination_node_id,
         accessible_only=query.accessible_only,

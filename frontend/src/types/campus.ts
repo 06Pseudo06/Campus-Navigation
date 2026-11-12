@@ -15,9 +15,10 @@ export interface CampusLocation {
   coordinates: CampusCoordinates;
   latitude?: number;
   longitude?: number;
-  nearestNodeId?: string;
+  nearestNodeId?: string | null;
   hasRouteTopology?: boolean;
   visitorGuidance?: string;
+  isAccessible?: boolean;
   buildingShape?: {
     x: number;
     y: number;
@@ -30,7 +31,7 @@ export interface CampusLocation {
   operatingHours?: string;
   facilities?: string[];
   departments?: string[];
-  accessibility: string;
+  accessibility?: string;
   popular?: boolean;
   isDemonstrationData?: boolean;
 }

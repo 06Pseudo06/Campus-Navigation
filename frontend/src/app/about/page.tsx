@@ -56,10 +56,10 @@ export default function AboutPage() {
 
           <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
             <Link
-              href="/login"
+              href="/explore"
               className="px-6 py-2.5 rounded-xl bg-[#DE4B31] hover:bg-[#C93F27] text-white text-sm font-semibold tracking-wide transition-all shadow-md"
             >
-              Go to Sign In
+              Explore Campus Map
             </Link>
             <Link
               href="/"

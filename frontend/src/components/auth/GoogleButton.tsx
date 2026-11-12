@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { GoogleIcon, Spinner } from "@/components/icons/Icons";
 
 import { authService } from "@/services/authService";
@@ -16,6 +17,7 @@ export function GoogleButton({
   onNotice,
   onSuccess,
 }: GoogleButtonProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -63,7 +65,7 @@ export function GoogleButton({
         if (onSuccess) {
           onSuccess();
         } else {
-          window.location.href = "/explore?auth=success";
+          router.push("/explore?auth=success");
         }
       } else {
         if (onNotice) {

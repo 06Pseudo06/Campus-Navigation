@@ -58,6 +58,21 @@ export default function LoginPage() {
               </p>
             }
           >
+            <div className="mb-4 p-3 rounded-xl bg-zinc-900/90 border border-[#DE4B31]/40 text-xs text-zinc-300">
+              <div className="flex items-center gap-2 text-white font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Guest Access Recommended</span>
+              </div>
+              <p className="mt-1 text-zinc-400 text-[11px] leading-relaxed">
+                Authentication is deferred for this demo milestone. All campus wayfinding, graph routing, destination search, and local bookmarks are unlocked without sign-in.
+              </p>
+              <Link
+                href="/explore"
+                className="mt-2.5 w-full py-2 px-3 rounded-xl bg-[#DE4B31] hover:bg-[#c93f27] text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md shadow-[#DE4B31]/20 cursor-pointer"
+              >
+                <span>Continue as Guest Explorer →</span>
+              </Link>
+            </div>
             <LoginForm />
           </AuthCard>
         </div>

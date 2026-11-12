@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
   UniversityIcon,
@@ -186,45 +187,98 @@ export function Topbar({
           {/* Profile Dropdown Menu */}
           {profileDropdownOpen && (
             <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#111827] border border-zinc-700 shadow-2xl py-2 z-50 text-zinc-200">
-              {/* User details header */}
-              <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-xs font-semibold text-white truncate">
-                  {displayName}
-                </p>
-                <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                  {user?.email || "No email provided"}
-                </p>
-                {user?.email_verified && (
-                  <div className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-[10px] text-emerald-400 font-medium">
-                    <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
-                    <span>Verified Session</span>
+              {user ? (
+                <>
+                  {/* User details header */}
+                  <div className="px-4 py-3 border-b border-zinc-800">
+                    <p className="text-xs font-semibold text-white truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                      {user?.email || "No email provided"}
+                    </p>
+                    {user?.email_verified && (
+                      <div className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-[10px] text-emerald-400 font-medium">
+                        <CheckCircleIcon className="w-3 h-3 text-emerald-400" />
+                        <span>Verified Session</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Status information */}
-              <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80">
-                <div className="flex items-center justify-between">
-                  <span>Authentication</span>
-                  <span className="text-zinc-200 font-mono">Google OAuth 2.0</span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span>Session Storage</span>
-                  <span className="text-zinc-200 font-mono">HTTP-Only Cookie</span>
-                </div>
-              </div>
+                  {/* Status information */}
+                  <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80">
+                    <div className="flex items-center justify-between">
+                      <span>Authentication</span>
+                      <span className="text-zinc-200 font-mono">Google OAuth 2.0</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span>Session Storage</span>
+                      <span className="text-zinc-200 font-mono">HTTP-Only Cookie</span>
+                    </div>
+                  </div>
 
-              {/* Actions */}
-              <div className="p-1.5">
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-white hover:bg-rose-950/50 rounded-xl transition-colors cursor-pointer"
-                >
-                  <SignOutIcon className="w-4 h-4 text-rose-400" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
+                  {/* Actions */}
+                  <div className="p-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-white hover:bg-rose-950/50 rounded-xl transition-colors cursor-pointer"
+                    >
+                      <SignOutIcon className="w-4 h-4 text-rose-400" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Guest Explorer Header */}
+                  <div className="px-4 py-3 border-b border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-white">
+                        Guest Explorer
+                      </p>
+                      <span className="px-2 py-0.5 text-[10px] font-mono bg-emerald-950/80 border border-emerald-700/50 text-emerald-400 rounded-full">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-1">
+                      No sign-in required for campus navigation, routing, and saved places.
+                    </p>
+                  </div>
+
+                  {/* Guest Session Details */}
+                  <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span>Saved Locations</span>
+                      <span className="text-zinc-200 font-mono">Browser Storage</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>Graph Routing</span>
+                      <span className="text-emerald-400 font-mono">Live Solver</span>
+                    </div>
+                  </div>
+
+                  {/* Guest Links */}
+                  <div className="p-1.5 space-y-1">
+                    <Link
+                      href="/about"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800/80 rounded-xl transition-colors"
+                    >
+                      <UniversityIcon className="w-4 h-4 text-[#DE4B31]" />
+                      <span>About CampusWay</span>
+                    </Link>
+                    <Link
+                      href="/login"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 rounded-xl transition-colors"
+                    >
+                      <span>Sign In / Register</span>
+                      <span className="text-[10px] text-zinc-500 font-mono">Optional</span>
+                    </Link>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

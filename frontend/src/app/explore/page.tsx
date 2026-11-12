@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useTransition, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
@@ -9,7 +9,7 @@ import { DestinationPanel } from "@/components/dashboard/DestinationPanel";
 import { RoutesTab } from "@/components/dashboard/RoutesTab";
 import { SavedTab } from "@/components/dashboard/SavedTab";
 import { HelpTab } from "@/components/dashboard/HelpTab";
-import { SAMPLE_LOCATIONS } from "@/data/campusData";
+import { CARLETON_DEMO_LOCATIONS } from "@/data/carletonLocations";
 import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
 import { favoriteService } from "@/services/favoriteService";
@@ -36,18 +36,30 @@ export default function ExploreDashboardPage() {
   // Global search & filter query
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Map display mode: defaults to live Carleton GPS projection
+  // Map display mode: always Carleton live demo
   const [mapDisplayMode, setMapDisplayMode] = useState<MapDisplayMode>("carleton_demo");
 
-  // Live campus locations & node cache
-  const [locations, setLocations] = useState<CampusLocation[]>([]);
-  const [isLoadingLocations, setIsLoadingLocations] = useState<boolean>(true);
+  // Initial campus locations & node cache
+  const [locations, setLocations] = useState<CampusLocation[]>(CARLETON_DEMO_LOCATIONS);
+  const [isLoadingLocations, setIsLoadingLocations] = useState<boolean>(false);
   const [locationsError, setLocationsError] = useState<string | null>(null);
-  const [nodeMap, setNodeMap] = useState<Map<string, NodeRead>>(new Map());
+
+  // Caches & request management refs
+  const nodeMapRef = useRef<Map<string, NodeRead>>(new Map());
+  const destinationsAbortControllerRef = useRef<AbortController | null>(null);
+  const isFetchingLocationsRef = useRef<boolean>(false);
+  const hasInitializedRef = useRef<boolean>(false);
+  const routeAbortControllerRef = useRef<AbortController | null>(null);
+  const routeRequestIdRef = useRef<number>(0);
+  const isCalculatingRouteRef = useRef<boolean>(false);
+
+  // Default origin (MacOdrum Library - ML) and destination (Paterson Hall - PA)
+  const defaultInitialOrigin = CARLETON_DEMO_LOCATIONS.find((l) => l.code === "ML") || CARLETON_DEMO_LOCATIONS[0];
+  const defaultInitialDest = CARLETON_DEMO_LOCATIONS.find((l) => l.code === "PA") || CARLETON_DEMO_LOCATIONS[1];
 
   // Routing endpoints state
-  const [originLocation, setOriginLocation] = useState<CampusLocation | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<CampusLocation | null>(null);
+  const [originLocation, setOriginLocation] = useState<CampusLocation | null>(defaultInitialOrigin);
+  const [selectedLocation, setSelectedLocation] = useState<CampusLocation | null>(defaultInitialDest);
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<"dijkstra" | "astar">("dijkstra");
 
   // Route preview state
@@ -56,8 +68,13 @@ export default function ExploreDashboardPage() {
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
   const [routeError, setRouteError] = useState<string | null>(null);
 
-  // Saved location IDs & state
-  const [savedIds, setSavedIds] = useState<string[]>([]);
+  // Saved location IDs & state (read strictly from guest storage without injecting fake bookmarks)
+  const [savedIds, setSavedIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      return favoriteService.getGuestFavorites();
+    }
+    return [];
+  });
   const [isLoadingSaved, setIsLoadingSaved] = useState<boolean>(false);
   const [savedError, setSavedError] = useState<string | null>(null);
 
@@ -98,10 +115,19 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // Sync favorites whenever user authentication state changes
+  // Sync favorites whenever user authentication state (ID) changes
+  const userId = user?.id;
   useEffect(() => {
-    loadFavorites(user);
-  }, [user, loadFavorites]);
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        loadFavorites(user);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId, user, loadFavorites]);
 
   // Check URL search parameters on mount
   useEffect(() => {
@@ -122,13 +148,12 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // 2. Route Calculation Execution Method
+  // 2. User-Driven Route Calculation Execution Method
   const calculateRoutePath = useCallback(
     async (
       origin: CampusLocation | null,
       destination: CampusLocation | null,
-      algo: "dijkstra" | "astar" = "dijkstra",
-      currentNodeMap?: Map<string, NodeRead>
+      algo: "dijkstra" | "astar" = "dijkstra"
     ) => {
       if (!origin || !destination) {
         setActiveRoute(null);
@@ -158,14 +183,24 @@ export default function ExploreDashboardPage() {
         return;
       }
 
+      // Prevent concurrent execution: abort previous pending calculation
+      if (isCalculatingRouteRef.current) {
+        routeAbortControllerRef.current?.abort();
+      }
+
+      const controller = new AbortController();
+      routeAbortControllerRef.current = controller;
+      const requestId = ++routeRequestIdRef.current;
+
       setIsCalculatingRoute(true);
+      isCalculatingRouteRef.current = true;
       setRouteError(null);
 
       try {
         // Resolve origin node ID
         let originNodeId = origin.nearestNodeId;
         if (!originNodeId) {
-          const originNodes = await routeService.getNodesForLocation(origin.id);
+          const originNodes = await routeService.getNodesForLocation(origin.id, controller.signal);
           if (originNodes.length > 0) {
             originNodeId = originNodes[0].id;
           }
@@ -174,10 +209,14 @@ export default function ExploreDashboardPage() {
         // Resolve destination node ID
         let destinationNodeId = destination.nearestNodeId;
         if (!destinationNodeId) {
-          const destNodes = await routeService.getNodesForLocation(destination.id);
+          const destNodes = await routeService.getNodesForLocation(destination.id, controller.signal);
           if (destNodes.length > 0) {
             destinationNodeId = destNodes[0].id;
           }
+        }
+
+        if (controller.signal.aborted || requestId !== routeRequestIdRef.current) {
+          return;
         }
 
         if (!originNodeId || !destinationNodeId) {
@@ -189,52 +228,72 @@ export default function ExploreDashboardPage() {
           originNodeId,
           destinationNodeId,
           false,
-          algo
+          algo,
+          controller.signal
         );
 
-        // Format into frontend route model with coordinate waypoints
-        const effectiveNodeMap = currentNodeMap || nodeMap;
+        if (controller.signal.aborted || requestId !== routeRequestIdRef.current) {
+          return;
+        }
+
+        // Format into frontend route model with coordinate waypoints using cached nodeMap
         const formattedRoute = routeService.formatRouteModel(
           origin,
           destination,
           routeResp,
-          effectiveNodeMap
+          nodeMapRef.current
         );
 
         setActiveRoute(formattedRoute);
         setShowRoute(true);
       } catch (err: unknown) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "No viable pedestrian pathway could be calculated between the selected buildings.";
-        setRouteError(message);
-        setActiveRoute(null);
+        if ((err as Error)?.name === "AbortError") {
+          return;
+        }
+        if (requestId === routeRequestIdRef.current) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : "No viable pedestrian pathway could be calculated between the selected buildings.";
+          setRouteError(message);
+          setActiveRoute(null);
+        }
       } finally {
-        setIsCalculatingRoute(false);
+        if (requestId === routeRequestIdRef.current) {
+          setIsCalculatingRoute(false);
+          isCalculatingRouteRef.current = false;
+        }
       }
     },
-    [nodeMap]
+    []
   );
 
-  // 3. Load Live Campus Data & Graph Topology on Mount
+  // 3. Load Live Campus Data & Graph Topology on Mount (Stable, isolated, and idempotent)
   const loadCampusData = useCallback(async () => {
+    if (isFetchingLocationsRef.current) return;
+    isFetchingLocationsRef.current = true;
     setIsLoadingLocations(true);
     setLocationsError(null);
+
+    destinationsAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    destinationsAbortControllerRef.current = controller;
 
     try {
       // Parallel fetch: destinations and graph nodes
       const [destResults, nodeResults] = await Promise.allSettled([
-        locationService.getVisitorDestinations(undefined, undefined, 60),
-        routeService.getAllNodes(),
+        locationService.getVisitorDestinations(undefined, undefined, 60, controller.signal),
+        routeService.getAllNodes(controller.signal),
       ]);
+
+      if (controller.signal.aborted) return;
 
       let loadedNodes: NodeRead[] = [];
       const newNodeMap = new Map<string, NodeRead>();
       if (nodeResults.status === "fulfilled" && Array.isArray(nodeResults.value)) {
         loadedNodes = nodeResults.value;
         loadedNodes.forEach((node) => newNodeMap.set(node.id, node));
-        setNodeMap(newNodeMap);
+        nodeMapRef.current = newNodeMap;
       }
 
       if (destResults.status === "fulfilled" && Array.isArray(destResults.value) && destResults.value.length > 0) {
@@ -246,118 +305,89 @@ export default function ExploreDashboardPage() {
         setLocations(mappedLocations);
         setMapDisplayMode("carleton_demo");
 
-        // Identify default origin: MacOdrum Library (ML)
         const defaultOrigin =
           mappedLocations.find(
             (l) => l.code === "ML" || l.name.toLowerCase().includes("library")
           ) || mappedLocations[0];
 
-        // Identify default destination: Paterson Hall (PA)
         const defaultDest =
           mappedLocations.find(
             (l) => l.code === "PA" || l.name.toLowerCase().includes("paterson")
           ) || mappedLocations[1] || mappedLocations[0];
 
-        setOriginLocation(defaultOrigin);
-        setSelectedLocation(defaultDest);
-
-        // Pre-save default library bookmark if guest has no saved places
-        if (defaultOrigin && !user) {
-          const currentGuest = favoriteService.getGuestFavorites();
-          if (currentGuest.length === 0) {
-            favoriteService.addGuestFavorite(defaultOrigin.id);
-            setSavedIds([defaultOrigin.id]);
-          }
-        }
-
-        // Calculate initial route between default pair
-        if (defaultOrigin && defaultDest && defaultOrigin.id !== defaultDest.id) {
-          calculateRoutePath(defaultOrigin, defaultDest, selectedAlgorithm, newNodeMap);
-        }
+        setOriginLocation((prev) => prev || defaultOrigin);
+        setSelectedLocation((prev) => prev || defaultDest);
       } else {
-        // Fallback to offline blueprint concept
-        setLocations(SAMPLE_LOCATIONS);
-        setMapDisplayMode("lpu_concept");
-        setLocationsError(
-          "Live backend unreachable or empty. Displaying offline campus blueprint preview."
-        );
-        const defaultOrigin = SAMPLE_LOCATIONS[0];
-        const defaultDest = SAMPLE_LOCATIONS.find((l) => l.id === "loc-block-34") || SAMPLE_LOCATIONS[1];
-        setOriginLocation(defaultOrigin);
-        setSelectedLocation(defaultDest);
-        if (!user) {
-          const currentGuest = favoriteService.getGuestFavorites();
-          if (currentGuest.length === 0) {
-            setSavedIds(["loc-block-34", "loc-library"]);
-          }
-        }
+        // Fallback to canonical Carleton demonstration dataset
+        setLocations(CARLETON_DEMO_LOCATIONS);
+        setMapDisplayMode("carleton_demo");
       }
-    } catch {
-      setLocations(SAMPLE_LOCATIONS);
-      setMapDisplayMode("lpu_concept");
-      setLocationsError(
-        "Could not connect to live backend API. Switched to offline campus concept view."
-      );
-      const defaultOrigin = SAMPLE_LOCATIONS[0];
-      const defaultDest = SAMPLE_LOCATIONS.find((l) => l.id === "loc-block-34") || SAMPLE_LOCATIONS[1];
-      setOriginLocation(defaultOrigin);
-      setSelectedLocation(defaultDest);
-      setSavedIds(["loc-block-34", "loc-library"]);
+    } catch (err: unknown) {
+      if ((err as Error)?.name === "AbortError") return;
+      setLocations(CARLETON_DEMO_LOCATIONS);
+      setMapDisplayMode("carleton_demo");
     } finally {
       setIsLoadingLocations(false);
+      isFetchingLocationsRef.current = false;
     }
-  }, [calculateRoutePath, selectedAlgorithm, user]);
+  }, []);
 
+  // Mount effect: Fetch campus data on mount, safe across React StrictMode
   useEffect(() => {
-    loadCampusData();
+    let isCancelled = false;
+
+    queueMicrotask(() => {
+      if (!isCancelled) {
+        loadCampusData().then(() => {
+          if (!isCancelled) {
+            hasInitializedRef.current = true;
+          }
+        });
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      destinationsAbortControllerRef.current?.abort();
+      routeAbortControllerRef.current?.abort();
+    };
   }, [loadCampusData]);
 
   // Handler: Selecting destination location from map or destination panel
-  const handleSelectLocation = (loc: CampusLocation) => {
+  const handleSelectLocation = useCallback((loc: CampusLocation) => {
     setSelectedLocation(loc);
     setRouteError(null);
 
-    // If valid origin is already set, calculate route
-    if (originLocation && originLocation.id !== loc.id) {
-      calculateRoutePath(originLocation, loc, selectedAlgorithm);
-    } else {
-      setActiveRoute(null);
-    }
+    // Invalidate active route if the destination is changed
+    setActiveRoute((prev) => (prev && prev.toLocationId === loc.id ? prev : null));
 
     if (currentTab !== "explore") {
       setCurrentTab("explore");
     }
     setMobileDrawerOpen(false);
-  };
+  }, [currentTab]);
 
   // Handler: Selecting origin location
-  const handleSelectOriginLocation = (loc: CampusLocation) => {
+  const handleSelectOriginLocation = useCallback((loc: CampusLocation) => {
     setOriginLocation(loc);
     setRouteError(null);
 
-    // If destination is already set, calculate route
-    if (selectedLocation && selectedLocation.id !== loc.id) {
-      calculateRoutePath(loc, selectedLocation, selectedAlgorithm);
-    } else {
-      setActiveRoute(null);
-    }
-  };
+    // Invalidate active route if the origin is changed
+    setActiveRoute((prev) => (prev && prev.fromLocationId === loc.id ? prev : null));
+  }, []);
 
-  // Handler: Manual calculate button click
-  const handleManualCalculate = () => {
+  // Handler: Manual calculate button click (Explicit user action)
+  const handleManualCalculate = useCallback(() => {
     calculateRoutePath(originLocation, selectedLocation, selectedAlgorithm);
-  };
+  }, [calculateRoutePath, originLocation, selectedLocation, selectedAlgorithm]);
 
   // Handler: Switching algorithm (Dijkstra vs A*)
-  const handleSelectAlgorithm = (algo: "dijkstra" | "astar") => {
+  const handleSelectAlgorithm = useCallback((algo: "dijkstra" | "astar") => {
     setSelectedAlgorithm(algo);
-    if (originLocation && selectedLocation && originLocation.id !== selectedLocation.id) {
-      calculateRoutePath(originLocation, selectedLocation, algo);
-    }
-  };
+  }, []);
 
   // Handler: Selecting a predefined route from Routes tab
-  const handleSelectPredefinedRoute = (fromId: string, toId: string) => {
+  const handleSelectPredefinedRoute = useCallback((fromId: string, toId: string) => {
     const fromLoc = locations.find((l) => l.id === fromId);
     const toLoc = locations.find((l) => l.id === toId);
 
@@ -368,7 +398,7 @@ export default function ExploreDashboardPage() {
       setCurrentTab("explore");
       calculateRoutePath(fromLoc, toLoc, selectedAlgorithm);
     }
-  };
+  }, [locations, calculateRoutePath, selectedAlgorithm]);
 
   // Handler: Toggle bookmark for a location
   const handleToggleSaveLocation = async (locId: string) => {

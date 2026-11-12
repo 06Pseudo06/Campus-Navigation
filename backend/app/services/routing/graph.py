@@ -104,3 +104,64 @@ class CampusGraph:
                     "is_bidirectional": True,
                     "edge_id": e.id,
                 })
+
+    def load_from_memory(self, nodes: List[Any], edges: List[Any], accessible_only: bool = False) -> None:
+        """Populate in-memory graph from node and edge records."""
+        self.clear()
+
+        for n in nodes:
+            if not getattr(n, "is_active", True):
+                continue
+            if accessible_only and not getattr(n, "is_accessible", True):
+                continue
+
+            n_id = str(n.id)
+            self.nodes[n_id] = {
+                "id": n.id,
+                "node_type": getattr(n, "node_type", "hallway"),
+                "latitude": float(n.latitude),
+                "longitude": float(n.longitude),
+                "is_accessible": getattr(n, "is_accessible", True),
+                "location_id": getattr(n, "location_id", None),
+            }
+            self.adjacency_list[n_id] = []
+
+        for e in edges:
+            if not getattr(e, "is_active", True):
+                continue
+            if accessible_only and not getattr(e, "is_accessible", True):
+                continue
+
+            s_id = str(e.source_node_id)
+            t_id = str(e.target_node_id)
+
+            if s_id not in self.nodes or t_id not in self.nodes:
+                continue
+
+            dist = float(e.distance_m)
+            if dist <= 0:
+                continue
+
+            path_type = getattr(e, "path_type", "footpath")
+            is_acc = getattr(e, "is_accessible", True)
+            is_bi = getattr(e, "is_bidirectional", True)
+            edge_id = getattr(e, "id", None)
+
+            self.adjacency_list[s_id].append({
+                "target": t_id,
+                "distance_m": dist,
+                "path_type": path_type,
+                "is_accessible": is_acc,
+                "is_bidirectional": is_bi,
+                "edge_id": edge_id,
+            })
+
+            if is_bi:
+                self.adjacency_list[t_id].append({
+                    "target": s_id,
+                    "distance_m": dist,
+                    "path_type": path_type,
+                    "is_accessible": is_acc,
+                    "is_bidirectional": True,
+                    "edge_id": edge_id,
+                })

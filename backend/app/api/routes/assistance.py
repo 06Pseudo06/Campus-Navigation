@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user_id, get_db, require_admin_role, require_moderator_or_admin
+from app.core.database import is_db_available
 from app.schemas.assistance import (
     AssistanceRequestCreate,
     AssistanceRequestRead,
@@ -16,6 +17,7 @@ from app.schemas.assistance import (
     VisitorDestinationCard,
 )
 from app.services import assistance_service
+from app.services import carleton_fallback
 
 router = APIRouter()
 
@@ -35,10 +37,14 @@ def submit_assistance_request(
         except Exception:
             pass
 
-    try:
-        return assistance_service.create_assistance_request(db, request_in, user_id=user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    if is_db_available(db):
+        try:
+            return assistance_service.create_assistance_request(db, request_in, user_id=user_id)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        except Exception:
+            pass
+    return carleton_fallback.save_fallback_assistance_request(request_in)
 
 
 @router.get("/requests", response_model=List[AssistanceRequestRead])
@@ -50,7 +56,12 @@ def list_assistance_requests(
     _staff: str = Depends(require_moderator_or_admin),
 ):
     """List visitor assistance requests (Staff/Moderator/Admin operation)."""
-    return assistance_service.list_assistance_requests(db, status=request_status, skip=skip, limit=limit)
+    if is_db_available(db):
+        try:
+            return assistance_service.list_assistance_requests(db, status=request_status, skip=skip, limit=limit)
+        except Exception:
+            pass
+    return carleton_fallback.get_fallback_assistance_requests()
 
 
 @router.get("/requests/{request_id}", response_model=AssistanceRequestRead)
@@ -88,8 +99,17 @@ def list_visitor_destinations(
     db: Session = Depends(get_db),
 ):
     """Browse visitor-friendly destination guide cards with route topology status (Public endpoint)."""
-    return assistance_service.list_visitor_destinations(
-        db, query=query, category=category, skip=skip, limit=limit
+    if is_db_available(db):
+        try:
+            results = assistance_service.list_visitor_destinations(
+                db, query=query, category=category, skip=skip, limit=limit
+            )
+            if results:
+                return results
+        except Exception:
+            pass
+    return carleton_fallback.get_fallback_visitor_destinations(
+        query=query, category=category, skip=skip, limit=limit
     )
 
 

@@ -60,6 +60,13 @@ export function DestinationPanel({
   const [panelSearch, setPanelSearch] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<LocationCategory>("all");
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const saveNoticeTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (saveNoticeTimerRef.current) clearTimeout(saveNoticeTimerRef.current);
+    };
+  }, []);
 
   // Filter categories
   const categories: { id: LocationCategory; label: string }[] = [
@@ -68,11 +75,21 @@ export function DestinationPanel({
     { id: "landmark", label: "Landmarks" },
   ];
 
-  // Filtered locations
+  // Filtered locations with functional All / Buildings / Landmarks categories
   const filteredLocations = useMemo(() => {
     return locations.filter((loc) => {
-      const matchesCategory =
-        selectedCategory === "all" || loc.category === selectedCategory;
+      const isLandmark =
+        loc.category === "landmark" ||
+        ["library", "hall", "centre", "center", "house", "athletics", "complex", "gallery"].some((k) =>
+          loc.name.toLowerCase().includes(k)
+        );
+
+      let matchesCategory = true;
+      if (selectedCategory === "building") {
+        matchesCategory = !isLandmark || loc.category === "building";
+      } else if (selectedCategory === "landmark") {
+        matchesCategory = isLandmark;
+      }
 
       const q = panelSearch.trim().toLowerCase();
       if (!q) return matchesCategory;
@@ -99,7 +116,8 @@ export function DestinationPanel({
         ? `Added "${selectedLocation.name}" to Saved`
         : `Removed "${selectedLocation.name}" from Saved`
     );
-    setTimeout(() => setSaveNotice(null), 3000);
+    if (saveNoticeTimerRef.current) clearTimeout(saveNoticeTimerRef.current);
+    saveNoticeTimerRef.current = setTimeout(() => setSaveNotice(null), 3000);
   };
 
   const isDestinationRoutable = selectedLocation ? selectedLocation.hasRouteTopology !== false : false;
@@ -132,8 +150,8 @@ export function DestinationPanel({
         </div>
 
         {/* Global Loading or Error Banners */}
-        {isLoadingLocations && (
-          <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-2 text-xs text-zinc-300">
+        {isLoadingLocations && locations.length === 0 && (
+          <div className="p-3 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center gap-2 text-xs text-zinc-300 animate-in fade-in">
             <Spinner className="w-4 h-4 text-[#DE4B31]" />
             <span>Fetching live campus destinations...</span>
           </div>
