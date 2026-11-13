@@ -2,42 +2,38 @@ import React from "react";
 import type { Metadata } from "next";
 import { EditorialNavbar } from "@/components/home/EditorialNavbar";
 import { ArchitecturalHero } from "@/components/home/ArchitecturalHero";
-import { ArchitecturalTransition } from "@/components/home/ArchitecturalTransition";
 import { EditorialStorytelling } from "@/components/home/EditorialStorytelling";
 import { MapPreviewSection } from "@/components/home/MapPreviewSection";
 import { ClosingCtaSection } from "@/components/home/ClosingCtaSection";
 import { EditorialFooter } from "@/components/home/EditorialFooter";
 
 export const metadata: Metadata = {
-  title: "CampusWay — Campus Navigation & Route Intelligence",
+  title: "CampusWay — Campus Wayfinding, Reimagined",
   description:
-    "A smarter way to discover spaces, navigate destinations and experience your university campus with architectural clarity.",
+    "Discover destinations, plan smarter routes, and experience your university campus with confidence.",
 };
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen w-full bg-[#FBF9F5] text-[#111111] overflow-x-hidden selection:bg-[#D9532F] selection:text-white font-sans">
-      {/* 1. Minimal Floating Navigation Bar */}
+    <div className="relative min-h-screen w-full bg-[#F7F3ED] text-[#151515] overflow-x-hidden selection:bg-[#E6532E] selection:text-white font-sans">
+      {/* Editorial Floating Navbar */}
       <EditorialNavbar />
 
       <main className="w-full flex flex-col">
-        {/* 2. Cinematic Architectural Hero */}
+        {/* 01 / CAMPUS WAYFINDING, REIMAGINED */}
         <ArchitecturalHero />
 
-        {/* 3. Architectural Transition / Building Reveal & Campus Thesis */}
-        <ArchitecturalTransition />
-
-        {/* 4. Discover, Navigate and Remember Feature Storytelling */}
+        {/* 02 / WHAT YOU CAN DO */}
         <EditorialStorytelling />
 
-        {/* 5. Real CampusWay Map and Routing Interactive Preview */}
+        {/* 03 / LIVE ROUTING */}
         <MapPreviewSection />
 
-        {/* 6. Closing Statement and Exploration CTA */}
+        {/* 04 / START EXPLORING */}
         <ClosingCtaSection />
       </main>
 
-      {/* 7. Minimal Architectural Footer */}
+      {/* Editorial Footer */}
       <EditorialFooter />
     </div>
   );

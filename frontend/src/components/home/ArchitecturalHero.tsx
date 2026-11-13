@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { gsap } from "gsap";
@@ -12,110 +12,104 @@ if (typeof window !== "undefined") {
 
 export function ArchitecturalHero() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const headlineLine1Ref = useRef<HTMLSpanElement>(null);
-  const headlineLine2Ref = useRef<HTMLSpanElement>(null);
-  const headlineLine3Ref = useRef<HTMLSpanElement>(null);
-  const supportingCopyRef = useRef<HTMLParagraphElement>(null);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  const subtitleRef = useRef<HTMLParagraphElement>(null);
   const ctaGroupRef = useRef<HTMLDivElement>(null);
-  const buildingRef = useRef<HTMLDivElement>(null);
-  const gridOverlayRef = useRef<HTMLDivElement>(null);
-  const annotationPinsRef = useRef<HTMLDivElement>(null);
+  const tagRef = useRef<HTMLDivElement>(null);
+  const scrollIndicatorRef = useRef<HTMLDivElement>(null);
+  const sideNavRef = useRef<HTMLDivElement>(null);
+  const heroVisualRef = useRef<HTMLDivElement>(null);
+
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Respect reduced-motion preferences
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
-    if (prefersReducedMotion) {
-      // Set default visible states without animation
-      return;
-    }
+    if (prefersReducedMotion) return;
 
     const ctx = gsap.context(() => {
-      // 1. Master Timeline: Orchestrated Entrance
+      // 1. Entrance Master Timeline
       const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-      // Initial state setup
-      gsap.set(
-        [
-          headlineLine1Ref.current,
-          headlineLine2Ref.current,
-          headlineLine3Ref.current,
-        ],
-        { y: 50, opacity: 0 }
-      );
-      gsap.set(supportingCopyRef.current, { y: 25, opacity: 0 });
-      gsap.set(ctaGroupRef.current, { y: 20, opacity: 0 });
-      gsap.set(buildingRef.current, {
-        y: 80,
-        scale: 0.92,
-        opacity: 0,
-      });
-      gsap.set(gridOverlayRef.current, { opacity: 0 });
-      gsap.set(annotationPinsRef.current, { opacity: 0, scale: 0.9 });
+      // Initial positions
+      gsap.set(tagRef.current, { opacity: 0, x: -20 });
+      gsap.set(headlineRef.current?.children || [], { opacity: 0, y: 35 });
+      gsap.set(subtitleRef.current, { opacity: 0, y: 20 });
+      gsap.set(ctaGroupRef.current, { opacity: 0, y: 15 });
+      gsap.set(scrollIndicatorRef.current, { opacity: 0 });
+      gsap.set(sideNavRef.current, { opacity: 0, x: -10 });
+      gsap.set(heroVisualRef.current, { opacity: 0, scale: 0.96, y: 30 });
 
-      // Orchestrated sequence
-      tl.to(gridOverlayRef.current, {
+      // Orchestrated Entrance
+      tl.to(heroVisualRef.current, {
         opacity: 1,
-        duration: 0.9,
+        scale: 1,
+        y: 0,
+        duration: 1.2,
+        ease: "power2.out",
       })
         .to(
-          buildingRef.current,
+          tagRef.current,
           {
-            y: 0,
-            scale: 1,
             opacity: 1,
-            duration: 1.4,
-            ease: "power2.out",
+            x: 0,
+            duration: 0.6,
           },
-          "-=0.6"
+          "-=0.9"
         )
         .to(
-          [
-            headlineLine1Ref.current,
-            headlineLine2Ref.current,
-            headlineLine3Ref.current,
-          ],
+          headlineRef.current?.children || [],
           {
-            y: 0,
             opacity: 1,
-            duration: 0.9,
-            stagger: 0.15,
-          },
-          "-=1.1"
-        )
-        .to(
-          supportingCopyRef.current,
-          {
             y: 0,
-            opacity: 1,
+            stagger: 0.1,
             duration: 0.8,
           },
-          "-=0.6"
+          "-=0.7"
         )
         .to(
-          ctaGroupRef.current,
+          subtitleRef.current,
           {
-            y: 0,
             opacity: 1,
-            duration: 0.8,
+            y: 0,
+            duration: 0.7,
           },
           "-=0.5"
         )
         .to(
-          annotationPinsRef.current,
+          ctaGroupRef.current,
           {
             opacity: 1,
-            scale: 1,
+            y: 0,
             duration: 0.7,
+          },
+          "-=0.5"
+        )
+        .to(
+          [scrollIndicatorRef.current, sideNavRef.current],
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.6,
           },
           "-=0.4"
         );
 
-      // 2. ScrollTrigger Parallax & Camera-Like Scaling
+      // 2. Ambient Slow Breathing on the Visual Composition
+      gsap.to(heroVisualRef.current, {
+        scale: 1.015,
+        duration: 5.0,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+        delay: 1.2,
+      });
+
+      // 3. Parallax Scrolling via ScrollTrigger
       ScrollTrigger.create({
         trigger: containerRef.current,
         start: "top top",
@@ -123,25 +117,16 @@ export function ArchitecturalHero() {
         scrub: 1.2,
         animation: gsap
           .timeline()
-          .to(buildingRef.current, {
-            y: 140,
-            scale: 1.05,
+          .to(heroVisualRef.current, {
+            y: 60,
+            scale: 1.03,
             ease: "none",
           })
           .to(
-            headlineLine1Ref.current?.parentElement || {},
-            {
-              y: -50,
-              opacity: 0.65,
-              ease: "none",
-            },
-            0
-          )
-          .to(
-            gridOverlayRef.current,
+            headlineRef.current,
             {
               y: -30,
-              opacity: 0.4,
+              opacity: 0.75,
               ease: "none",
             },
             0
@@ -155,177 +140,252 @@ export function ArchitecturalHero() {
   return (
     <section
       ref={containerRef}
-      className="relative w-full min-h-[92vh] lg:min-h-screen bg-[#FBF9F5] text-[#111111] overflow-hidden flex flex-col justify-center pt-28 pb-16 lg:pt-32 lg:pb-24 border-b border-[#1A1A1A]/10"
-      aria-label="CampusWay Architectural Hero"
+      className="relative w-full min-h-[92vh] lg:min-h-screen bg-[#F7F3ED] text-[#151515] overflow-hidden flex flex-col justify-between pt-24 sm:pt-28 pb-8 lg:pb-12 border-b border-[#151515]/10 select-none"
+      aria-label="CampusWay Wayfinding Reimagined"
     >
-      {/* LAYER 1 & 2: Architectural Hairline Grid & Background Atmosphere */}
+      {/* 1. TOP-LEFT SOFT FOLIAGE SHADOW OVERLAY */}
       <div
-        ref={gridOverlayRef}
-        className="absolute inset-0 pointer-events-none z-0"
+        className="absolute top-0 left-0 w-20 sm:w-28 lg:w-36 h-auto pointer-events-none z-30 opacity-80 select-none"
         aria-hidden="true"
       >
-        {/* Fine Architectural Grid Lines */}
-        <div
-          className="absolute inset-0 opacity-45"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, rgba(26, 26, 26, 0.06) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(26, 26, 26, 0.06) 1px, transparent 1px)
-            `,
-            backgroundSize: "72px 72px",
-          }}
+        <Image
+          src="/images/hero-foliage-top-left.png"
+          alt=""
+          width={75}
+          height={95}
+          priority
+          className="w-full h-auto object-contain object-top-left pointer-events-none"
         />
-
-        {/* Subtle Warm Terracotta Ambient Glow behind building */}
-        <div className="absolute right-[-10%] top-[15%] w-[600px] lg:w-[850px] h-[600px] lg:h-[850px] rounded-full bg-gradient-to-br from-[#D9532F]/12 via-[#E07A5F]/05 to-transparent blur-3xl" />
-
-        {/* Technical Coordinate & Survey Annotations */}
-        <div className="hidden sm:flex absolute top-28 left-8 lg:left-12 flex-col gap-1 text-[10px] font-mono tracking-widest text-[#88847C] uppercase select-none">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#D9532F]" />
-            <span>CAMPUSWAY ARCHITECTURAL CORE {"//"} SYSTEM V1</span>
-          </div>
-          <span className="text-[#B5B0A6]">LAT 45.3850° N &bull; LON 75.6947° W</span>
-          <span className="text-[#B5B0A6]">ELEVATION +84.20M &bull; SCALE 1:500</span>
-        </div>
-
-        {/* Corner Crosshair Marks */}
-        <div className="absolute top-24 right-8 lg:right-12 text-[#1A1A1A]/30 font-mono text-xs select-none">
-          + &nbsp; GRID AXIS 01-A
-        </div>
-        <div className="absolute bottom-8 left-8 lg:left-12 text-[#1A1A1A]/30 font-mono text-xs select-none">
-          + &nbsp; DATUM LEVEL 00
-        </div>
       </div>
 
-      {/* Main Content & Building Grid */}
-      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center flex-1">
-        {/* Left Column (Hero Typography & CTAs) */}
-        <div className="lg:col-span-7 xl:col-span-7 flex flex-col justify-center space-y-6 lg:space-y-8 z-20">
-          {/* Small Architectural Metadata Tag */}
-          <div className="inline-flex items-center gap-2.5 px-3 py-1 rounded-full bg-[#1A1A1A]/05 border border-[#1A1A1A]/10 text-[11px] font-mono tracking-wider uppercase text-[#5A5854] w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#D9532F]" />
-            <span>Live Campus Route Intelligence</span>
+      {/* 2. BACKGROUND ARCHITECTURAL GRID ACCENT */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-20 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(21, 21, 21, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(21, 21, 21, 0.05) 1px, transparent 1px)
+          `,
+          backgroundSize: "80px 80px",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* 3. MAIN HERO GRID */}
+      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-4 items-center my-auto">
+        {/* LEFT COLUMN: Section Counter + Tag + Headline + Subtitle + CTAs */}
+        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center space-y-5 lg:space-y-6 z-20 pt-4 lg:pt-0">
+          {/* Vertical Counter (| 01, 02, 03) & Section Header Tag */}
+          <div className="flex items-center gap-5 sm:gap-6">
+            {/* Left Margin Section Counter */}
+            <div
+              ref={sideNavRef}
+              className="hidden sm:flex flex-col text-[11px] font-mono tracking-widest text-[#8B8780] leading-snug select-none"
+            >
+              <div className="flex items-center gap-1.5 text-[#151515] font-bold">
+                <span className="w-1 h-3 bg-[#E6532E] rounded-full" />
+                <span>01</span>
+              </div>
+              <span className="pl-2.5 hover:text-[#151515] transition-colors cursor-pointer">
+                02
+              </span>
+              <span className="pl-2.5 hover:text-[#151515] transition-colors cursor-pointer">
+                03
+              </span>
+            </div>
+
+            {/* Tag: 01 / CAMPUS WAYFINDING, REIMAGINED ————— */}
+            <div
+              ref={tagRef}
+              className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#151515]"
+            >
+              <span className="text-[#E6532E]">01 /</span>
+              <span className="tracking-wider">CAMPUS WAYFINDING, REIMAGINED</span>
+              <span className="w-12 sm:w-20 h-px bg-[#151515]/25" aria-hidden="true" />
+            </div>
           </div>
 
-          {/* EXACT HEADLINE */}
-          <h1 className="text-5xl sm:text-7xl lg:text-[5.2rem] xl:text-[6.1rem] font-black tracking-tight text-[#111111] leading-[0.96] uppercase">
-            <span ref={headlineLine1Ref} className="block overflow-hidden">
-              EVERY PLACE
+          {/* EXACT HEADLINE:
+              FIND YOUR
+              PLACE.
+              NAVIGATE
+              FURTHER.
+          */}
+          <h1
+            ref={headlineRef}
+            className="text-5xl sm:text-7xl lg:text-[5.4rem] xl:text-[6.0rem] font-black tracking-tight leading-[0.93] uppercase text-[#151515]"
+          >
+            <span className="block">FIND YOUR</span>
+            <span className="block">PLACE.</span>
+            <span className="block italic text-[#E6532E] tracking-tight">
+              NAVIGATE
             </span>
-            <span ref={headlineLine2Ref} className="block overflow-hidden">
-              HAS A WAY.
-            </span>
-            <span
-              ref={headlineLine3Ref}
-              className="block overflow-hidden text-[#D9532F]"
-            >
-              FIND YOURS.
+            <span className="block italic text-[#E6532E] tracking-tight">
+              FURTHER.
             </span>
           </h1>
 
-          {/* Supporting Text */}
+          {/* Subheading */}
           <p
-            ref={supportingCopyRef}
-            className="text-base sm:text-lg lg:text-xl text-[#5A5854] font-normal leading-relaxed max-w-xl"
+            ref={subtitleRef}
+            className="text-base sm:text-lg text-[#5A5854] font-normal leading-relaxed max-w-lg"
           >
-            A smarter way to discover spaces, navigate destinations and
-            experience your campus.
+            Discover destinations, plan smarter routes, and experience your
+            campus with confidence.
           </p>
 
-          {/* Call to Action Controls */}
+          {/* CTAs: Primary Pill + Circular Play Button */}
           <div
             ref={ctaGroupRef}
-            className="pt-2 flex flex-wrap items-center gap-4"
+            className="pt-2 flex flex-wrap items-center gap-5 sm:gap-6"
           >
-            {/* Primary CTA */}
+            {/* Primary Action Button: EXPLORE CAMPUS ↗ (Deep Charcoal Pill) */}
             <Link
               href="/explore"
-              className="px-8 py-4 rounded-full bg-[#D9532F] hover:bg-[#C44524] active:bg-[#B33B1D] text-white text-xs sm:text-sm font-bold tracking-widest uppercase transition-all shadow-md hover:shadow-xl hover:shadow-[#D9532F]/25 flex items-center gap-3 group cursor-pointer"
+              className="px-7 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#151515] hover:bg-[#282828] active:bg-[#000000] text-white text-xs sm:text-sm font-bold tracking-widest uppercase transition-all shadow-md hover:shadow-xl flex items-center gap-2.5 group cursor-pointer"
             >
               <span>EXPLORE CAMPUS</span>
-              <svg
-                className="w-4 h-4 transition-transform group-hover:translate-x-1"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
+              <span className="text-[#E6532E] font-bold text-sm transition-transform group-hover:translate-x-1 group-hover:-translate-y-1">
+                ↗
+              </span>
             </Link>
 
-            {/* Secondary CTA */}
-            <Link
-              href="#routes"
-              className="px-7 py-4 rounded-full bg-transparent hover:bg-[#1A1A1A]/05 active:bg-[#1A1A1A]/10 text-[#111111] border border-[#1A1A1A]/20 hover:border-[#1A1A1A]/40 text-xs sm:text-sm font-bold tracking-widest uppercase transition-all flex items-center gap-2 cursor-pointer"
+            {/* Secondary Action: Circular Play Button + WATCH / OVERVIEW */}
+            <button
+              type="button"
+              onClick={() => setVideoModalOpen(true)}
+              className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
+              aria-label="Watch video overview"
             >
-              <span>DISCOVER ROUTES</span>
-              <span className="text-xs text-[#88847C]">&darr;</span>
-            </Link>
-          </div>
-
-          {/* Key Architectural Specs Indicator */}
-          <div className="pt-4 flex items-center gap-6 text-[11px] font-mono tracking-wider text-[#88847C] uppercase border-t border-[#1A1A1A]/10 max-w-md">
-            <div>
-              <span className="text-[#111111] font-semibold">48</span> Buildings
-            </div>
-            <div className="w-1 h-1 rounded-full bg-[#1A1A1A]/30" />
-            <div>
-              <span className="text-[#111111] font-semibold">1,957</span> Vertices
-            </div>
-            <div className="w-1 h-1 rounded-full bg-[#1A1A1A]/30" />
-            <div>
-              <span className="text-emerald-600 font-semibold">&lt; 2ms</span> Dijkstra
-            </div>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full border border-[#151515]/30 group-hover:border-[#E6532E] bg-white/60 flex items-center justify-center transition-all group-hover:scale-105 shadow-sm">
+                <svg
+                  className="w-4 h-4 text-[#151515] group-hover:text-[#E6532E] ml-0.5 transition-colors"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <div className="flex flex-col text-[11px] font-bold tracking-widest uppercase text-[#151515] leading-tight group-hover:text-[#E6532E] transition-colors">
+                <span>WATCH</span>
+                <span>OVERVIEW</span>
+              </div>
+            </button>
           </div>
         </div>
 
-        {/* Right Column: ARCHITECTURAL BUILDING VISUAL (Independent Layer) */}
-        <div className="lg:col-span-5 xl:col-span-5 relative h-[360px] sm:h-[480px] lg:h-[620px] w-full flex items-center justify-center lg:justify-end">
-          {/* The Building Visual Cutout Layer - extending beyond right and bottom edges */}
+        {/* RIGHT COLUMN: MONUMENTAL ARCHITECTURAL VISUAL COMPOSITION */}
+        <div className="lg:col-span-6 xl:col-span-6 relative w-full h-[380px] sm:h-[480px] lg:h-[600px] flex items-center justify-center lg:justify-end overflow-visible">
           <div
-            ref={buildingRef}
-            className="relative w-[115%] sm:w-[125%] lg:w-[145%] max-w-none h-full flex items-center justify-center pointer-events-none transform lg:translate-x-12 xl:translate-x-16"
+            ref={heroVisualRef}
+            className="relative w-[115%] sm:w-[125%] lg:w-[135%] h-full flex items-center justify-center pointer-events-none z-10 transform translate-x-2 sm:translate-x-6 lg:translate-x-8"
           >
             <Image
-              src="/images/architectural-building.png"
-              alt="Isolated modern university architectural research pavilion with precast concrete and glass curtain wall"
-              width={1200}
-              height={896}
+              src="/images/hero-curved-composite.png"
+              alt="Curved brutalist concrete university building with tall glass windows reflecting warm sunset and burnt orange sun arc"
+              width={599}
+              height={436}
               priority
-              className="w-full h-auto object-contain object-bottom drop-shadow-[0_30px_50px_rgba(26,26,26,0.18)] select-none"
+              unoptimized
+              className="w-full h-auto object-contain object-bottom-right drop-shadow-[0_24px_48px_rgba(21,21,21,0.12)] select-none pointer-events-none"
             />
-          </div>
-
-          {/* LAYER 5: Fine Annotation Lines & Terracotta Architectural Callouts */}
-          <div
-            ref={annotationPinsRef}
-            className="absolute inset-0 pointer-events-none select-none z-30"
-          >
-            {/* Top-Right Building Coordinate Tag */}
-            <div className="hidden sm:block absolute top-[12%] right-[4%] bg-[#FAF8F5]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1A1A1A]/15 text-[10px] font-mono tracking-wider text-[#111111] shadow-sm">
-              <div className="flex items-center gap-1.5 text-[#D9532F] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D9532F] animate-ping" />
-                <span>QUAD_NODE {"//"} 01</span>
-              </div>
-              <p className="text-[9px] text-[#88847C] mt-0.5">
-                CANTILEVER WING &bull; ELEV. 84.2M
-              </p>
-            </div>
-
-            {/* Middle Elevation Dimension Line */}
-            <div className="hidden lg:flex absolute bottom-[28%] left-[-4%] items-center gap-2 bg-[#FAF8F5]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#1A1A1A]/15 text-[10px] font-mono tracking-wider text-[#111111] shadow-sm">
-              <span className="text-[#D9532F] font-bold">&bull;</span>
-              <span>PEDESTRIAN CONCOURSE {"//"} 0.9M TOLERANCE</span>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* 4. BOTTOM-LEFT SCROLL INDICATOR */}
+      <div
+        ref={scrollIndicatorRef}
+        className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between text-xs font-mono text-[#8B8780] pt-4"
+      >
+        <div className="flex items-center gap-3">
+          {/* Minimal Mouse Scroll Icon */}
+          <div className="w-4 h-7 rounded-full border border-[#151515]/40 flex items-start justify-center p-1">
+            <span className="w-1 h-1.5 bg-[#E6532E] rounded-full animate-bounce" />
+          </div>
+          <span className="tracking-widest uppercase text-[#5A5854] text-[11px] font-semibold">
+            SCROLL TO EXPLORE &mdash;&mdash;&mdash;
+          </span>
+        </div>
+
+        {/* Small Data Specs */}
+        <div className="hidden md:flex items-center gap-4 text-[10px] tracking-wider uppercase text-[#8B8780]">
+          <span>48 CAMPUS BUILDINGS</span>
+          <span>&bull;</span>
+          <span>1,957 VERTICES</span>
+          <span>&bull;</span>
+          <span className="text-[#E6532E] font-semibold">ZERO LOGIN REQUIRED</span>
+        </div>
+      </div>
+
+      {/* 5. MODAL: WATCH OVERVIEW / CAMPUSWAY INTRODUCTION */}
+      {videoModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-[#151515]/80 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setVideoModalOpen(false)}
+        >
+          <div
+            className="relative max-w-2xl w-full bg-[#F7F3ED] rounded-3xl p-6 sm:p-8 border border-[#151515]/15 shadow-2xl space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#151515]/10">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#E6532E]" />
+                <span className="text-xs font-mono font-bold tracking-widest uppercase text-[#151515]">
+                  CAMPUSWAY ARCHITECTURAL TOUR
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVideoModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-[#151515]/05 hover:bg-[#151515]/10 flex items-center justify-center text-[#151515] font-bold text-sm"
+                aria-label="Close modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-2xl sm:text-3xl font-black uppercase text-[#151515] leading-tight">
+                EVERY PLACE HAS A WAY. <br />
+                <span className="text-[#E6532E]">HOW CAMPUSWAY WORKS.</span>
+              </h3>
+              <p className="text-sm text-[#5A5854] leading-relaxed">
+                CampusWay indexes all 48 university landmarks with centimeter coordinate
+                precision and 1,957 topological vertices. Whether you are seeking lecture
+                auditoriums, accessible elevators, or quick study spaces in MacOdrum Library,
+                our solver delivers instant step-by-step navigation directly in your browser.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 pt-2 text-center font-mono text-xs">
+                <div className="p-3 rounded-xl bg-white border border-[#151515]/10">
+                  <span className="block text-lg font-bold text-[#E6532E]">48</span>
+                  <span className="text-[10px] text-[#8B8780] uppercase">Buildings</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-[#151515]/10">
+                  <span className="block text-lg font-bold text-[#151515]">1,957</span>
+                  <span className="text-[10px] text-[#8B8780] uppercase">Vertices</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white border border-[#151515]/10">
+                  <span className="block text-lg font-bold text-emerald-600">&lt; 2ms</span>
+                  <span className="text-[10px] text-[#8B8780] uppercase">Dijkstra</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <Link
+                href="/explore"
+                onClick={() => setVideoModalOpen(false)}
+                className="px-6 py-3 rounded-full bg-[#151515] hover:bg-[#282828] text-white text-xs font-bold tracking-widest uppercase flex items-center gap-2"
+              >
+                <span>ENTER THE CAMPUS MAP</span>
+                <span className="text-[#E6532E]">↗</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

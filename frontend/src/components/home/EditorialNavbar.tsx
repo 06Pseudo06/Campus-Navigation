@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CampusWayLogo } from "@/components/icons/Icons";
 
 export function EditorialNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -12,7 +11,7 @@ export function EditorialNavbar() {
 
   useEffect(() => {
     function handleScroll() {
-      if (window.scrollY > 30) {
+      if (window.scrollY > 25) {
         setScrolled(true);
       } else {
         setScrolled(false);
@@ -27,102 +26,111 @@ export function EditorialNavbar() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-[#FBF9F5]/90 backdrop-blur-md py-3.5 border-b border-[#1A1A1A]/10 shadow-[0_4px_20px_-4px_rgba(26,26,26,0.05)]"
-          : "bg-transparent py-6 sm:py-8 border-b border-transparent"
+          ? "bg-[#F7F3ED]/92 backdrop-blur-md py-3.5 border-b border-[#151515]/10 shadow-[0_4px_24px_-4px_rgba(21,21,21,0.06)]"
+          : "bg-transparent py-5 sm:py-7 border-b border-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between">
-        {/* Brand Logo & Name */}
-        <Link
-          href="/"
-          className="group flex items-center gap-3 text-[#111111] focus:outline-none"
-          aria-label="CampusWay Architectural Home"
-        >
-          <div className="w-8 h-8 rounded-lg bg-[#D9532F] text-white flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
-            <CampusWayLogo className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-lg sm:text-xl font-bold tracking-tight text-[#111111] leading-none">
-              CampusWay
+        {/* Brand: Arch Logo + CampusWay™ + vertical divider + 2-line descriptor */}
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="group flex items-center gap-2.5 text-[#151515] focus:outline-none"
+            aria-label="CampusWay Home"
+          >
+            {/* Elegant Architectural Arch Icon (Burnt Orange) */}
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-t-full border-[2.5px] border-[#E6532E] border-b-0 flex items-end justify-center pb-0.5 transition-transform group-hover:scale-105">
+              <div className="w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-t-full border-[2px] border-[#E6532E] border-b-0" />
+            </div>
+            <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#151515]">
+              CampusWay<sup className="text-[10px] font-normal ml-0.5">™</sup>
             </span>
-            <span className="text-[9px] font-mono tracking-widest text-[#88847C] uppercase mt-0.5">
-              Wayfinding &bull; Arch. 2026
-            </span>
+          </Link>
+
+          {/* Thin Vertical Divider */}
+          <div className="hidden sm:block h-6 w-px bg-[#151515]/20" aria-hidden="true" />
+
+          {/* 2-line Descriptor: UNIVERSITY / NAVIGATION SYSTEM */}
+          <div className="hidden sm:flex flex-col text-[9px] font-sans font-semibold tracking-widest text-[#6E6B65] uppercase leading-tight select-none">
+            <span>UNIVERSITY</span>
+            <span>NAVIGATION SYSTEM</span>
           </div>
-        </Link>
+        </div>
 
         {/* Desktop Navigation Links */}
         <nav
-          className="hidden md:flex items-center gap-8 text-[13px] font-medium tracking-wide uppercase text-[#5A5854]"
+          className="hidden md:flex items-center gap-8 text-[12px] font-semibold tracking-wider uppercase text-[#5A5854]"
           aria-label="Main Navigation"
         >
+          {/* HOME with active burnt orange underline */}
           <Link
             href="/"
-            className={`transition-colors duration-150 hover:text-[#D9532F] ${
-              pathname === "/" ? "text-[#111111] font-semibold" : ""
+            className={`relative py-1 transition-colors duration-150 hover:text-[#151515] ${
+              pathname === "/" ? "text-[#151515]" : ""
             }`}
           >
-            Home
+            <span>HOME</span>
+            {pathname === "/" && (
+              <span className="absolute left-0 bottom-0 w-full h-[2px] bg-[#E6532E] rounded-full" />
+            )}
           </Link>
+
           <Link
             href="/explore"
-            className="transition-colors duration-150 hover:text-[#D9532F]"
+            className="py-1 transition-colors duration-150 hover:text-[#151515]"
           >
-            Explore
+            EXPLORE
           </Link>
+
           <Link
             href="/explore?tab=routes"
-            className="transition-colors duration-150 hover:text-[#D9532F]"
+            className="py-1 transition-colors duration-150 hover:text-[#151515]"
           >
-            Routes
+            ROUTES
           </Link>
+
           <Link
             href="/about"
-            className="transition-colors duration-150 hover:text-[#D9532F]"
+            className="py-1 transition-colors duration-150 hover:text-[#151515]"
           >
-            About
+            ABOUT
+          </Link>
+
+          {/* Em-dash indicator */}
+          <span className="text-[#8B8780] select-none" aria-hidden="true">
+            &mdash;
+          </span>
+
+          {/* Primary Action Button: EXPLORE CAMPUS ↗ (Charcoal Pill) */}
+          <Link
+            href="/explore"
+            className="px-5 py-2.5 rounded-full bg-[#151515] hover:bg-[#282828] active:bg-[#000000] text-white text-[11px] font-bold tracking-widest uppercase transition-all shadow-sm hover:shadow-md flex items-center gap-2 group cursor-pointer"
+          >
+            <span>EXPLORE CAMPUS</span>
+            <span className="text-[#E6532E] font-bold text-xs transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
+              ↗
+            </span>
           </Link>
         </nav>
 
-        {/* Action Button */}
-        <div className="hidden sm:flex items-center gap-3">
+        {/* Mobile Hamburger Trigger */}
+        <div className="flex md:hidden items-center gap-2">
           <Link
             href="/explore"
-            className="px-5 py-2.5 rounded-full bg-[#D9532F] hover:bg-[#C44524] active:bg-[#B33B1D] text-white text-xs font-semibold tracking-wider uppercase transition-all shadow-sm hover:shadow-md hover:shadow-[#D9532F]/20 flex items-center gap-2 group cursor-pointer"
+            className="px-3.5 py-1.5 rounded-full bg-[#151515] text-white text-[10px] font-bold tracking-widest uppercase flex items-center gap-1.5"
           >
-            <span>Explore Campus</span>
-            <svg
-              className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.2"
-                d="M14 5l7 7m0 0l-7 7m7-7H3"
-              />
-            </svg>
+            <span>EXPLORE</span>
+            <span className="text-[#E6532E]">↗</span>
           </Link>
-        </div>
 
-        {/* Mobile menu button */}
-        <div className="md:hidden flex items-center gap-2">
-          <Link
-            href="/explore"
-            className="px-3.5 py-1.5 rounded-full bg-[#D9532F] text-white text-[11px] font-semibold tracking-wider uppercase"
-          >
-            Map
-          </Link>
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-[#111111] hover:text-[#D9532F] focus:outline-none"
+            className="p-2 rounded-lg text-[#151515] hover:bg-[#151515]/05 focus:outline-none"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {mobileMenuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               ) : (
@@ -133,44 +141,52 @@ export function EditorialNavbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden mt-2 px-4 py-4 bg-[#FBF9F5] border-b border-[#1A1A1A]/10 shadow-lg flex flex-col gap-3 text-sm font-medium uppercase tracking-wider text-[#111111]">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg hover:bg-[#1A1A1A]/5"
-          >
-            Home
-          </Link>
-          <Link
-            href="/explore"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg hover:bg-[#1A1A1A]/5"
-          >
-            Explore Map
-          </Link>
-          <Link
-            href="/explore?tab=routes"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg hover:bg-[#1A1A1A]/5"
-          >
-            Predefined Routes
-          </Link>
-          <Link
-            href="/about"
-            onClick={() => setMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-lg hover:bg-[#1A1A1A]/5"
-          >
-            About CampusWay
-          </Link>
-          <div className="pt-2 border-t border-[#1A1A1A]/10">
+        <div className="md:hidden bg-[#F7F3ED] border-b border-[#151515]/10 px-6 py-6 shadow-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
+          <nav className="flex flex-col space-y-3 text-sm font-semibold tracking-wider uppercase text-[#151515]">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between py-2 border-b border-[#151515]/05 text-[#E6532E]"
+            >
+              <span>HOME</span>
+              <span>&bull;</span>
+            </Link>
             <Link
               href="/explore"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 rounded-full bg-[#D9532F] text-white text-xs font-semibold block"
+              className="flex items-center justify-between py-2 border-b border-[#151515]/05 hover:text-[#E6532E]"
             >
-              Explore Campus Map →
+              <span>EXPLORE</span>
+              <span>↗</span>
+            </Link>
+            <Link
+              href="/explore?tab=routes"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between py-2 border-b border-[#151515]/05 hover:text-[#E6532E]"
+            >
+              <span>ROUTES</span>
+              <span>↗</span>
+            </Link>
+            <Link
+              href="/about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between py-2 hover:text-[#E6532E]"
+            >
+              <span>ABOUT</span>
+              <span>&rarr;</span>
+            </Link>
+          </nav>
+
+          <div className="pt-2">
+            <Link
+              href="/explore"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full py-3 rounded-full bg-[#151515] text-white text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
+            >
+              <span>EXPLORE CAMPUS</span>
+              <span className="text-[#E6532E]">↗</span>
             </Link>
           </div>
         </div>

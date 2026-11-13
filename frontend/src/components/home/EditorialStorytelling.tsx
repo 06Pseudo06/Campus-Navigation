@@ -1,278 +1,160 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
+
+interface FeatureCardProps {
+  number: string;
+  title: string;
+  description: string;
+  href: string;
+  icon: React.ReactNode;
+}
+
+function FeatureColumn({
+  number,
+  title,
+  description,
+  href,
+  icon,
+}: FeatureCardProps) {
+  return (
+    <Link
+      href={href}
+      className="group relative flex flex-col justify-between p-6 sm:p-8 lg:p-10 transition-all duration-300 hover:bg-white/60 cursor-pointer border-b sm:border-b-0 sm:border-r border-[#151515]/10 last:border-r-0"
+    >
+      <div className="space-y-4">
+        {/* Top: Icon + Number */}
+        <div className="flex items-center justify-between">
+          <div className="w-10 h-10 flex items-center justify-center text-[#E6532E] transition-transform group-hover:scale-110">
+            {icon}
+          </div>
+          <span className="text-[11px] font-mono tracking-widest text-[#8B8780] uppercase group-hover:text-[#E6532E] transition-colors">
+            {number}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-[#151515] group-hover:text-[#E6532E] transition-colors">
+          {title}
+        </h3>
+
+        {/* Description */}
+        <p className="text-sm sm:text-base text-[#5A5854] font-normal leading-relaxed">
+          {description}
+        </p>
+      </div>
+
+      {/* Bottom Link Arrow */}
+      <div className="pt-6 sm:pt-8 flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#151515] group-hover:text-[#E6532E] transition-colors">
+        <span>LEARN MORE</span>
+        <span className="text-base text-[#E6532E] font-bold transition-transform group-hover:translate-x-1 group-hover:-translate-y-1">
+          ↗
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export function EditorialStorytelling() {
   return (
-    <section className="relative w-full bg-[#FBF9F5] text-[#111111] py-24 lg:py-36 border-b border-[#1A1A1A]/10 overflow-hidden">
-      {/* Background Architectural Grid Lines */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-25"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(26, 26, 26, 0.05) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(26, 26, 26, 0.05) 1px, transparent 1px)
-          `,
-          backgroundSize: "64px 64px",
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-28 lg:space-y-40">
-        {/* STORY 01: DISCOVER SPACES */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-          {/* Left Column: Editorial Content */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="flex items-center gap-3 text-xs font-mono tracking-widest text-[#D9532F] uppercase">
-              <span className="text-2xl sm:text-3xl font-black font-mono">01</span>
-              <span>/ SPATIAL DISCOVERY</span>
-            </div>
-
-            <h3 className="text-3xl sm:text-5xl font-black tracking-tight text-[#111111] leading-[1.08] uppercase">
-              UNCOVER EVERY BUILDING, QUAD & AUDITORIUM.
-            </h3>
-
-            <p className="text-base sm:text-lg text-[#5A5854] font-normal leading-relaxed">
-              Find specific campus destinations by academic code, faculty department, or popular alias.
-              Whether arriving for a lecture in Dunton Tower, research in the ARISE Building, or quiet study
-              in MacOdrum Library, CampusWay indexes all 48 university landmarks with coordinate precision.
-            </p>
-
-            <div className="pt-2 flex flex-wrap gap-2 text-xs font-mono text-[#5A5854]">
-              <span className="px-3 py-1 rounded-full bg-[#1A1A1A]/05 border border-[#1A1A1A]/10">
-                MacOdrum Library (ML)
-              </span>
-              <span className="px-3 py-1 rounded-full bg-[#1A1A1A]/05 border border-[#1A1A1A]/10">
-                Paterson Hall (PA)
-              </span>
-              <span className="px-3 py-1 rounded-full bg-[#1A1A1A]/05 border border-[#1A1A1A]/10">
-                ARISE Building (AR)
-              </span>
-              <span className="px-3 py-1 rounded-full bg-[#1A1A1A]/05 border border-[#1A1A1A]/10">
-                Alumni Hall (AH)
-              </span>
-            </div>
-
-            <div className="pt-4">
-              <Link
-                href="/explore"
-                className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#D9532F] hover:text-[#B33B1D] transition-colors group"
-              >
-                <span>Browse Campus Directory</span>
-                <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-              </Link>
-            </div>
+    <section
+      id="features"
+      className="relative w-full bg-[#F7F3ED] text-[#151515] py-16 sm:py-24 border-b border-[#151515]/10 overflow-hidden"
+      aria-label="What You Can Do"
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-8">
+        {/* Section Header: 02 / WHAT YOU CAN DO */}
+        <div className="flex items-center justify-between pb-4 border-b border-[#151515]/10">
+          <div className="flex items-center gap-3 text-xs font-mono font-bold tracking-widest uppercase text-[#151515]">
+            <span className="text-[#E6532E]">02 /</span>
+            <span>WHAT YOU CAN DO</span>
           </div>
-
-          {/* Right Column: Architectural Spatial Graphic */}
-          <div className="lg:col-span-6 relative">
-            <div className="relative rounded-3xl bg-white border border-[#1A1A1A]/15 p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex items-center justify-between text-xs font-mono text-[#88847C] pb-3 border-b border-[#1A1A1A]/10">
-                <span>INDEXED TAXONOMY</span>
-                <span className="text-[#D9532F]">48 DEMO QUADRANGLES</span>
-              </div>
-
-              {/* Visual category cards */}
-              <div className="space-y-3 font-mono text-xs">
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#1A1A1A]/10 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-[#111111]">ACADEMIC HALLS & LABS</span>
-                    <p className="text-[11px] text-[#88847C]">35 Core Faculty Complexes</p>
-                  </div>
-                  <span className="text-[#D9532F] font-bold">73%</span>
-                </div>
-
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#1A1A1A]/10 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-[#111111]">LANDMARKS & PLAZAS</span>
-                    <p className="text-[11px] text-[#88847C]">11 Architectural Focal Points</p>
-                  </div>
-                  <span className="text-[#D9532F] font-bold">23%</span>
-                </div>
-
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#1A1A1A]/10 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="font-semibold text-[#111111]">ACCESSIBILITY GATES</span>
-                    <p className="text-[11px] text-[#88847C]">Level-Grade Transit Portals</p>
-                  </div>
-                  <span className="text-emerald-600 font-bold">ACTIVE</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 text-[10px] font-mono text-[#88847C]">
-                <span>CARLETON UNIVERSITY DATASET</span>
-                <span>STATUS: VERIFIED</span>
-              </div>
-            </div>
-          </div>
+          <span className="hidden sm:inline text-[11px] font-mono text-[#8B8780] tracking-wider uppercase">
+            ESSENTIAL CAMPUSWAY CAPABILITIES
+          </span>
         </div>
 
-        {/* STORY 02: NAVIGATE WITH PRECISION */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-          {/* Left Column: Live Pathfinding Graphic */}
-          <div className="lg:col-span-6 order-2 lg:order-1 relative">
-            <div className="relative rounded-3xl bg-white border border-[#1A1A1A]/15 p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex items-center justify-between text-xs font-mono text-[#88847C] pb-3 border-b border-[#1A1A1A]/10">
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>DIJKSTRA / A* ENGINE</span>
-                </span>
-                <span className="text-[#D9532F]">SUB-2MS LATENCY</span>
-              </div>
-
-              {/* Simulated Pathway Calculation Block */}
-              <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#1A1A1A]/10 space-y-3 font-mono text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#88847C]">ORIGIN:</span>
-                  <span className="font-semibold text-[#111111]">MacOdrum Library (ML)</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[#88847C]">DESTINATION:</span>
-                  <span className="font-semibold text-[#111111]">Paterson Hall (PA)</span>
-                </div>
-                <div className="h-px w-full bg-[#1A1A1A]/10 my-2" />
-                <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                  <div className="p-2 rounded-lg bg-white border border-[#1A1A1A]/05">
-                    <span className="block text-[#88847C] text-[10px]">DISTANCE</span>
-                    <span className="font-bold text-[#111111]">133.9 m</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white border border-[#1A1A1A]/05">
-                    <span className="block text-[#88847C] text-[10px]">DURATION</span>
-                    <span className="font-bold text-[#D9532F]">1.7 min</span>
-                  </div>
-                  <div className="p-2 rounded-lg bg-white border border-[#1A1A1A]/05">
-                    <span className="block text-[#88847C] text-[10px]">RAMP ACCESS</span>
-                    <span className="font-bold text-emerald-600">100%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-[11px] font-mono text-[#5A5854]">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9532F]" />
-                  <span>Step 1: Head east through main quad concourse (48m)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D9532F]" />
-                  <span>Step 2: Enter Paterson Hall ground-level entrance (85.9m)</span>
-                </div>
-              </div>
+        {/* 3-Card Editorial Row Container */}
+        <div className="grid grid-cols-1 md:grid-cols-12 rounded-3xl bg-[#FAF6F0] border border-[#151515]/10 overflow-hidden shadow-sm">
+          {/* Far Left: Concrete Arch Visual Thumbnail */}
+          <div className="hidden lg:flex md:col-span-3 relative bg-[#151515] overflow-hidden items-center justify-center p-4 border-r border-[#151515]/10">
+            <Image
+              src="/images/section02-arch-thumb.png"
+              alt="Architectural concrete colonnade detail"
+              width={240}
+              height={140}
+              className="w-full h-full object-cover grayscale opacity-75 hover:opacity-100 hover:grayscale-0 transition-all duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#151515]/80 via-transparent to-transparent flex items-end p-4">
+              <span className="text-[10px] font-mono tracking-widest uppercase text-white/80">
+                QUAD_STUDY {"//"} 02
+              </span>
             </div>
           </div>
 
-          {/* Right Column: Editorial Copy */}
-          <div className="lg:col-span-6 order-1 lg:order-2 space-y-6">
-            <div className="flex items-center gap-3 text-xs font-mono tracking-widest text-[#D9532F] uppercase">
-              <span className="text-2xl sm:text-3xl font-black font-mono">02</span>
-              <span>/ ALGORITHMIC PRECISION</span>
-            </div>
+          {/* 3 Feature Columns (Discover, Navigate, Save) */}
+          <div className="md:col-span-12 lg:col-span-9 grid grid-cols-1 sm:grid-cols-3">
+            {/* 1. Discover */}
+            <FeatureColumn
+              number="01"
+              title="Discover"
+              description="Find buildings, departments and key facilities across campus."
+              href="/explore"
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                    d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                  />
+                </svg>
+              }
+            />
 
-            <h3 className="text-3xl sm:text-5xl font-black tracking-tight text-[#111111] leading-[1.08] uppercase">
-              PREDICTABLE PATHWAYS, ZERO GUESSWORK.
-            </h3>
+            {/* 2. Navigate */}
+            <FeatureColumn
+              number="02"
+              title="Navigate"
+              description="Get the shortest, accessible walking routes in real time."
+              href="/explore?tab=routes"
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              }
+            />
 
-            <p className="text-base sm:text-lg text-[#5A5854] font-normal leading-relaxed">
-              Generic map tools fail on university campuses because footpaths, tunnel links, and building
-              passageways do not follow public roadways. CampusWay operates on a connected graph of 1,957
-              pedestrian edges with built-in accessibility filters and accurate walking durations.
-            </p>
-
-            <div className="pt-4">
-              <Link
-                href="/explore?tab=routes"
-                className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#D9532F] hover:text-[#B33B1D] transition-colors group"
-              >
-                <span>Test Live Routing Engine</span>
-                <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* STORY 03: REMEMBER & ASSIST */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-          {/* Left Column: Editorial Copy */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="flex items-center gap-3 text-xs font-mono tracking-widest text-[#D9532F] uppercase">
-              <span className="text-2xl sm:text-3xl font-black font-mono">03</span>
-              <span>/ REMEMBER &amp; ASSIST</span>
-            </div>
-
-            <h3 className="text-3xl sm:text-5xl font-black tracking-tight text-[#111111] leading-[1.08] uppercase">
-              YOUR PERSONAL ATLAS &amp; VISITOR SUPPORT.
-            </h3>
-
-            <p className="text-base sm:text-lg text-[#5A5854] font-normal leading-relaxed">
-              Save your daily lecture halls and study spaces directly into browser storage without the hassle
-              of passwords or account creation. When you need on-the-ground support, submit instant assistance
-              tickets and access verified university help desk locations.
-            </p>
-
-            <div className="pt-2 flex flex-col gap-2 font-mono text-xs text-[#5A5854]">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-600 font-bold">&check;</span>
-                <span>Robertson Hall Visitor Welcome Desk</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-600 font-bold">&check;</span>
-                <span>CTTC Information &amp; Transit Hub</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-600 font-bold">&check;</span>
-                <span>Yellow Emergency Call Box Direct Navigation</span>
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <Link
-                href="/explore?tab=saved"
-                className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#D9532F] hover:text-[#B33B1D] transition-colors group"
-              >
-                <span>View Saved Places Feature</span>
-                <span className="transition-transform group-hover:translate-x-1">&rarr;</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Right Column: Assistance & Bookmarks Preview */}
-          <div className="lg:col-span-6 relative">
-            <div className="relative rounded-3xl bg-white border border-[#1A1A1A]/15 p-6 sm:p-8 shadow-sm space-y-4">
-              <div className="flex items-center justify-between text-xs font-mono text-[#88847C] pb-3 border-b border-[#1A1A1A]/10">
-                <span>GUEST BOOKMARKING &bull; LOCAL STORAGE</span>
-                <span className="text-emerald-600 font-bold">100% PRIVATE</span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#1A1A1A]/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#D9532F]/10 text-[#D9532F] flex items-center justify-center font-bold text-xs">
-                    ML
-                  </div>
-                  <div>
-                    <span className="font-semibold text-xs font-mono text-[#111111]">MacOdrum Library</span>
-                    <p className="text-[11px] text-[#88847C] font-mono">Saved in browser session</p>
-                  </div>
-                </div>
-                <span className="text-xs font-mono text-[#D9532F]">&starf; BOOKMARKED</span>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#1A1A1A]/10 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[#D9532F]/10 text-[#D9532F] flex items-center justify-center font-bold text-xs">
-                    PA
-                  </div>
-                  <div>
-                    <span className="font-semibold text-xs font-mono text-[#111111]">Paterson Hall</span>
-                    <p className="text-[11px] text-[#88847C] font-mono">Saved in browser session</p>
-                  </div>
-                </div>
-                <span className="text-xs font-mono text-[#D9532F]">&starf; BOOKMARKED</span>
-              </div>
-
-              <p className="text-[11px] font-mono text-[#88847C] pt-2">
-                Bookmarks survive tab closure and page refresh automatically.
-              </p>
-            </div>
+            {/* 3. Save */}
+            <FeatureColumn
+              number="03"
+              title="Save"
+              description="Keep your frequent destinations handy for quick access."
+              href="/explore?tab=saved"
+              icon={
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.8"
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                  />
+                </svg>
+              }
+            />
           </div>
         </div>
       </div>
