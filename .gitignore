@@ -108,3 +108,11 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-debug.log*
 lerna-debug.log*
+
+
+# Firebase credentials
+**/secrets/
+**/*firebase-admin*.json
+
+# Temporary scratch scripts
+scratch/

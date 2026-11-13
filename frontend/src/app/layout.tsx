@@ -23,7 +23,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-white font-sans antialiased">
+      <body className="min-h-full flex flex-col bg-[#F7F3EC] text-[#111111] antialiased">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

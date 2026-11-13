@@ -3,30 +3,48 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { MagneticButton } from "@/components/motion/MagneticButton";
 
 export function EditorialNavbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [navVisible, setNavVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
+    let lastScrollY = window.scrollY;
+
     function handleScroll() {
-      if (window.scrollY > 25) {
-        setScrolled(true);
+      const currentScrollY = window.scrollY;
+
+      // Blur backdrop after leaving top
+      setScrolled(currentScrollY > 40);
+
+      // Hide on scroll down, reveal on scroll up
+      if (currentScrollY > 150) {
+        if (currentScrollY > lastScrollY && currentScrollY - lastScrollY > 6) {
+          setNavVisible(false);
+        } else if (lastScrollY - currentScrollY > 6) {
+          setNavVisible(true);
+        }
       } else {
-        setScrolled(false);
+        setNavVisible(true);
       }
+
+      lastScrollY = currentScrollY;
     }
+
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        navVisible ? "translate-y-0" : "-translate-y-full"
+      } ${
         scrolled
-          ? "bg-[#F7F3ED]/92 backdrop-blur-md py-3.5 border-b border-[#151515]/10 shadow-[0_4px_24px_-4px_rgba(21,21,21,0.06)]"
+          ? "bg-[#F7F3EC]/92 backdrop-blur-md py-3.5 border-b border-[#111111]/10 shadow-[0_4px_24px_-4px_rgba(17,17,17,0.06)]"
           : "bg-transparent py-5 sm:py-7 border-b border-transparent"
       }`}
     >
@@ -35,23 +53,23 @@ export function EditorialNavbar() {
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="group flex items-center gap-2.5 text-[#151515] focus:outline-none"
+            className="group flex items-center gap-2.5 text-[#111111] focus:outline-none"
             aria-label="CampusWay Home"
           >
             {/* Elegant Architectural Arch Icon (Burnt Orange) */}
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-t-full border-[2.5px] border-[#E6532E] border-b-0 flex items-end justify-center pb-0.5 transition-transform group-hover:scale-105">
-              <div className="w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-t-full border-[2px] border-[#E6532E] border-b-0" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-t-full border-[2.5px] border-[#E8542F] border-b-0 flex items-end justify-center pb-0.5 transition-transform group-hover:scale-105">
+              <div className="w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-t-full border-[2px] border-[#E8542F] border-b-0" />
             </div>
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#151515]">
+            <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#111111]">
               CampusWay<sup className="text-[10px] font-normal ml-0.5">™</sup>
             </span>
           </Link>
 
           {/* Thin Vertical Divider */}
-          <div className="hidden sm:block h-6 w-px bg-[#151515]/20" aria-hidden="true" />
+          <div className="hidden sm:block h-6 w-px bg-[#111111]/15" aria-hidden="true" />
 
           {/* 2-line Descriptor: UNIVERSITY / NAVIGATION SYSTEM */}
-          <div className="hidden sm:flex flex-col text-[9px] font-sans font-semibold tracking-widest text-[#6E6B65] uppercase leading-tight select-none">
+          <div className="hidden sm:flex flex-col text-[9px] font-mono font-semibold tracking-widest text-[#5B5750] uppercase leading-tight select-none">
             <span>UNIVERSITY</span>
             <span>NAVIGATION SYSTEM</span>
           </div>
@@ -59,78 +77,83 @@ export function EditorialNavbar() {
 
         {/* Desktop Navigation Links */}
         <nav
-          className="hidden md:flex items-center gap-8 text-[12px] font-semibold tracking-wider uppercase text-[#5A5854]"
+          className="hidden md:flex items-center gap-8 text-[12px] font-mono font-semibold tracking-wider uppercase text-[#5B5750]"
           aria-label="Main Navigation"
         >
           {/* HOME with active burnt orange underline */}
           <Link
             href="/"
-            className={`relative py-1 transition-colors duration-150 hover:text-[#151515] ${
-              pathname === "/" ? "text-[#151515]" : ""
+            className={`group relative py-1 transition-colors duration-150 hover:text-[#111111] ${
+              pathname === "/" ? "text-[#111111]" : ""
             }`}
           >
             <span>HOME</span>
-            {pathname === "/" && (
-              <span className="absolute left-0 bottom-0 w-full h-[2px] bg-[#E6532E] rounded-full" />
+            {pathname === "/" ? (
+              <span className="absolute left-0 bottom-0 w-full h-[2px] bg-[#E8542F] rounded-full" />
+            ) : (
+              <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
             )}
           </Link>
 
           <Link
             href="/explore"
-            className="py-1 transition-colors duration-150 hover:text-[#151515]"
+            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
           >
-            EXPLORE
+            <span>EXPLORE</span>
+            <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
           </Link>
 
           <Link
             href="/explore?tab=routes"
-            className="py-1 transition-colors duration-150 hover:text-[#151515]"
+            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
           >
-            ROUTES
+            <span>ROUTES</span>
+            <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
           </Link>
 
           <Link
             href="/about"
-            className="py-1 transition-colors duration-150 hover:text-[#151515]"
+            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
           >
-            ABOUT
+            <span>ABOUT</span>
+            <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
           </Link>
 
           {/* Em-dash indicator */}
-          <span className="text-[#8B8780] select-none" aria-hidden="true">
+          <span className="text-[#5B5750]/50 select-none" aria-hidden="true">
             &mdash;
           </span>
 
-          {/* Primary Action Button: EXPLORE CAMPUS ↗ (Charcoal Pill) */}
-          <Link
+          {/* Magnetic Action Button: EXPLORE CAMPUS ↗ */}
+          <MagneticButton
             href="/explore"
-            className="px-5 py-2.5 rounded-full bg-[#151515] hover:bg-[#282828] active:bg-[#000000] text-white text-[11px] font-bold tracking-widest uppercase transition-all shadow-sm hover:shadow-md flex items-center gap-2 group cursor-pointer"
+            variant="primary"
+            cursorLabel="EXPLORE"
+            className="px-5 py-2.5 text-[11px]"
           >
             <span>EXPLORE CAMPUS</span>
-            <span className="text-[#E6532E] font-bold text-xs transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-              ↗
-            </span>
-          </Link>
+            <span className="text-[#E8542F] font-bold text-xs">↗</span>
+          </MagneticButton>
         </nav>
 
         {/* Mobile Hamburger Trigger */}
         <div className="flex md:hidden items-center gap-2">
           <Link
             href="/explore"
-            className="px-3.5 py-1.5 rounded-full bg-[#151515] text-white text-[10px] font-bold tracking-widest uppercase flex items-center gap-1.5"
+            className="px-3.5 py-1.5 rounded-full bg-[#111111] text-white text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5"
           >
             <span>EXPLORE</span>
-            <span className="text-[#E6532E]">↗</span>
+            <span className="text-[#E8542F]">↗</span>
           </Link>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-[#151515] hover:bg-[#151515]/05 focus:outline-none"
+            className="p-2 rounded-lg text-[#111111] hover:bg-[#111111]/05 focus:outline-none"
             aria-label="Toggle navigation menu"
             aria-expanded={mobileMenuOpen}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               {mobileMenuOpen ? (
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               ) : (
@@ -141,52 +164,69 @@ export function EditorialNavbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Full-screen Mobile Menu with Curved Wipe */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-[#F7F3ED] border-b border-[#151515]/10 px-6 py-6 shadow-xl space-y-4 animate-in slide-in-from-top-2 duration-200">
-          <nav className="flex flex-col space-y-3 text-sm font-semibold tracking-wider uppercase text-[#151515]">
+        <div
+          className="fixed inset-0 z-50 bg-[#F7F3EC] flex flex-col justify-between p-8 animate-in fade-in duration-300 md:hidden"
+          style={{
+            clipPath: "ellipse(150% 100% at 50% 0%)",
+          }}
+        >
+          <div className="flex items-center justify-between pb-6 border-b border-[#111111]/10">
+            <span className="text-xl font-bold">CampusWay™</span>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 text-2xl font-bold"
+              aria-label="Close menu"
+            >
+              &times;
+            </button>
+          </div>
+
+          <nav className="flex flex-col space-y-6 text-2xl font-black uppercase text-[#111111] py-8">
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-2 border-b border-[#151515]/05 text-[#E6532E]"
+              className="flex items-center justify-between hover:text-[#E8542F]"
             >
-              <span>HOME</span>
-              <span>&bull;</span>
+              <span>01 / HOME</span>
+              <span className="text-sm font-mono">&bull;</span>
             </Link>
             <Link
               href="/explore"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-2 border-b border-[#151515]/05 hover:text-[#E6532E]"
+              className="flex items-center justify-between hover:text-[#E8542F]"
             >
-              <span>EXPLORE</span>
-              <span>↗</span>
+              <span>02 / EXPLORE</span>
+              <span className="text-sm font-mono">↗</span>
             </Link>
             <Link
               href="/explore?tab=routes"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-2 border-b border-[#151515]/05 hover:text-[#E6532E]"
+              className="flex items-center justify-between hover:text-[#E8542F]"
             >
-              <span>ROUTES</span>
-              <span>↗</span>
+              <span>03 / ROUTES</span>
+              <span className="text-sm font-mono">↗</span>
             </Link>
             <Link
               href="/about"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center justify-between py-2 hover:text-[#E6532E]"
+              className="flex items-center justify-between hover:text-[#E8542F]"
             >
-              <span>ABOUT</span>
-              <span>&rarr;</span>
+              <span>04 / ABOUT</span>
+              <span className="text-sm font-mono">&rarr;</span>
             </Link>
           </nav>
 
-          <div className="pt-2">
+          <div className="pt-4 border-t border-[#111111]/10">
             <Link
               href="/explore"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 rounded-full bg-[#151515] text-white text-xs font-bold tracking-widest uppercase flex items-center justify-center gap-2"
+              className="w-full py-4 rounded-full bg-[#111111] text-white text-xs font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2"
             >
-              <span>EXPLORE CAMPUS</span>
-              <span className="text-[#E6532E]">↗</span>
+              <span>EXPLORE LIVE CAMPUS</span>
+              <span className="text-[#E8542F]">↗</span>
             </Link>
           </div>
         </div>

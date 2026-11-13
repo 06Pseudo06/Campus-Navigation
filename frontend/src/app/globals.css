@@ -1,55 +1,146 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-brand: #DE4B31;
+  --color-background: var(--bg-paper);
+  --color-foreground: var(--ink);
+  --color-brand: var(--accent-orange);
+  --font-display: "Inter Tight", "Geist", "Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-
 :root {
-  --background: #0a0f1d;
-  --foreground: #ededed;
-  --primary-orange: #de4b31;
+  /* CampusWay Editorial Architectural Design Tokens */
+  --bg-paper: #F7F3EC;
+  --ink: #111111;
+  --ink-dark: #0E1118;
+  --accent-orange: #E8542F;
+  --accent-orange-light: #F2793A;
+  --accent-orange-dark: #C9411F;
+  --text-muted: #5B5750;
+  --hairline: rgba(17, 17, 17, 0.12);
+  --hairline-dark: rgba(247, 243, 236, 0.15);
+
+  --font-display: "Inter Tight", "Geist", "Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 html {
-  color-scheme: dark light;
-  scroll-behavior: smooth;
+  color-scheme: light dark;
+  background-color: var(--bg-paper);
+  color: var(--ink);
+}
+
+/* Lenis Recommended Integration Styles */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
 }
 
 body {
-  background: #0a0f1d;
-  color: #ededed;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-paper);
+  color: var(--ink);
+  font-family: var(--font-display);
   overflow-x: hidden;
+  position: relative;
+  letter-spacing: -0.01em;
 }
 
-/* Prevent browser autofill from turning input background blue */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0px 1000px white inset !important;
-  -webkit-text-fill-color: #1f2937 !important;
-  transition: background-color 5000s ease-in-out 0s;
+/* 2-3% Film Grain Fixed Overlay */
+.film-grain-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
 }
 
-/* Custom scrollbars */
+/* Blueprint Grid Pattern (~4% Opacity) */
+.blueprint-grid {
+  background-size: 64px 64px;
+  background-image: 
+    linear-gradient(to right, rgba(17, 17, 17, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(17, 17, 17, 0.04) 1px, transparent 1px);
+}
+
+.blueprint-grid-dark {
+  background-size: 64px 64px;
+  background-image: 
+    linear-gradient(to right, rgba(247, 243, 236, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(247, 243, 236, 0.05) 1px, transparent 1px);
+}
+
+/* Fluid Display Headings */
+.fluid-hero-headline {
+  font-size: clamp(2.8rem, 8.5vw, 6.4rem);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+}
+
+.fluid-section-headline {
+  font-size: clamp(2.2rem, 5.5vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+}
+
+/* Monospace Architectural Meta Tags */
+.font-mono-meta {
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(17, 17, 17, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
+  background: rgba(17, 17, 17, 0.25);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--accent-orange);
+}
+
+/* Focus state visible 2px orange outline */
+*:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 3px;
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
