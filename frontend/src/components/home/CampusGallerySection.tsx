@@ -47,7 +47,7 @@ export function CampusGallerySection() {
       className="relative w-full bg-[#F7F3EC] text-[#111111] py-20 lg:py-28 overflow-hidden select-none border-b border-[#111111]/12 section-gutter"
       aria-label="Campus Architectural Photography Gallery"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#111111]/12">
           <div className="space-y-1">
@@ -55,25 +55,24 @@ export function CampusGallerySection() {
               <span className="text-[#E8542F]">05 /</span>
               <span>CAMPUS ARCHITECTURAL ATLAS</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-[#111111]">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-[#111111]">
               Monuments &amp; Quadrangles
             </h2>
           </div>
           <span className="text-[11px] font-mono tracking-widest text-[#5B5750] uppercase">
-            12 ARCHITECTURAL PLATES &bull; DENSE COMPOSITE
+            06 ARCHITECTURAL PLATES &bull; CURATED COMPOSITE
           </span>
         </div>
 
-        {/* 12-Column Masonry Collage Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-5 lg:auto-rows-[92px]">
+        {/* Justified 12-Column Grid (Row 1: 5-4-3 = 12 | Row 2: 3-4-5 = 12) */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 lg:gap-6">
           {GALLERY_ITEMS.map((item, idx) => {
-            const isCircle = !!item.isCircularCrop;
             const hasAccent = !!item.hasOrangeAccent;
 
             return (
               <div
                 key={item.id}
-                className={`relative group ${item.colSpanDesktop} ${item.rowSpanDesktop} min-h-[260px] sm:min-h-[300px] lg:min-h-0`}
+                className={`relative group ${item.colSpanTablet} ${item.colSpanDesktop} h-[280px] sm:h-[340px] lg:h-[380px]`}
               >
                 {/* Terracotta Offset Block Behind Selected Tiles */}
                 {hasAccent && (
@@ -95,34 +94,30 @@ export function CampusGallerySection() {
                       setSelectedIndex(idx);
                     }
                   }}
-                  className={`w-full h-full relative overflow-hidden bg-[#111111] border border-[#111111]/15 shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer ${
-                    isCircle
-                      ? "rounded-t-full rounded-b-[20px] sm:rounded-[20px]"
-                      : "rounded-[20px]"
-                  }`}
+                  className="w-full h-full relative overflow-hidden bg-[#111111] rounded-[20px] border border-[#111111]/15 shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer"
                 >
                   <Image
                     src={item.src}
                     alt={item.alt}
                     fill
                     unoptimized
-                    loading={idx < 4 ? "eager" : "lazy"}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
-                    className="object-cover object-center transition-all duration-700 group-hover:scale-106 filter grayscale-[25%] group-hover:grayscale-0"
+                    loading={idx < 3 ? "eager" : "lazy"}
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 420px"
+                    className="object-cover object-center transition-all duration-700 group-hover:scale-106 filter grayscale-[20%] group-hover:grayscale-0"
                   />
 
                   {/* Gradient Scrim */}
                   <div className="absolute inset-0 bg-gradient-to-t from-[#111111]/90 via-[#111111]/25 to-transparent opacity-75 group-hover:opacity-90 transition-opacity" />
 
                   {/* Corner Plate Stamp */}
-                  <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111111]/70 backdrop-blur-sm border border-white/15 text-[10px] font-mono tracking-widest text-white/90 uppercase">
+                  <div className="absolute top-3.5 left-3.5 sm:top-4 sm:left-4 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#111111]/70 backdrop-blur-sm border border-white/15 text-[10px] font-mono tracking-widest text-white/90 uppercase">
                     <span className="text-[#E8542F] font-bold">{item.num}</span>
-                    <span className="hidden sm:inline text-white/40">/</span>
-                    <span className="hidden sm:inline text-white/70">{item.tag}</span>
+                    <span className="text-white/40">/</span>
+                    <span className="text-white/70">{item.tag}</span>
                   </div>
 
                   {/* Year Tag Top Right */}
-                  <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 text-[10px] font-mono tracking-widest text-white/60 bg-[#111111]/60 px-2 py-0.5 rounded-full border border-white/10">
+                  <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 z-10 text-[10px] font-mono tracking-widest text-white/70 bg-[#111111]/60 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/10">
                     {item.year}
                   </div>
 
@@ -165,7 +160,7 @@ export function CampusGallerySection() {
             <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 border-b border-white/10 text-white font-mono text-xs">
               <div className="flex items-center gap-3">
                 <span className="text-[#E8542F] font-bold tracking-wider">
-                  [{selectedItem.num} / 12]
+                  [{selectedItem.num} / 06]
                 </span>
                 <span className="hidden sm:inline text-white/60 uppercase">
                   {selectedItem.location}

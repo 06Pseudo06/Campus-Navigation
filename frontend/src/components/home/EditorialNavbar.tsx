@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MagneticButton } from "@/components/motion/MagneticButton";
 import { useSection } from "@/context/SectionContext";
+import { useAuth } from "@/context/AuthContext";
+import { ExploreUserMenu } from "@/components/explore/ExploreUserMenu";
 
 interface EditorialNavbarProps {
   rightSlot?: React.ReactNode;
@@ -17,6 +19,7 @@ export function EditorialNavbar({ rightSlot, isFixedApp = false }: EditorialNavb
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const { isDarkSection } = useSection();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (isFixedApp) return;
@@ -136,28 +139,46 @@ export function EditorialNavbar({ rightSlot, isFixedApp = false }: EditorialNavb
 
           <Link
             href="/about"
-            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass}`}
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass} ${
+              pathname === "/about" ? (isDarkSection ? "!text-white font-bold" : "!text-[#111111] font-bold") : ""
+            }`}
           >
             <span>ABOUT</span>
-            <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
+            {pathname === "/about" ? (
+              <span className="absolute left-0 bottom-0 w-full h-[2px] bg-[#E8542F] rounded-full" />
+            ) : (
+              <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
+            )}
           </Link>
 
           {/* Clean hairline separator */}
           <span className={`h-4 w-px ${isDarkSection ? "bg-white/20" : "bg-[#111111]/15"}`} aria-hidden="true" />
 
-          {/* Action Slot: Custom rightSlot (e.g. user chip) or Magnetic Button EXPLORE CAMPUS */}
+          {/* Action Slot: Custom rightSlot, signed-in user menu, or Sign In + Explore Campus */}
           {rightSlot ? (
             rightSlot
+          ) : user ? (
+            <ExploreUserMenu />
           ) : (
-            <MagneticButton
-              href="/explore"
-              variant={isDarkSection ? "orange" : "primary"}
-              cursorLabel="EXPLORE"
-              className="px-5 py-2.5 text-[11px]"
-            >
-              <span>EXPLORE CAMPUS</span>
-              <span className={isDarkSection ? "text-white font-bold text-xs" : "text-[#E8542F] font-bold text-xs"}>↗</span>
-            </MagneticButton>
+            <div className="flex items-center gap-5">
+              <Link
+                href="/login"
+                className={`text-[11px] font-mono font-semibold uppercase tracking-wider transition-colors ${
+                  isDarkSection ? "text-white/80 hover:text-white" : "text-[#5B5750] hover:text-[#111111]"
+                }`}
+              >
+                Sign in
+              </Link>
+              <MagneticButton
+                href="/explore"
+                variant={isDarkSection ? "orange" : "primary"}
+                cursorLabel="EXPLORE"
+                className="px-5 py-2.5 text-[11px]"
+              >
+                <span>EXPLORE CAMPUS</span>
+                <span className={isDarkSection ? "text-white font-bold text-xs" : "text-[#E8542F] font-bold text-xs"}>↗</span>
+              </MagneticButton>
+            </div>
           )}
         </nav>
 
@@ -165,14 +186,24 @@ export function EditorialNavbar({ rightSlot, isFixedApp = false }: EditorialNavb
         <div className="flex md:hidden items-center gap-2">
           {rightSlot ? (
             rightSlot
+          ) : user ? (
+            <ExploreUserMenu />
           ) : (
-            <Link
-              href="/explore"
-              className="px-3.5 py-1.5 rounded-full bg-[#111111] text-white text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5"
-            >
-              <span>EXPLORE</span>
-              <span className="text-[#E8542F]">↗</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-2.5 py-1 text-[10px] font-mono font-bold uppercase text-[#5B5750] hover:text-[#111111]"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/explore"
+                className="px-3 py-1.5 rounded-full bg-[#111111] text-white text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5"
+              >
+                <span>EXPLORE</span>
+                <span className="text-[#E8542F]">↗</span>
+              </Link>
+            </div>
           )}
 
           <button

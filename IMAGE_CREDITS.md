@@ -40,15 +40,22 @@ All architectural photography and assets utilized in the CampusWay editorial int
 ---
 
 ## 4. Architectural Atlas Gallery (`src/data/gallery.ts` & `CampusGallerySection.tsx`)
+Curated 6-plate justified architectural atlas (5+4+3 / 3+4+5 12-column composite):
 1. `arch-gallery_1.jpg` — **01 Dunton Tower Academic Wing**: Brutalist concrete cantilever study (1972).
-2. `arch-gallery_2.jpg` — **02 MacOdrum Quadrangle Arcade**: Concourse elevation and facade rhythm (1985).
+2. `arch-gallery_2.jpg` — **02 MacOdrum Quadrangle Elevation**: Curved concourse elevation and facade rhythm (1985).
 3. `arch-gallery_3.jpg` — **03 Richcraft Hall River Atrium**: High-performance curtain glass and solar glazing (2012).
-4. `arch-gallery_4.jpg` — **04 Mackenzie Engineering Complex**: Precast concrete facade structural grid (1968).
-5. `arch-gallery_5.jpg` — **05 Paterson Hall North Arcade**: Pedestrian concourse and loggia covered arcade (1978).
-6. `arch-discover.jpg` — **06 ARISE Advanced Research Complex**: Illuminated modern academic colonnade (2018).
-7. `arch-navigate.jpg` — **07 University Centre Main Concourse**: Main campus pedestrian circulation artery with portal crop (1970).
-8. `arch-save.jpg` — **08 Loeb Building Social Sciences Wing**: Brutalist vertical core stairwell and lightwell (1964).
-9. `campus-bg.jpg` — **09 Southam Hall Central Courtyard**: Expansive university quadrangle vista and walkways (1965).
-10. `b99eba43cf2e7a5874209dfdc92c03e1.jpg` — **10 Nicol Building Business School**: Curved mass timber ribs and sunlit multi-story atrium (2021).
-11. `0e286636028cdfb2a01a78a877ed7c44.jpg` — **11 Azrieli Pavilion Architecture Studio**: Interior academic pedestrian street with skylights (2002).
-12. `450819b60419d7a8dee99a8834e29f80.jpg` — **12 St. Patrick's Academic Building**: Sculptural concrete portico and entrance colonnade (1975).
+4. `arch-gallery_5.jpg` — **04 Paterson Hall North Arcade**: Pedestrian concourse and loggia covered arcade (1978).
+5. `arch-discover.jpg` — **05 ARISE Advanced Research Complex**: Illuminated modern academic colonnade (2018).
+6. `arch-navigate.jpg` — **06 University Centre Main Concourse**: Main campus pedestrian circulation artery with portal crop (1970).
+
+---
+
+## 5. Explore Routes View Photographic Assets (`src/components/explore/ExploreRoutesView.tsx`)
+1. `01_graph_solver.png` (2752 × 1536) — **MacOdrum Library (ML) → Paterson Hall (PA)**: High-resolution architectural route solver visualization showing quadrangle traversal, node pathing, and verified wayfinding telemetry.
+2. `02_step_free_paths.png` (2752 × 1536) — **ARISE Complex (AR) → Architecture Building (AH)**: Barrier-free step-free corridor path rendering ramp grades, elevator connections, and smooth navigation.
+3. `03_instant_access.png` (2752 × 1536) — **Mackenzie Complex (ME) → River Building (RB)**: Direct all-weather academic artery traversing campus perimeter and river concourse.
+
+---
+
+## 6. Authentication Visual Panel (`src/components/auth/AuthSplitLayout.tsx`)
+- `arch-navigate.jpg` (1024 × 1536): Architectural elevation panel rendered with mouse-responsive parallax, deep ink overlay, terracotta sun disc, rotating circular badge, and ✦ benefit markers.

@@ -5,6 +5,67 @@ This document outlines the architectural motion and editorial visual redesign ap
 
 ---
 
+## Round 4: Final Polish, Full-Stack Auth, Editorial About, Curated Atlas & Error Boundaries
+
+### 1. Explore Page Palette Tuning & Visual Bug Fixes (Workstream A)
+- **Ink Navy Depth:** Dark surfaces refined from flat black to deep ink-navy (`#0F141F` to `#151B28`) with high-contrast `#B4BCCB` muted labels and pure white tabular metrics.
+- **Floating Rounded Left Rail:** Upgraded rail container to a floating rounded card (`rounded-[22px]`), featuring soft 8% background map scrim upon expansion and smooth icon transitions.
+- **Constant Screen-Size Node Chips:** Node labels wrapped in dynamic inverse zoom scaling (`transform: scale(1 / zoom)`), maintaining uniform 11px sans-semibold readability across all zoom levels without shrinking into microscopic dots or ballooning.
+- **Route Midpoint Pill Ordering:** Positioned the active route midpoint chip (`133.9 m · ~1.7 min`) strictly after building nodes in SVG render hierarchy, guaranteeing top z-order stacking with permanent readability.
+- **Sun Disc Boundary Cleanup:** Positioned clean 130px cropped radial sun disc behind the university selector chip, eliminating rectangular overflow clipping.
+- **Scrollbar Elimination:** Enforced `overflow-x-clip` and `h-[100svh]` root layout, permanently eradicating unintended horizontal and vertical page scrollbars across desktop and mobile browsers.
+
+### 2. Compact Destination List & Turn-by-Turn Humanization (Workstream B)
+- **Compact 48-Destination Rows:** Reduced destination rows to compact 44px single-line tiles (`h-11`) with 36px monogram icons, 13px semibold names, category suffixes, and hover bookmark / route-to affordances.
+- **Initial 6-Row View:** Defaults to the first 6 destinations sorted by selection and alphabetical order, with an animated "Show all 48 destinations ↓" / "Show less ↑" expander.
+- **Turn-by-Turn Step Expander:** Long turn lists (e.g., 44 navigation steps) now collapse into an initial 4-step preview with an interactive "Show all steps ↓" toggle inside the `#0F141F` result card.
+- **Humanized Guidance Strings:** Replaced internal synthetic edge names (such as `inferred_access` or raw coordinates) with natural campus phrases (e.g., `inferred connector`, `pedestrian concourse`), spaced metric distances (`0.9 m`), and synthetic connector indicator badges.
+
+### 3. Routes View Photographic Headers & Route SVGs (Workstream C)
+- **High-Resolution Architectural Headers:** Integrated three 2752×1536 photographic route headers:
+  - `01_graph_solver.png` for MacOdrum Library (ML) → Paterson Hall (PA)
+  - `02_step_free_paths.png` for ARISE Complex (AR) → Architecture Building (AH)
+  - `03_instant_access.png` for Mackenzie Complex (ME) → River Building (RB)
+- **Route Preview Polyline Chips:** Added floating SVG route preview overlays at the bottom-left of each photographic card, displaying an active orange path, start/end node markers, and verified wayfinding status.
+- **Micro-Interactions:** Implemented subtle hover lift (`-translate-y-0.5`) and smooth 1.05x image scale transitions.
+
+### 4. Editorial Architecture & About Page Rebuild (Workstream D)
+- **Design Parity:** Rebuilt `/about` from scratch in the warm editorial paper theme (`#F7F3EC`), grotesque display headlines, and burnt orange accents.
+- **Interactive Counters:** Key numbers section featuring live telemetry counters (48 Buildings, 12 Accessible Corridors, 0.4s Graph Solver, 100% Zero-Login).
+- **Self-Drawing SVG Flowchart:** Created an animated graph flow diagram demonstrating graph traversal: Location Pin → Spatial R-Tree Index → Dijkstra / A* Solver → Turn-by-Turn Directions, accompanied by a technical Dijkstra vs A* algorithmic breakdown.
+- **Full Architecture Stack Grid:** 10-card modular breakdown detailing Next.js 15, FastAPI, NetworkX, PostgreSQL, PostGIS, Tailwind CSS, GSAP, Lenis, and Docker.
+- **Lead Developer Attribution:** Created `content/developer.ts` and integrated a developer profile card honoring Kalyani Mahajan (Full-Stack Architecture & Design Lead).
+- **Academic & Open-Source Credits:** Complete OpenStreetMap (ODbL) and Carleton University demonstration dataset disclaimers.
+
+### 5. Full-Stack Authentication Architecture (Workstream E)
+- **Zero-Login First Principle:** Guest exploration remains 100% accessible with no login walls. Guest bookmarks stored in `localStorage` seamlessly synchronize into PostgreSQL upon user authentication.
+- **Auth Inventory & Setup Docs:** Published `docs/auth-inventory.md` and `docs/auth-setup.md` documenting credential management, database schemas, and migration steps.
+- **Next.js API Rewrites:** Configured `next.config.ts` rewrites routing `/api/:path*` and `/auth/:path*` directly to FastAPI on `127.0.0.1:8000`, enabling first-party cookie transmission without cross-origin blocking.
+- **Split-Screen Layout (`AuthSplitLayout.tsx`):** Shared responsive split-screen with paper form left, and dark architectural elevation right featuring mouse-responsive parallax, sunset disc, rotating badge, and ✦ benefit markers.
+- **Split-Screen Sign In (`/login`):** Features Google OAuth CTA (52px), sliding Email | Phone OTP tabs, 6-box OTP entry, remember-me checkbox, and prominent "Continue as guest →" button.
+- **3-Step Sign Up Wizard (`/signup`):** Step 1 (Details & Live 4-bar Password Strength Meter) → Step 2 (6-digit Email Verification Simulation) → Step 3 (Welcome & Home Building Selector).
+- **Password Recovery & Reset (`/forgot-password` & `/reset-password`):** Secure token dispatch flow, strength meter scoring, and match validation.
+- **Legal Architecture (`/privacy` & `/terms`):** Full editorial privacy policy and terms of service emphasizing local storage and data minimization.
+
+### 6. Section 05: Campus Architectural Atlas Rebuild (Workstream F)
+- **Strict 6-Plate Composition:** Reduced the masonry clutter to exactly 6 high-impact architectural plates (`src/data/gallery.ts` & `CampusGallerySection.tsx`).
+- **Justified 12-Column Grid:** Structured as two complementary rows:
+  - Row 1: 5 cols (Cantilever) + 4 cols (Arcade) + 3 cols (River Atrium) = 12 columns.
+  - Row 2: 3 cols (Covered Loggia) + 4 cols (Illuminated Portal) + 5 cols (Concourse Artery) = 12 columns.
+- **Zero Blank Space:** Both rows mathematically span 100% container width with uniform 380px heights, corner plate stamps (`01 / CONCRETE FORMWORK`), year tags, and terracotta offset blocks.
+- **Interactive Lightbox:** Modal navigation supporting next/previous arrows, keyboard shortcuts (`ArrowLeft`, `ArrowRight`, `Escape`), and image counter (`[01 / 06]`).
+
+### 7. Global Resilience & Unified Navigation (Workstream G)
+- **Unified Navigation (`EditorialNavbar.tsx`):** Dynamic session status across all pages (`/`, `/explore`, `/about`, `/login`, `/signup`, 404) with `useAuth()` hook.
+- **Unified Footer (`EditorialFooter.tsx`):** Consistent architectural typography, active links, campus status badge, and copyright notices.
+- **Editorial 404 (`not-found.tsx`):** Broken corridor visualization with animated concentric rings and quick return buttons.
+- **Runtime Error Boundary (`error.tsx`):** Friendly error catch with diagnostic digest and one-click view recovery.
+- **Asset Attribution (`IMAGE_CREDITS.md`):** Complete inventory of all visual assets and architectural photography.
+
+---
+
+---
+
 ## Round 3 (Pass 2): Fixes, Colour Overhaul & Polish ("Concrete, Ink & Sunset")
 
 ### 1. Colour Overhaul — Concrete, Ink & Sunset (60/30/10 Rule)
