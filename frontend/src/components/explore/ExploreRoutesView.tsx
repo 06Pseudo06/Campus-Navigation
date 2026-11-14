@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { CampusLocation } from "@/types/campus";
 import { CARLETON_DEMO_LOCATIONS } from "@/data/carletonLocations";
 
@@ -41,6 +42,8 @@ export function ExploreRoutesView({
         tag: "CENTRAL QUAD",
         isAccessible: true,
         pathD: "M 20 50 Q 80 30, 180 40",
+        imageSrc: "/images/01_graph_solver.png",
+        imageAlt: "Graph solver visualization for Central Quad",
       });
     }
 
@@ -56,6 +59,8 @@ export function ExploreRoutesView({
         tag: "RESEARCH ARTERY",
         isAccessible: true,
         pathD: "M 20 60 C 70 20, 120 70, 180 30",
+        imageSrc: "/images/02_step_free_paths.png",
+        imageAlt: "Step-free accessible paths visualization for Research Artery",
       });
     }
 
@@ -71,6 +76,8 @@ export function ExploreRoutesView({
         tag: "ENGINEERING CORRIDOR",
         isAccessible: true,
         pathD: "M 30 25 L 90 60 L 170 35",
+        imageSrc: "/images/03_instant_access.png",
+        imageAlt: "Instant access corridor visualization for Engineering Corridor",
       });
     }
 
@@ -120,47 +127,57 @@ export function ExploreRoutesView({
         </div>
       </div>
 
-      {/* Route Cards Grid: White Cards with Cool Shadow */}
+      {/* Route Cards Grid: White Cards with Cool Shadow & Photographic Headers */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {displayRoutes.map((rt) => (
+        {displayRoutes.map((rt, idx) => (
           <div
             key={rt.num}
             onClick={() => onSelectRoute(rt.fromId, rt.toId)}
-            className="group relative rounded-[20px] bg-white border border-[#E1DDD3] hover:border-[#E8542F] p-5 shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4"
+            className="group relative rounded-[20px] bg-white border border-[#E1DDD3] hover:border-[#E8542F] p-5 shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4"
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold text-[#6B665C] uppercase tracking-wider">
-                  [{rt.num}] {rt.tag}
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-mono font-bold text-emerald-800 uppercase">
+            <div className="space-y-4">
+              {/* Photographic Header with Floating Verified Pill & Route SVG Chip */}
+              <div className="relative w-full h-[190px] rounded-[14px] overflow-hidden bg-[#151B28] shrink-0 border border-[#E1DDD3]/60">
+                <Image
+                  src={rt.imageSrc}
+                  alt={rt.imageAlt}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                  priority={idx === 0}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/15 pointer-events-none" />
+
+                {/* Floating Verified Pill (Top Right) */}
+                <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-600/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold uppercase tracking-wider shadow-xs">
                   VERIFIED
                 </span>
+
+                {/* Floating White Route Preview Chip (Bottom Left) */}
+                <div className="absolute bottom-3 left-3 w-20 h-9 rounded-[8px] bg-white/95 backdrop-blur-xs border border-[#E1DDD3] p-1 shadow-sm flex items-center justify-center">
+                  <svg viewBox="0 0 200 80" className="w-full h-full">
+                    <path d={rt.pathD} fill="none" stroke="#E1DDD3" strokeWidth="6" strokeLinecap="round" />
+                    <path d={rt.pathD} fill="none" stroke="#E8542F" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="20" cy="50" r="5" fill="#0F6E73" />
+                    <circle cx="180" cy="40" r="5" fill="#E8542F" />
+                  </svg>
+                </div>
               </div>
 
-              {/* Mini SVG Route Polyline Preview */}
-              <div className="w-full h-16 rounded-[12px] bg-[#F7F5F0] border border-[#E1DDD3] relative overflow-hidden flex items-center justify-center">
-                <svg viewBox="0 0 200 80" className="w-full h-full">
-                  {/* Faint context building rects */}
-                  <rect x="15" y="25" width="28" height="20" rx="4" fill="#E1DDD3" opacity="0.6" />
-                  <rect x="85" y="15" width="30" height="24" rx="4" fill="#E1DDD3" opacity="0.5" />
-                  <rect x="155" y="30" width="30" height="22" rx="4" fill="#E1DDD3" opacity="0.6" />
-                  {/* Route line */}
-                  <path d={rt.pathD} fill="none" stroke="#FFFFFF" strokeWidth="6" strokeLinecap="round" />
-                  <path d={rt.pathD} fill="none" stroke="#E8542F" strokeWidth="3" strokeLinecap="round" />
-                  {/* Origin & Dest pins */}
-                  <circle cx="20" cy="50" r="4.5" fill="#0F6E73" />
-                  <circle cx="180" cy="40" r="4.5" fill="#E8542F" />
-                </svg>
+              {/* Textual Metadata under image */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-mono font-bold text-[#6B665C] uppercase tracking-wider block">
+                  [{rt.num}] {rt.tag}
+                </span>
+
+                <h3 className="text-base font-bold uppercase tracking-tight text-[#0E1118] group-hover:text-[#E8542F] transition-colors leading-snug font-sans">
+                  {rt.title}
+                </h3>
+
+                <p className="text-xs text-[#6B665C] leading-relaxed font-sans">
+                  {rt.description}
+                </p>
               </div>
-
-              <h3 className="text-base font-bold uppercase tracking-tight text-[#0E1118] group-hover:text-[#E8542F] transition-colors leading-snug font-sans">
-                {rt.title}
-              </h3>
-
-              <p className="text-xs text-[#6B665C] leading-relaxed font-sans">
-                {rt.description}
-              </p>
             </div>
 
             <div className="pt-3 border-t border-[#E1DDD3] flex items-center justify-between text-xs font-mono">
@@ -170,7 +187,7 @@ export function ExploreRoutesView({
                 <span className="text-[#6B665C]">{rt.distance} M</span>
               </div>
 
-              <span className="text-xs font-bold text-[#E8542F] group-hover:translate-x-1 transition-transform">
+              <span className="text-xs font-bold text-[#E8542F] group-hover:translate-x-1 transition-transform flex items-center gap-1">
                 NAVIGATE &rarr;
               </span>
             </div>
