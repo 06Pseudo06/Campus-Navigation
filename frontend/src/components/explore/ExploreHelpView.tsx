@@ -67,7 +67,7 @@ export function ExploreHelpView({ locations = [] }: ExploreHelpViewProps) {
     { name: "ITS Service Desk", phone: "(613) 520-3700", ext: "Online / Phone", note: "IT & Digital Wayfinding" },
   ];
 
-  const shortcuts = [
+  const shortcutsCol1 = [
     { key: "/", desc: "Focus global campus search" },
     { key: "+ / =", desc: "Zoom in on interactive map" },
     { key: "- / _", desc: "Zoom out on interactive map" },
@@ -76,196 +76,242 @@ export function ExploreHelpView({ locations = [] }: ExploreHelpViewProps) {
     { key: "Esc", desc: "Clear active search or dismiss modals" },
   ];
 
+  const shortcutsCol2 = [
+    { key: "C", desc: "Calculate route between selected points" },
+    { key: "S", desc: "Bookmark / unbookmark active destination" },
+    { key: "Enter", desc: "Select focused destination in list" },
+    { key: "Shift + Click", desc: "Set building as starting Origin point" },
+    { key: "Click Node", desc: "Set building as Destination point" },
+  ];
+
   return (
-    <div className="h-full overflow-y-auto p-6 sm:p-8 max-w-5xl mx-auto space-y-8 select-none">
-      {/* Header */}
-      <div className="space-y-1 pb-4 border-b border-[#111111]/12">
-        <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#5B5750]">
-          <span className="text-[#E8542F]">VISITOR ASSISTANCE /</span>
-          <span>SUPPORT &amp; DISPATCH</span>
+    <div className="h-full overflow-y-auto px-6 py-6 lg:px-8 space-y-6 max-w-6xl mx-auto select-none slim-scrollbar pb-10">
+      {/* Concise Sub-Heading (Toolbar already has contextual H1) */}
+      <div className="space-y-1 pb-3 border-b border-[#E1DDD3]">
+        <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#6B665C]">
+          <span className="text-[#E8542F]">&mdash;</span>
+          <span>SUPPORT &amp; DISPATCH DIRECTORY</span>
         </div>
-        <h2 className="text-3xl font-black uppercase tracking-tight text-[#111111]">
-          Campus Support &amp; <span className="italic text-[#E8542F] font-serif font-normal normal-case">Guidance.</span>
-        </h2>
-        <p className="text-xs sm:text-sm text-[#5B5750] leading-relaxed max-w-xl">
-          Request walking escorts, report accessibility barriers, or access campus safety dispatch.
+        <p className="text-xs sm:text-sm text-[#6B665C] font-sans leading-relaxed">
+          Request walking escorts, report accessibility barriers, or access 24/7 campus safety dispatch.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left: Assistance Request Form (7 cols) */}
-        <div className="lg:col-span-7 p-6 rounded-[28px] bg-[#FBF8F2] border border-[#111111]/12 space-y-6 shadow-xs">
-          <div>
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#E8542F] block">
-              DISPATCH FORM
-            </span>
-            <h3 className="text-xl font-bold uppercase tracking-tight text-[#111111]">
-              Submit Assistance Request
-            </h3>
-          </div>
-
-          {submittedTicket && (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-800 space-y-1">
-              <p className="font-bold">✓ Assistance Ticket Dispatched Successfully</p>
-              <p className="text-[11px] text-emerald-700">
-                Ticket ID: <span className="font-bold">{submittedTicket.id}</span> &bull; Status: {submittedTicket.status}
-              </p>
+      {/* Row 1: 7fr / 5fr Balanced Grid (Cards Stretch to Equal Height) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Left: Dispatch Request Form (7 cols) */}
+        <div className="lg:col-span-7 p-6 rounded-[20px] bg-white border border-[#E1DDD3] shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] flex flex-col justify-between">
+          <div className="space-y-4">
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#6B665C] block">
+                DISPATCH FORM &bull; IMMEDIATE RESPONSE
+              </span>
+              <h3 className="text-xl font-bold uppercase tracking-tight text-[#0E1118] font-sans">
+                Submit Assistance Request
+              </h3>
             </div>
-          )}
 
-          {submitError && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-mono text-rose-800">
-              {submitError}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs font-mono">
-            {/* Assistance Type */}
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold text-[#5B5750] block">
-                ASSISTANCE TYPE
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "lost", label: "Lost / Directions" },
-                  { id: "accessibility", label: "Accessibility Escort" },
-                  { id: "facility", label: "Facility Access" },
-                  { id: "emergency", label: "Urgent Assistance" },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setAssistanceType(t.id as AssistanceType)}
-                    className={`py-2 px-3 rounded-xl border text-left font-bold transition-all cursor-pointer ${
-                      assistanceType === t.id
-                        ? "bg-[#E8542F] text-white border-[#E8542F] shadow-2xs"
-                        : "bg-white text-[#5B5750] border-[#111111]/12 hover:border-[#111111]/30"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+            {submittedTicket && (
+              <div className="p-3.5 rounded-[14px] bg-emerald-50 border border-emerald-200 text-xs font-mono text-emerald-800 space-y-1">
+                <p className="font-bold">✓ Assistance Ticket Dispatched Successfully</p>
+                <p className="text-[11px] text-emerald-700">
+                  Ticket ID: <span className="font-bold">{submittedTicket.id}</span> &bull; Status: {submittedTicket.status}
+                </p>
               </div>
-            </div>
+            )}
 
-            {/* Name & Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-[#5B5750]">
-                  YOUR NAME
+            {submitError && (
+              <div className="p-3.5 rounded-[14px] bg-rose-50 border border-rose-200 text-xs font-sans text-rose-800">
+                {submitError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4 font-sans text-xs flex-1 flex flex-col justify-between">
+              {/* Assistance Type */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase font-bold text-[#6B665C] block">
+                  ASSISTANCE TYPE
                 </label>
-                <input
-                  type="text"
-                  value={requesterName}
-                  onChange={(e) => setRequesterName(e.target.value)}
-                  placeholder="Visitor Name"
-                  className="w-full h-10 px-3 rounded-xl bg-white border border-[#111111]/15 text-xs text-[#111111] focus:outline-none focus:border-[#E8542F]"
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "lost", label: "Lost / Directions" },
+                    { id: "accessibility", label: "Accessibility Escort" },
+                    { id: "facility", label: "Facility Access" },
+                    { id: "emergency", label: "Urgent Assistance" },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setAssistanceType(t.id as AssistanceType)}
+                      className={`py-2 px-3 rounded-[12px] border text-left font-semibold transition-all cursor-pointer ${
+                        assistanceType === t.id
+                          ? "bg-[#E8542F] text-white border-[#E8542F] shadow-2xs"
+                          : "bg-[#F7F5F0] text-[#6B665C] border-[#E1DDD3] hover:text-[#0E1118] hover:border-[#0E1118]/30"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono uppercase font-bold text-[#6B665C]">
+                    YOUR NAME
+                  </label>
+                  <input
+                    type="text"
+                    value={requesterName}
+                    onChange={(e) => setRequesterName(e.target.value)}
+                    placeholder="Visitor Name"
+                    className="w-full h-10 px-3 rounded-[12px] bg-[#F7F5F0] border border-[#E1DDD3] text-xs font-sans text-[#0E1118] focus-ring-orange"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono uppercase font-bold text-[#6B665C]">
+                    CONTACT PHONE
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="(613) 555-0199"
+                    className="w-full h-10 px-3 rounded-[12px] bg-[#F7F5F0] border border-[#E1DDD3] text-xs font-sans text-[#0E1118] focus-ring-orange"
+                  />
+                </div>
+              </div>
+
+              {/* Target Location */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase font-bold text-[#6B665C]">
+                  DESTINATION / RELEVANT BUILDING
+                </label>
+                <select
+                  value={targetLocationId}
+                  onChange={(e) => setTargetLocationId(e.target.value)}
+                  className="w-full h-10 px-3 rounded-[12px] bg-[#F7F5F0] border border-[#E1DDD3] text-xs font-sans text-[#0E1118] focus-ring-orange cursor-pointer"
+                >
+                  <option value="">Select target building (Optional)</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.code ? `[${loc.code}] ` : ""}{loc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Description (Flexes to fill remaining vertical height) */}
+              <div className="space-y-1 flex-1 flex flex-col">
+                <label className="text-[10px] font-mono uppercase font-bold text-[#6B665C]">
+                  DETAILS / LOCATION DESCRIPTION
+                </label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe where you are or what assistance you need..."
+                  className="w-full flex-1 min-h-[72px] p-3 rounded-[12px] bg-[#F7F5F0] border border-[#E1DDD3] text-xs font-sans text-[#0E1118] focus-ring-orange resize-none"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-[#5B5750]">
-                  CONTACT PHONE
-                </label>
-                <input
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="(613) 555-0199"
-                  className="w-full h-10 px-3 rounded-xl bg-white border border-[#111111]/15 text-xs text-[#111111] focus:outline-none focus:border-[#E8542F]"
-                />
-              </div>
-            </div>
-
-            {/* Target Location */}
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-[#5B5750]">
-                DESTINATION / RELEVANT BUILDING
-              </label>
-              <select
-                value={targetLocationId}
-                onChange={(e) => setTargetLocationId(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-white border border-[#111111]/15 text-xs text-[#111111] focus:outline-none focus:border-[#E8542F] cursor-pointer"
+              {/* Submit Button Docked at Bottom */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#F0643A] to-[#E8542F] hover:from-[#E8542F] hover:to-[#C9411F] text-white font-mono font-bold uppercase text-xs tracking-wider transition-all shadow-md cursor-pointer disabled:opacity-50 active:scale-98"
               >
-                <option value="">Select target building (Optional)</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.code ? `[${loc.code}] ` : ""}{loc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-[#5B5750]">
-                DETAILS / LOCATION DESCRIPTION
-              </label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe where you are or what assistance you need..."
-                className="w-full p-3 rounded-xl bg-white border border-[#111111]/15 text-xs text-[#111111] focus:outline-none focus:border-[#E8542F] resize-none"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 rounded-full bg-[#E8542F] hover:bg-[#C9411F] text-white font-mono font-bold uppercase text-xs tracking-wider transition-colors shadow-md cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? "Dispatching Request..." : "SUBMIT DISPATCH REQUEST ↗"}
-            </button>
-          </form>
+                {isSubmitting ? "Dispatching Request..." : "SUBMIT DISPATCH REQUEST ↗"}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* Right: Emergency Contacts & Keyboard Shortcuts (5 cols) */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Emergency Contacts */}
-          <div className="p-6 rounded-[28px] bg-[#FBF8F2] border border-[#111111]/12 space-y-4 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-[#E8542F] uppercase tracking-wider">
-              <span>CAMPUS DIRECTORY</span>
-            </div>
-            <h3 className="text-lg font-bold uppercase tracking-tight text-[#111111]">
+        {/* Right: Emergency Contacts (5 cols) */}
+        <div className="lg:col-span-5 p-6 rounded-[20px] bg-white border border-[#E1DDD3] shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] flex flex-col justify-between space-y-4">
+          <div>
+            <span className="text-[10px] font-mono font-bold text-[#6B665C] uppercase tracking-wider block">
+              CAMPUS DIRECTORY &bull; 24/7 SUPPORT
+            </span>
+            <h3 className="text-xl font-bold uppercase tracking-tight text-[#0E1118] font-sans">
               Emergency Contacts
             </h3>
-
-            <div className="space-y-3">
-              {emergencyContacts.map((c, idx) => (
-                <div key={idx} className="p-3 rounded-2xl bg-white border border-[#111111]/10 space-y-1 font-mono">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#111111]">{c.name}</span>
-                    <span className="text-[10px] text-[#E8542F] font-bold">{c.note}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-[#5B5750]">
-                    <span>{c.phone}</span>
-                    <span>{c.ext}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Keyboard Shortcuts */}
-          <div className="p-6 rounded-[28px] bg-[#FBF8F2] border border-[#111111]/12 space-y-4 shadow-xs">
-            <span className="text-xs font-mono font-bold text-[#E8542F] uppercase tracking-wider block">
-              SHORTCUTS
-            </span>
-            <h3 className="text-lg font-bold uppercase tracking-tight text-[#111111]">
-              Keyboard Navigation
-            </h3>
-
-            <div className="space-y-2 font-mono text-xs">
-              {shortcuts.map((s, idx) => (
-                <div key={idx} className="flex items-center justify-between py-1 border-b border-[#111111]/08 last:border-none">
-                  <span className="text-[#5B5750]">{s.desc}</span>
-                  <kbd className="px-2 py-0.5 rounded bg-white border border-[#111111]/15 font-bold text-[#111111] text-[10px] shadow-2xs">
-                    {s.key}
-                  </kbd>
+          <div className="space-y-3 flex-1 flex flex-col justify-between">
+            {emergencyContacts.map((c, idx) => (
+              <div
+                key={idx}
+                className="p-3.5 rounded-[14px] bg-[#F7F5F0] border border-[#E1DDD3] space-y-1.5 transition-colors hover:bg-white hover:border-[#0E1118]/25 shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#0E1118] font-sans">{c.name}</span>
+                  <span className="text-[10px] font-mono text-[#E8542F] font-bold px-2 py-0.5 rounded-full bg-[#E8542F]/10">
+                    {c.note}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center justify-between text-[11px] font-mono text-[#6B665C]">
+                  <span className="font-semibold text-[#0E1118]">{c.phone}</span>
+                  <span>{c.ext}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-3 rounded-[12px] bg-[#0E1118] text-[#F4F1EA] text-[11px] font-mono flex items-center justify-between">
+            <span>Direct 24/7 Red-Pole Callbox:</span>
+            <span className="text-[#E8542F] font-bold">Line 4444</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Full Width Keyboard Navigation Card (Evenly Split 2-Column List) */}
+      <div className="w-full p-6 rounded-[20px] bg-white border border-[#E1DDD3] shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-[#E1DDD3]">
+          <div>
+            <span className="text-[10px] font-mono font-bold text-[#6B665C] uppercase tracking-wider block">
+              EFFICIENCY CHEATSHEET
+            </span>
+            <h3 className="text-lg font-bold uppercase tracking-tight text-[#0E1118] font-sans">
+              Keyboard Navigation &amp; Shortcuts
+            </h3>
+          </div>
+          <span className="text-[10px] font-mono text-[#6B665C] uppercase">
+            11 Global Keybindings
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-xs">
+          {/* Column 1 */}
+          <div className="space-y-2">
+            {shortcutsCol1.map((s, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between py-1.5 border-b border-[#E1DDD3]/60 last:border-none"
+              >
+                <span className="text-[#0E1118] font-sans">{s.desc}</span>
+                <kbd className="px-2 py-0.5 rounded-[6px] bg-[#F7F5F0] border border-[#E1DDD3] font-mono font-bold text-[#0E1118] text-[10px] shadow-2xs">
+                  {s.key}
+                </kbd>
+              </div>
+            ))}
+          </div>
+
+          {/* Column 2 */}
+          <div className="space-y-2">
+            {shortcutsCol2.map((s, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between py-1.5 border-b border-[#E1DDD3]/60 last:border-none"
+              >
+                <span className="text-[#0E1118] font-sans">{s.desc}</span>
+                <kbd className="px-2 py-0.5 rounded-[6px] bg-[#F7F5F0] border border-[#E1DDD3] font-mono font-bold text-[#0E1118] text-[10px] shadow-2xs">
+                  {s.key}
+                </kbd>
+              </div>
+            ))}
           </div>
         </div>
       </div>

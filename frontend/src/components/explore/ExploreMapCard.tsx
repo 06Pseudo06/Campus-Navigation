@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { CampusLocation, CampusRoute } from "@/types/campus";
 import { isReducedMotion } from "@/lib/motion";
 
@@ -29,12 +29,16 @@ export function ExploreMapCard({
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // Floating Popovers & Layer Toggles
+  // Drag deadzone & pointer tracking refs
+  const isPointerDownRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const hasDraggedRef = useRef(false);
+
+  // Floating Popovers & Layer Toggles (Default legend to collapsed pill)
   const [masterplanOpen, setMasterplanOpen] = useState(false);
-  const [legendCollapsed, setLegendCollapsed] = useState(false);
+  const [legendCollapsed, setLegendCollapsed] = useState(true);
 
   // Map layer visibility switches
   const [layerBuildings, setLayerBuildings] = useState(true);
@@ -49,8 +53,8 @@ export function ExploreMapCard({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Zoom controls
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.25, 2.5));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.25, 0.75));
+  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.3, 2.6));
+  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.3, 0.7));
   const handleResetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
@@ -81,38 +85,51 @@ export function ExploreMapCard({
     }
   };
 
-  // Dragging / Panning handlers
+  // 4px Drag threshold for panning: simple click never triggers drag
   const onMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement)?.closest("button, a, input, select, [role='button']")) {
+    if ((e.target as HTMLElement)?.closest("button, a, input, select, [role='button'], [data-cursor='ui']")) {
       return;
     }
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    isPointerDownRef.current = true;
+    hasDraggedRef.current = false;
+    pointerStartRef.current = { x: e.clientX, y: e.clientY };
     panStartRef.current = { ...pan };
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
+    if (!isPointerDownRef.current) return;
+    const dx = e.clientX - pointerStartRef.current.x;
+    const dy = e.clientY - pointerStartRef.current.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (!hasDraggedRef.current) {
+      if (dist < 4) return; // 4px deadzone threshold
+      hasDraggedRef.current = true;
+      setIsDragging(true);
+    }
+
     setPan({
       x: panStartRef.current.x + dx,
       y: panStartRef.current.y + dy,
     });
   };
 
-  const onMouseUp = () => setIsDragging(false);
+  const onMouseUp = () => {
+    isPointerDownRef.current = false;
+    setIsDragging(false);
+    hasDraggedRef.current = false;
+  };
 
-  // Wheel zoom
+  // Wheel zoom (isolated to map surface)
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.12 : -0.12;
-    setZoom((z) => Math.min(2.5, Math.max(0.75, z + delta)));
+    const delta = e.deltaY < 0 ? 0.14 : -0.14;
+    setZoom((z) => Math.min(2.6, Math.max(0.7, z + delta)));
   };
 
   // Double click zoom
   const onDoubleClick = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement)?.closest("button, a, input, select, [role='button']")) {
+    if ((e.target as HTMLElement)?.closest("button, a, input, select, [role='button'], [data-cursor='ui']")) {
       return;
     }
     handleZoomIn();
@@ -158,24 +175,20 @@ export function ExploreMapCard({
   );
 
   // Build SVG path for active route using real GPS waypoints
-  const routePathData = useMemo(() => {
-    if (!showRoute || !activeRoute) return null;
+  const routeWaypointsSvg = useMemo(() => {
+    if (!showRoute || !activeRoute) return [];
 
     if (activeRoute.waypoints && activeRoute.waypoints.length >= 2) {
-      const points = activeRoute.waypoints
+      return activeRoute.waypoints
         .map((pt) => {
           const lat = pt.lat ?? pt.y;
           const lon = pt.lon ?? pt.x;
           if (typeof lat === "number" && typeof lon === "number") {
-            return `${toSvgX(lon).toFixed(1)},${toSvgY(lat).toFixed(1)}`;
+            return { x: toSvgX(lon), y: toSvgY(lat) };
           }
           return null;
         })
-        .filter(Boolean);
-
-      if (points.length >= 2) {
-        return `M ${points.join(" L ")}`;
-      }
+        .filter((p): p is { x: number; y: number } => p !== null);
     }
 
     if (
@@ -184,15 +197,27 @@ export function ExploreMapCard({
       selectedLocation?.longitude &&
       selectedLocation?.latitude
     ) {
-      const x1 = toSvgX(originLocation.longitude);
-      const y1 = toSvgY(originLocation.latitude);
-      const x2 = toSvgX(selectedLocation.longitude);
-      const y2 = toSvgY(selectedLocation.latitude);
-      return `M ${x1.toFixed(1)},${y1.toFixed(1)} L ${x2.toFixed(1)},${y2.toFixed(1)}`;
+      return [
+        { x: toSvgX(originLocation.longitude), y: toSvgY(originLocation.latitude) },
+        { x: toSvgX(selectedLocation.longitude), y: toSvgY(selectedLocation.latitude) },
+      ];
     }
 
-    return null;
+    return [];
   }, [showRoute, activeRoute, originLocation, selectedLocation, toSvgX, toSvgY]);
+
+  const routePathData = useMemo(() => {
+    if (routeWaypointsSvg.length < 2) return null;
+    const points = routeWaypointsSvg.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    return `M ${points.join(" L ")}`;
+  }, [routeWaypointsSvg]);
+
+  // Route Midpoint coordinates for distance / time chip
+  const routeMidpoint = useMemo(() => {
+    if (routeWaypointsSvg.length < 2) return null;
+    const midIdx = Math.floor(routeWaypointsSvg.length / 2);
+    return routeWaypointsSvg[midIdx];
+  }, [routeWaypointsSvg]);
 
   // Highlighted segment path when hovering a step in turn guidance
   const hoveredSegmentPath = useMemo(() => {
@@ -201,34 +226,20 @@ export function ExploreMapCard({
       !activeRoute ||
       hoveredStepIndex === null ||
       hoveredStepIndex === undefined ||
-      !activeRoute.waypoints ||
-      activeRoute.waypoints.length < 2
+      routeWaypointsSvg.length < 2
     ) {
       return null;
     }
 
-    const idx = Math.min(hoveredStepIndex, activeRoute.waypoints.length - 2);
-    const p1 = activeRoute.waypoints[idx];
-    const p2 = activeRoute.waypoints[idx + 1];
+    const idx = Math.min(hoveredStepIndex, routeWaypointsSvg.length - 2);
+    const p1 = routeWaypointsSvg[idx];
+    const p2 = routeWaypointsSvg[idx + 1];
     if (!p1 || !p2) return null;
 
-    const lat1 = p1.lat ?? p1.y;
-    const lon1 = p1.lon ?? p1.x;
-    const lat2 = p2.lat ?? p2.y;
-    const lon2 = p2.lon ?? p2.x;
+    return `M ${p1.x.toFixed(1)},${p1.y.toFixed(1)} L ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }, [showRoute, activeRoute, hoveredStepIndex, routeWaypointsSvg]);
 
-    if (
-      typeof lat1 === "number" &&
-      typeof lon1 === "number" &&
-      typeof lat2 === "number" &&
-      typeof lon2 === "number"
-    ) {
-      return `M ${toSvgX(lon1).toFixed(1)},${toSvgY(lat1).toFixed(1)} L ${toSvgX(lon2).toFixed(1)},${toSvgY(lat2).toFixed(1)}`;
-    }
-    return null;
-  }, [showRoute, activeRoute, hoveredStepIndex, toSvgX, toSvgY]);
-
-  // Network walkway edges between close buildings (aesthetic, topological demonstration)
+  // Network walkway edges between close buildings
   const walkwayEdges = useMemo(() => {
     const edges: { x1: number; y1: number; x2: number; y2: number; isInferred?: boolean }[] = [];
     for (let i = 0; i < locations.length; i++) {
@@ -244,14 +255,13 @@ export function ExploreMapCard({
         const y2 = toSvgY(locB.latitude);
 
         const dist = Math.hypot(x2 - x1, y2 - y1);
-        // Connect nearby buildings within 110px radius
         if (dist > 20 && dist < 110) {
           edges.push({
             x1,
             y1,
             x2,
             y2,
-            isInferred: (i + j) % 5 === 0, // Deterministic sampling
+            isInferred: (i + j) % 5 === 0,
           });
         }
       }
@@ -259,11 +269,88 @@ export function ExploreMapCard({
     return edges;
   }, [locations, toSvgX, toSvgY]);
 
+  // Frame active route automatically when calculated
+  useEffect(() => {
+    if (!activeRoute || !showRoute || routeWaypointsSvg.length < 2) return;
+
+    const xs = routeWaypointsSvg.map((c) => c.x);
+    const ys = routeWaypointsSvg.map((c) => c.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const spanX = Math.max(160, maxX - minX);
+    const spanY = Math.max(160, maxY - minY);
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
+
+    const targetZoom = Math.min(2.1, Math.max(1.35, 480 / Math.max(spanX, spanY)));
+    const targetPanX = (500 - midX) * targetZoom;
+    const targetPanY = (350 - midY) * targetZoom;
+
+    const frameId = requestAnimationFrame(() => {
+      setZoom(targetZoom);
+      setPan({ x: targetPanX, y: targetPanY });
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [activeRoute, showRoute, routeWaypointsSvg]);
+
+  // Collision avoidance for node chips: prioritize selected, origin, hovered, landmarks
+  const visibleChipsMap = useMemo(() => {
+    const chipSet = new Set<string>();
+    const occupied: { x: number; y: number }[] = [];
+
+    // 1. High priority: Origin, Destination, Hovered
+    locations.forEach((loc) => {
+      const isPri =
+        loc.id === originLocation?.id ||
+        loc.id === selectedLocation?.id ||
+        loc.id === hoveredLocation?.id;
+      if (isPri && loc.longitude && loc.latitude) {
+        chipSet.add(loc.id);
+        occupied.push({ x: toSvgX(loc.longitude), y: toSvgY(loc.latitude) });
+      }
+    });
+
+    // 2. High priority: Landmarks & major hubs
+    locations.forEach((loc) => {
+      const isHub =
+        loc.category === "landmark" ||
+        ["ML", "PA", "UC", "ME", "AB", "AH", "RB", "LE", "DH", "SA"].includes(loc.code);
+      if (isHub && !chipSet.has(loc.id) && loc.longitude && loc.latitude) {
+        const x = toSvgX(loc.longitude);
+        const y = toSvgY(loc.latitude);
+        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 42 / Math.max(1, zoom * 0.9));
+        if (!collides || zoom >= 1.45) {
+          chipSet.add(loc.id);
+          occupied.push({ x, y });
+        }
+      }
+    });
+
+    // 3. Regular buildings
+    locations.forEach((loc) => {
+      if (!chipSet.has(loc.id) && loc.longitude && loc.latitude) {
+        const x = toSvgX(loc.longitude);
+        const y = toSvgY(loc.latitude);
+        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 46 / Math.max(1, zoom * 0.9));
+        if (!collides || zoom >= 1.55) {
+          chipSet.add(loc.id);
+          occupied.push({ x, y });
+        }
+      }
+    });
+
+    return chipSet;
+  }, [locations, originLocation, selectedLocation, hoveredLocation, zoom, toSvgX, toSvgY]);
+
   // Scaled distance calculation for the bottom scale bar
   const scaleMeters = Math.round(250 / zoom);
 
   return (
     <div
+      id="mapPanSurface"
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKeyDown}
@@ -272,26 +359,38 @@ export function ExploreMapCard({
       onMouseUp={onMouseUp}
       onWheel={onWheel}
       onDoubleClick={onDoubleClick}
-      data-cursor={isDragging ? "DRAGGING" : "DRAG"}
+      data-cursor="map"
+      data-dragging={isDragging ? "true" : "false"}
       data-lenis-prevent
-      className={`relative w-full h-full rounded-[28px] overflow-hidden bg-[#F1ECE2] border border-[#111111]/12 shadow-[0_20px_60px_-24px_rgba(17,17,17,0.20)] select-none flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-[#E8542F]/30 ${
+      className={`relative w-full h-full rounded-[20px] overflow-hidden bg-white border border-[#E1DDD3] shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.28)] select-none flex flex-col justify-between focus:outline-none focus:ring-2 focus:ring-[#E8542F]/30 ${
         isDragging ? "cursor-grabbing" : "cursor-grab"
       }`}
       aria-label="Interactive University Campus Map"
     >
-      {/* 1. Top-Left Floating Masterplan Layer Popover */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+      {/* 1. Top-Left Floating Masterplan Layer Popover (Sibling overlay with stopped propagation) */}
+      <div
+        className="absolute top-4 left-4 z-20 flex flex-col gap-2"
+        data-cursor="ui"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
-          onClick={() => setMasterplanOpen(!masterplanOpen)}
-          className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-[#FBF8F2]/95 hover:bg-white text-[#111111] border border-[#111111]/12 shadow-sm backdrop-blur-md transition-all cursor-pointer font-mono text-xs font-bold"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMasterplanOpen(!masterplanOpen);
+          }}
+          className="flex items-center gap-2.5 px-3.5 py-2 rounded-[14px] bg-white hover:bg-[#F7F5F0] text-[#0E1118] border border-[#E1DDD3] shadow-sm backdrop-blur-md transition-all cursor-pointer font-sans text-xs font-semibold"
           aria-expanded={masterplanOpen}
+          aria-label="Campus Masterplan layers menu"
         >
           <span className="w-2 h-2 rounded-full bg-[#E8542F] animate-pulse" />
           <span>Campus Masterplan</span>
-          <span className="text-[10px] text-[#5B5750] font-normal">&bull; 48 verified</span>
+          <span className="text-[10px] text-[#6B665C] font-mono">&bull; 48 verified</span>
           <svg
-            className={`w-3.5 h-3.5 text-[#5B5750] transition-transform ${
+            className={`w-3.5 h-3.5 text-[#6B665C] transition-transform ${
               masterplanOpen ? "rotate-180" : ""
             }`}
             fill="none"
@@ -303,15 +402,16 @@ export function ExploreMapCard({
         </button>
 
         {masterplanOpen && (
-          <div className="w-72 p-3.5 rounded-2xl bg-[#FBF8F2] border border-[#111111]/15 shadow-xl text-[#111111] space-y-3 animate-fadeIn text-xs font-mono">
-            <div className="flex items-center justify-between pb-2 border-b border-[#111111]/10">
-              <span className="font-bold text-[11px] uppercase tracking-wider">
+          <div className="w-72 p-3.5 rounded-[16px] bg-white border border-[#E1DDD3] shadow-xl text-[#0E1118] space-y-3 animate-fadeIn text-xs font-sans">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E1DDD3]">
+              <span className="font-bold text-[11px] font-mono uppercase tracking-wider text-[#6B665C]">
                 Map Layers
               </span>
               <button
                 type="button"
                 onClick={() => setMasterplanOpen(false)}
-                className="text-xs text-[#5B5750] hover:text-[#111111]"
+                className="text-xs text-[#6B665C] hover:text-[#0E1118] p-1 cursor-pointer"
+                aria-label="Close layers menu"
               >
                 &times;
               </button>
@@ -319,8 +419,8 @@ export function ExploreMapCard({
 
             {/* Layer Toggles */}
             <div className="space-y-2">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-[#111111]">Buildings &amp; Footprints</span>
+              <label className="flex items-center justify-between cursor-pointer text-xs">
+                <span className="text-[#0E1118] font-medium">Buildings &amp; Footprints</span>
                 <input
                   type="checkbox"
                   checked={layerBuildings}
@@ -329,8 +429,8 @@ export function ExploreMapCard({
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-[#111111]">Surveyed Walkways</span>
+              <label className="flex items-center justify-between cursor-pointer text-xs">
+                <span className="text-[#0E1118] font-medium">Surveyed Walkways</span>
                 <input
                   type="checkbox"
                   checked={layerWalkways}
@@ -339,8 +439,8 @@ export function ExploreMapCard({
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-[#111111]">Inferred Connectors</span>
+              <label className="flex items-center justify-between cursor-pointer text-xs">
+                <span className="text-[#0E1118] font-medium">Inferred Connectors</span>
                 <input
                   type="checkbox"
                   checked={layerInferred}
@@ -349,8 +449,8 @@ export function ExploreMapCard({
                 />
               </label>
 
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-[#111111]">Terrain &amp; Green Space</span>
+              <label className="flex items-center justify-between cursor-pointer text-xs">
+                <span className="text-[#0E1118] font-medium">Terrain &amp; River</span>
                 <input
                   type="checkbox"
                   checked={layerTerrain}
@@ -359,20 +459,26 @@ export function ExploreMapCard({
                 />
               </label>
             </div>
-
-            <div className="pt-2 border-t border-[#111111]/10 text-[9px] text-[#5B5750] leading-snug">
-              Carleton Demonstration Map &bull; Real GPS Projection WGS84 &bull; Dijkstra &amp; A* Solver Active
-            </div>
           </div>
         )}
       </div>
 
       {/* 2. Top-Right Floating Controls (Compass + Zoom Stack) */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 shadow-sm">
+      <div
+        className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 shadow-sm"
+        data-cursor="ui"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
-          onClick={handleResetView}
-          className="w-10 h-10 rounded-2xl bg-[#FBF8F2]/95 hover:bg-white text-[#111111] border border-[#111111]/12 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleResetView();
+          }}
+          className="w-10 h-10 rounded-[12px] bg-white hover:bg-[#F7F5F0] text-[#0E1118] border border-[#E1DDD3] flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
           title="Reset View &amp; Center"
           aria-label="Reset View"
         >
@@ -381,8 +487,11 @@ export function ExploreMapCard({
 
         <button
           type="button"
-          onClick={handleZoomIn}
-          className="w-10 h-10 rounded-2xl bg-[#FBF8F2]/95 hover:bg-white text-[#111111] border border-[#111111]/12 flex items-center justify-center transition-all cursor-pointer font-bold text-base shadow-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomIn();
+          }}
+          className="w-10 h-10 rounded-[12px] bg-white hover:bg-[#F7F5F0] text-[#0E1118] border border-[#E1DDD3] flex items-center justify-center transition-all cursor-pointer font-bold text-base shadow-xs active:scale-95"
           title="Zoom In (+)"
           aria-label="Zoom In"
         >
@@ -391,8 +500,11 @@ export function ExploreMapCard({
 
         <button
           type="button"
-          onClick={handleZoomOut}
-          className="w-10 h-10 rounded-2xl bg-[#FBF8F2]/95 hover:bg-white text-[#111111] border border-[#111111]/12 flex items-center justify-center transition-all cursor-pointer font-bold text-base shadow-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleZoomOut();
+          }}
+          className="w-10 h-10 rounded-[12px] bg-white hover:bg-[#F7F5F0] text-[#0E1118] border border-[#E1DDD3] flex items-center justify-center transition-all cursor-pointer font-bold text-base shadow-xs active:scale-95"
           title="Zoom Out (-)"
           aria-label="Zoom Out"
         >
@@ -400,25 +512,39 @@ export function ExploreMapCard({
         </button>
       </div>
 
-      {/* 3. Bottom-Left Collapsible Legend */}
-      <div className="absolute bottom-4 left-4 z-20 font-mono text-[10px]">
+      {/* 3. Bottom-Left Collapsible Legend (Default: Collapsed Pill) */}
+      <div
+        className="absolute bottom-4 left-4 z-20 font-mono text-[10px]"
+        data-cursor="ui"
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
         {legendCollapsed ? (
           <button
             type="button"
-            onClick={() => setLegendCollapsed(false)}
-            className="px-3 py-1.5 rounded-xl bg-[#FBF8F2]/95 hover:bg-white border border-[#111111]/12 text-[#111111] font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLegendCollapsed(false);
+            }}
+            className="px-3.5 py-1.5 rounded-[14px] bg-white hover:bg-[#F7F5F0] border border-[#E1DDD3] text-[#0E1118] font-bold shadow-xs flex items-center gap-1.5 cursor-pointer font-mono"
+            aria-label="Expand map legend"
           >
-            <span>LEGEND</span>
-            <span className="text-[#E8542F]">&uarr;</span>
+            <span>Legend</span>
+            <span className="text-[#E8542F] font-bold">&rsaquo;</span>
           </button>
         ) : (
-          <div className="p-3 rounded-2xl bg-[#FBF8F2]/95 backdrop-blur-md border border-[#111111]/12 shadow-sm space-y-2 text-[#5B5750]">
-            <div className="flex items-center justify-between gap-3 text-[#111111] font-bold uppercase tracking-wider text-[9px]">
+          <div className="p-3 rounded-[16px] bg-white/95 backdrop-blur-md border border-[#E1DDD3] shadow-md space-y-2 text-[#6B665C]">
+            <div className="flex items-center justify-between gap-3 text-[#0E1118] font-bold uppercase tracking-wider text-[9px]">
               <span>Walkway Connectivity</span>
               <button
                 type="button"
-                onClick={() => setLegendCollapsed(true)}
-                className="text-[#5B5750] hover:text-[#111111] cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLegendCollapsed(true);
+                }}
+                className="text-[#6B665C] hover:text-[#0E1118] p-1 cursor-pointer"
                 aria-label="Collapse legend"
               >
                 &minus;
@@ -427,17 +553,17 @@ export function ExploreMapCard({
 
             <div className="flex items-center gap-2">
               <span className="w-4 h-1 bg-[#B7AC9B] inline-block rounded-full" />
-              <span>Physical Walkway (OSM)</span>
+              <span>Surveyed Walkways</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-4 h-0.5 bg-[#D9A441] inline-block border-b border-dashed border-[#D9A441]" />
-              <span>Inferred Building Access</span>
+              <span className="w-4 h-1 border-b-2 border-dashed border-[#D9A441] inline-block" />
+              <span>Inferred Connectors</span>
             </div>
 
-            <div className="flex items-center gap-3 pt-1 border-t border-[#111111]/10 text-[#111111]">
+            <div className="flex items-center gap-3 pt-1 border-t border-[#E1DDD3] text-[9px]">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#1F9D6B]" /> Origin (A)
+                <span className="w-2 h-2 rounded-full bg-[#0F6E73]" /> Origin (A)
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-[#E8542F]" /> Dest (B)
@@ -448,15 +574,18 @@ export function ExploreMapCard({
       </div>
 
       {/* 4. Bottom-Right Scale Bar & North Arrow */}
-      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-3 px-3 py-1.5 rounded-xl bg-[#FBF8F2]/90 backdrop-blur-sm border border-[#111111]/12 text-[10px] font-mono text-[#5B5750]">
+      <div
+        className="absolute bottom-4 right-4 z-20 flex items-center gap-3 px-3 py-1.5 rounded-[12px] bg-white/95 backdrop-blur-sm border border-[#E1DDD3] text-[10px] font-mono text-[#6B665C]"
+        data-cursor="ui"
+      >
         <div className="flex flex-col items-center leading-none">
           <span className="text-[8px] font-bold text-[#E8542F]">&uarr;</span>
-          <span className="text-[9px] font-bold text-[#111111]">N</span>
+          <span className="text-[9px] font-bold text-[#0E1118]">N</span>
         </div>
-        <div className="h-3 w-px bg-[#111111]/15" />
+        <div className="h-3 w-px bg-[#E1DDD3]" />
         <div className="flex flex-col items-center">
-          <div className="w-16 h-1 border-b-2 border-l border-r border-[#111111]/40" />
-          <span className="text-[9px] mt-0.5 tabular-nums">{scaleMeters} m</span>
+          <div className="w-16 h-1 border-b-2 border-l border-r border-[#6B665C]" />
+          <span className="text-[9px] mt-0.5 tabular-nums font-semibold">{scaleMeters} m</span>
         </div>
       </div>
 
@@ -476,46 +605,73 @@ export function ExploreMapCard({
             <defs>
               {/* Subtle 4% Architectural Blueprint Grid */}
               <pattern id="lightBlueprintGrid" width="24" height="24" patternUnits="userSpaceOnUse">
-                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#111111" strokeWidth="0.5" strokeOpacity="0.04" />
+                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#0E1118" strokeWidth="0.5" strokeOpacity="0.04" />
               </pattern>
 
-              {/* Water Gradient with subtle shimmer */}
-              <linearGradient id="lightRiverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#A9C6C9" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#8FB1B5" stopOpacity="0.75" />
+              {/* Water Gradient */}
+              <linearGradient id="riverGradR3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#78B3C2" />
+                <stop offset="100%" stopColor="#6AA5B4" />
               </linearGradient>
 
               {/* Building Drop Shadow */}
-              <filter id="bldgShadow" x="-10%" y="-10%" width="125%" height="125%">
-                <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="#111111" floodOpacity="0.14" />
+              <filter id="bldgShadowR3" x="-10%" y="-10%" width="125%" height="125%">
+                <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="#0E1118" floodOpacity="0.14" />
               </filter>
             </defs>
 
-            {/* Base Canvas Rectangles */}
-            <rect width="1000" height="700" fill="#F1ECE2" />
+            {/* Base Canvas Ground: Cool Light Land */}
+            <rect width="1000" height="700" fill="#F1F3EE" />
             <rect width="1000" height="700" fill="url(#lightBlueprintGrid)" />
 
-            {/* Decorative Terrain & Green Space (Parks) */}
+            {/* Decorative Terrain & Green Space (Organic Parks with Scattered Tree Dots) */}
             {layerTerrain && (
-              <g id="terrainLayer" opacity="0.6">
+              <g id="terrainLayer">
+                {/* West Park */}
                 <path
-                  d="M 50 100 C 150 80, 280 120, 320 220 C 350 300, 200 420, 100 400 Z"
-                  fill="#DCE4CB"
+                  d="M 60 110 C 140 80, 240 100, 290 170 C 330 230, 280 320, 210 350 C 130 380, 60 300, 50 200 C 45 150, 55 120, 60 110 Z"
+                  fill="#CFE2BC"
+                  stroke="#B8CEA4"
+                  strokeWidth="1"
                 />
+                <circle cx="110" cy="150" r="4.5" fill="#9DBB84" />
+                <circle cx="125" cy="145" r="3.5" fill="#9DBB84" />
+                <circle cx="170" cy="210" r="5" fill="#9DBB84" />
+                <circle cx="190" cy="200" r="3.5" fill="#9DBB84" />
+                <circle cx="150" cy="270" r="4" fill="#9DBB84" />
+                <circle cx="220" cy="260" r="4.5" fill="#9DBB84" />
+
+                {/* Central-East Park */}
                 <path
-                  d="M 520 280 C 620 260, 700 350, 680 440 C 650 500, 530 520, 480 440 Z"
-                  fill="#DCE4CB"
+                  d="M 490 280 C 580 260, 660 300, 680 370 C 700 440, 620 500, 540 500 C 470 500, 440 420, 460 350 C 470 310, 480 290, 490 280 Z"
+                  fill="#CFE2BC"
+                  stroke="#B8CEA4"
+                  strokeWidth="1"
                 />
+                <circle cx="520" cy="330" r="4" fill="#9DBB84" />
+                <circle cx="535" cy="325" r="3" fill="#9DBB84" />
+                <circle cx="580" cy="390" r="4.5" fill="#9DBB84" />
+                <circle cx="600" cy="410" r="3.5" fill="#9DBB84" />
+                <circle cx="510" cy="430" r="4" fill="#9DBB84" />
               </g>
             )}
 
-            {/* Geographic Context: Soft Blue-Teal Rideau River Polygon */}
-            <path
-              d="M 960 50 C 850 180, 880 380, 780 500 C 720 580, 600 650, 480 690 L 1000 700 L 1000 50 Z"
-              fill="url(#lightRiverGrad)"
-              stroke="#8FB1B5"
-              strokeWidth="1.5"
-            />
+            {/* Rideau River: Flowing diagonally across map with smooth Bézier banks */}
+            {layerTerrain && (
+              <g id="riverLayer">
+                <path
+                  d="M 1000 60 C 860 170, 830 320, 760 450 C 680 590, 550 650, 400 700 L 510 700 C 650 660, 760 600, 840 470 C 910 350, 930 210, 1000 120 Z"
+                  fill="url(#riverGradR3)"
+                />
+                <path
+                  d="M 1000 60 C 860 170, 830 320, 760 450 C 680 590, 550 650, 400 700"
+                  fill="none"
+                  stroke="#5E9BAC"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </g>
+            )}
 
             {/* Campus Perimeter Boundary */}
             <rect
@@ -525,31 +681,44 @@ export function ExploreMapCard({
               height={svgHeight - 2 * paddingY + 32}
               rx="24"
               fill="none"
-              stroke="#BFB5A4"
+              stroke="#D9D5CA"
               strokeWidth="1.2"
               strokeDasharray="6,6"
-              strokeOpacity="0.6"
             />
 
-            {/* Render Network Walkway Edges */}
+            {/* Render Network Walkway Edges: White roads with casing */}
             {layerWalkways && (
               <g id="walkwayEdgesLayer">
                 {walkwayEdges.map((edge, idx) => {
                   const isInferred = edge.isInferred && layerInferred;
-                  const edgeOpacity = routePathData ? 0.08 : isInferred ? 0.25 : 0.18;
+                  const edgeOpacity = routePathData ? 0.12 : isInferred ? 0.35 : 0.28;
 
                   return (
-                    <line
-                      key={idx}
-                      x1={edge.x1}
-                      y1={edge.y1}
-                      x2={edge.x2}
-                      y2={edge.y2}
-                      stroke={isInferred ? "#D9A441" : "#B7AC9B"}
-                      strokeWidth={isInferred ? 1.2 : 1.5}
-                      strokeDasharray={isInferred ? "3,3" : undefined}
-                      strokeOpacity={edgeOpacity}
-                    />
+                    <React.Fragment key={idx}>
+                      {/* Walkway road casing */}
+                      <line
+                        x1={edge.x1}
+                        y1={edge.y1}
+                        x2={edge.x2}
+                        y2={edge.y2}
+                        stroke={isInferred ? "#D9A441" : "#D9D5CA"}
+                        strokeWidth={isInferred ? 1.5 : 2.5}
+                        strokeDasharray={isInferred ? "3,3" : undefined}
+                        strokeOpacity={edgeOpacity}
+                      />
+                      {/* Walkway white core */}
+                      {!isInferred && (
+                        <line
+                          x1={edge.x1}
+                          y1={edge.y1}
+                          x2={edge.x2}
+                          y2={edge.y2}
+                          stroke="#FFFFFF"
+                          strokeWidth="1.2"
+                          strokeOpacity={edgeOpacity}
+                        />
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </g>
@@ -558,11 +727,11 @@ export function ExploreMapCard({
             {/* Render Active Calculated Route */}
             {routePathData && (
               <g id="activeRouteLayer">
-                {/* 9px Cream Route Casing */}
+                {/* 9px White Route Casing */}
                 <path
                   d={routePathData}
                   fill="none"
-                  stroke="#FBF8F2"
+                  stroke="#FFFFFF"
                   strokeWidth="9"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -590,6 +759,36 @@ export function ExploreMapCard({
                     className="animate-pulse"
                   />
                 )}
+
+                {/* Route Midpoint Distance / Time Pill */}
+                {routeMidpoint && activeRoute && (
+                  <g
+                    transform={`translate(${routeMidpoint.x}, ${routeMidpoint.y - 16})`}
+                    className="pointer-events-none select-none"
+                  >
+                    <rect
+                      x="-42"
+                      y="-11"
+                      width="84"
+                      height="22"
+                      rx="11"
+                      fill="#0E1118"
+                      stroke="#E8542F"
+                      strokeWidth="1"
+                      filter="url(#bldgShadowR3)"
+                    />
+                    <text
+                      textAnchor="middle"
+                      y="4"
+                      fill="#FFFFFF"
+                      fontSize="9"
+                      fontFamily="var(--font-mono)"
+                      fontWeight="bold"
+                    >
+                      {activeRoute.distanceMeters} m &bull; ~{activeRoute.estimatedWalkingMinutes} min
+                    </text>
+                  </g>
+                )}
               </g>
             )}
 
@@ -605,16 +804,16 @@ export function ExploreMapCard({
                   const isSelected = selectedLocation?.id === loc.id;
                   const isOrigin = originLocation?.id === loc.id;
                   const isHovered = hoveredLocation?.id === loc.id;
-                  const isRoutable = loc.hasRouteTopology !== false;
+                  const shouldShowChip = visibleChipsMap.has(loc.id) || isHovered;
 
-                  const bWidth = 46;
-                  const bHeight = 28;
+                  const bWidth = 44;
+                  const bHeight = 26;
 
                   return (
                     <g
                       key={loc.id}
                       transform={`translate(${cx}, ${cy})`}
-                      data-cursor="SELECT"
+                      data-cursor="node"
                       className="cursor-pointer transition-all duration-150"
                       onClick={(e) => {
                         if (e.shiftKey && onSelectOriginLocation) {
@@ -629,124 +828,125 @@ export function ExploreMapCard({
                       tabIndex={0}
                       aria-label={`${loc.name} (${loc.code || "BLDG"}), building`}
                     >
-                      {/* Origin Halo Pulsing Ring */}
+                      {/* Origin Halo Pulsing Ring (Teal) */}
                       {isOrigin && (
                         <circle
                           r="26"
                           fill="none"
-                          stroke="#1F9D6B"
-                          strokeWidth="2"
+                          stroke="#0F6E73"
+                          strokeWidth="2.5"
                           strokeDasharray="4,3"
-                          className="animate-spin-slow origin-center opacity-70"
+                          className="animate-spin-slow origin-center opacity-85"
                         />
                       )}
 
-                      {/* Destination Halo Pulsing Ring */}
+                      {/* Destination Halo Pulsing Ring (Orange) */}
                       {isSelected && (
                         <circle
                           r="26"
                           fill="none"
                           stroke="#E8542F"
-                          strokeWidth="2"
+                          strokeWidth="2.5"
                           strokeDasharray="4,3"
-                          className="animate-spin-slow origin-center opacity-80"
+                          className="animate-spin-slow origin-center opacity-90"
                         />
                       )}
 
-                      {/* Cream Concrete Footprint Rect with 1px stroke & soft offset shadow */}
-                      <rect
-                        x={-bWidth / 2}
-                        y={-bHeight / 2}
-                        width={bWidth}
-                        height={bHeight}
-                        rx="8"
-                        filter="url(#bldgShadow)"
-                        fill={
-                          isSelected
-                            ? "#E8542F"
-                            : isOrigin
-                            ? "#1F9D6B"
-                            : isHovered
-                            ? "#111111"
-                            : isRoutable
-                            ? "#EAE3D7"
-                            : "#DFD7CA"
-                        }
-                        stroke={
-                          isSelected
-                            ? "#C9411F"
-                            : isOrigin
-                            ? "#167A53"
-                            : isHovered
-                            ? "#111111"
-                            : "#BFB5A4"
-                        }
-                        strokeWidth="1.2"
-                        className="transition-colors duration-150"
-                      />
+                      {shouldShowChip ? (
+                        <>
+                          {/* Full Concrete Footprint Rect */}
+                          <rect
+                            x={-bWidth / 2}
+                            y={-bHeight / 2}
+                            width={bWidth}
+                            height={bHeight}
+                            rx="8"
+                            filter="url(#bldgShadowR3)"
+                            fill={
+                              isSelected
+                                ? "#E8542F"
+                                : isOrigin
+                                ? "#0F6E73"
+                                : isHovered
+                                ? "#0E1118"
+                                : "#FFFFFF"
+                            }
+                            stroke={
+                              isSelected
+                                ? "#C9411F"
+                                : isOrigin
+                                ? "#0A4E52"
+                                : isHovered
+                                ? "#0E1118"
+                                : "#E1DDD3"
+                            }
+                            strokeWidth="1.2"
+                          />
 
-                      {/* Mono Building Code Label */}
-                      <text
-                        y="3.5"
-                        textAnchor="middle"
-                        fill={
-                          isSelected || isOrigin || isHovered
-                            ? "#FFFFFF"
-                            : isRoutable
-                            ? "#111111"
-                            : "#71717A"
-                        }
-                        fontSize="9.5"
-                        fontWeight="bold"
-                        fontFamily="monospace"
-                        className="pointer-events-none select-none tracking-wider"
-                      >
-                        {loc.code || loc.name.slice(0, 3).toUpperCase()}
-                      </text>
+                          {/* Building Code Mono Label */}
+                          <text
+                            x="0"
+                            y="4"
+                            textAnchor="middle"
+                            fontFamily="var(--font-mono)"
+                            fontSize="10"
+                            fontWeight="bold"
+                            letterSpacing="0.05em"
+                            fill={
+                              isSelected || isOrigin || isHovered
+                                ? "#FFFFFF"
+                                : "#0E1118"
+                            }
+                          >
+                            {loc.code || "BLD"}
+                          </text>
+                        </>
+                      ) : (
+                        /* Compact Building Node Dot when chips are clustered */
+                        <>
+                          <circle
+                            r="5"
+                            fill="#FFFFFF"
+                            stroke="#B8B2A6"
+                            strokeWidth="1.5"
+                            filter="url(#bldgShadowR3)"
+                          />
+                          <circle r="2" fill="#6B665C" />
+                        </>
+                      )}
 
-                      {/* Origin Teardrop / A Dot */}
+                      {/* Origin 'A' badge */}
                       {isOrigin && (
-                        <g transform="translate(19, -12)">
-                          <circle r="7.5" fill="#1F9D6B" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <text y="3" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold">
+                        <g transform="translate(18, -12)">
+                          <circle r="7" fill="#0F6E73" stroke="#FFFFFF" strokeWidth="1.5" />
+                          <text
+                            x="0"
+                            y="3"
+                            textAnchor="middle"
+                            fontFamily="var(--font-mono)"
+                            fontSize="8"
+                            fontWeight="bold"
+                            fill="#FFFFFF"
+                          >
                             A
                           </text>
                         </g>
                       )}
 
-                      {/* Destination Teardrop / B Dot */}
+                      {/* Destination 'B' badge */}
                       {isSelected && (
-                        <g transform="translate(19, -12)">
-                          <circle r="7.5" fill="#E8542F" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <text y="3" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold">
-                            B
-                          </text>
-                        </g>
-                      )}
-
-                      {/* Tooltip Card on Hover */}
-                      {isHovered && (
-                        <g transform="translate(0, -32)" className="pointer-events-none z-50">
-                          <rect
-                            x="-80"
-                            y="-18"
-                            width="160"
-                            height="24"
-                            rx="6"
-                            fill="#111111"
-                            stroke="#E8542F"
-                            strokeWidth="1"
-                            className="shadow-2xl"
-                          />
+                        <g transform="translate(18, -12)">
+                          <circle r="7" fill="#E8542F" stroke="#FFFFFF" strokeWidth="1.5" />
                           <text
-                            y="-2"
+                            x="0"
+                            y="3"
                             textAnchor="middle"
-                            fill="#FFFFFF"
-                            fontSize="9.5"
+                            fontFamily="var(--font-mono)"
+                            fontSize="8"
                             fontWeight="bold"
-                            fontFamily="monospace"
+                            fill="#FFFFFF"
                           >
-                            {loc.name.length > 22 ? `${loc.name.slice(0, 20)}...` : loc.name}
+                            B
                           </text>
                         </g>
                       )}

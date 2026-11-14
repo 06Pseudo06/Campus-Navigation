@@ -3,11 +3,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { isReducedMotion } from "@/lib/motion";
 
+type CursorMode = "default" | "button" | "disabled" | "map" | "map-dragging" | "hidden";
+
 export function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const [label, setLabel] = useState<string | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
+
+  const [mode, setMode] = useState<CursorMode>("default");
   const [isVisible, setIsVisible] = useState(false);
   const [enabled, setEnabled] = useState(false);
 
@@ -31,28 +33,56 @@ export function CustomCursor() {
       mouseY = e.clientY;
       setIsVisible(true);
 
-      // Check for custom cursor label safely across all target types
       const el = e.target instanceof Element ? e.target : (e.target as Node)?.parentElement;
-      const target = el?.closest ? el.closest("[data-cursor]") : null;
-      if (target) {
-        const customLabel = target.getAttribute("data-cursor");
-        setLabel(customLabel || null);
-        setIsHovered(true);
-      } else {
-        const isClickable = el?.closest ? el.closest("a, button, input, [role='button']") : null;
-        setIsHovered(!!isClickable);
-        setLabel(null);
+      if (!el || !el.closest) {
+        setMode("default");
+        return;
       }
+
+      // 1. Text input / selectable editable elements -> Hide cursor completely
+      if (el.closest("input, textarea, select, [contenteditable='true']")) {
+        setMode("hidden");
+        return;
+      }
+
+      // 2. Interactive control resolution (Innermost first)
+      const ctrl = el.closest(
+        "button, a, summary, [role='button'], [data-cursor='ui'], [data-cursor='button'], [data-cursor='node']"
+      );
+      if (ctrl) {
+        const isDisabled =
+          (ctrl as HTMLElement).hasAttribute("disabled") ||
+          ctrl.getAttribute("aria-disabled") === "true" ||
+          ctrl.classList.contains("disabled") ||
+          ctrl.classList.contains("cursor-not-allowed");
+        setMode(isDisabled ? "disabled" : "button");
+        return;
+      }
+
+      // 3. Map surface resolution
+      const map = el.closest("[data-cursor='map']");
+      if (map) {
+        const isDragging = map.getAttribute("data-dragging") === "true";
+        setMode(isDragging ? "map-dragging" : "map");
+        return;
+      }
+
+      // 4. Default fallback
+      setMode("default");
     };
 
     const onMouseLeave = () => {
       setIsVisible(false);
     };
 
+    const onMouseEnter = () => {
+      setIsVisible(true);
+    };
+
     const render = () => {
-      // Lerp ring position
-      ringX += (mouseX - ringX) * 0.18;
-      ringY += (mouseY - ringY) * 0.18;
+      // Lerp ring position smoothly
+      ringX += (mouseX - ringX) * 0.22;
+      ringY += (mouseY - ringY) * 0.22;
 
       if (dotRef.current) {
         dotRef.current.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
@@ -66,47 +96,61 @@ export function CustomCursor() {
 
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     document.addEventListener("mouseleave", onMouseLeave);
+    document.addEventListener("mouseenter", onMouseEnter);
     rafId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(enableRaf);
       window.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseleave", onMouseLeave);
+      document.removeEventListener("mouseenter", onMouseEnter);
       cancelAnimationFrame(rafId);
     };
   }, []);
 
   if (!enabled) return null;
 
+  const isHidden = mode === "hidden" || !isVisible;
+
   return (
     <div
-      className={`fixed inset-0 pointer-events-none z-[1000] transition-opacity duration-300 ${
-        isVisible ? "opacity-100" : "opacity-0"
+      id="custom-cursor"
+      data-cursor-mode={mode}
+      className={`fixed inset-0 pointer-events-none z-[9999] transition-opacity duration-150 ${
+        isHidden ? "opacity-0" : "opacity-100"
       }`}
       aria-hidden="true"
     >
-      {/* Central Orange Dot */}
+      {/* Central Dot */}
       <div
         ref={dotRef}
-        className={`fixed top-0 left-0 rounded-full bg-[#E8542F] transition-[width,height] duration-200 pointer-events-none ${
-          isHovered ? "w-1.5 h-1.5 opacity-40" : "w-2 h-2 opacity-100"
+        className={`fixed top-0 left-0 rounded-full transition-[width,height,background-color,opacity] duration-150 pointer-events-none ${
+          mode === "button"
+            ? "w-2.5 h-2.5 bg-[#E8542F] opacity-100 shadow-sm"
+            : mode === "disabled"
+            ? "w-2.5 h-2.5 bg-[#9AA3B2] opacity-80"
+            : mode === "map" || mode === "map-dragging"
+            ? "w-1 h-1 bg-[#E8542F] opacity-0"
+            : "w-1 h-1 bg-[#E8542F] opacity-100"
         }`}
       />
 
-      {/* Trailing Ring with Optional Label */}
+      {/* Outer Ring / State Element */}
       <div
         ref={ringRef}
-        className={`fixed top-0 left-0 rounded-full flex items-center justify-center transition-[width,height,background-color,border-color] duration-200 pointer-events-none ${
-          label
-            ? "w-16 h-16 bg-[#E8542F] text-white border-none shadow-lg shadow-[#E8542F]/30"
-            : isHovered
-            ? "w-10 h-10 border border-[#E8542F] bg-[#E8542F]/10"
-            : "w-7 h-7 border border-[#111111]/30 dark:border-white/40 bg-transparent"
+        className={`fixed top-0 left-0 rounded-full flex items-center justify-center transition-[width,height,border-color,background-color,opacity] duration-150 pointer-events-none ${
+          mode === "button" || mode === "disabled"
+            ? "w-0 h-0 border-none bg-transparent opacity-0"
+            : mode === "map"
+            ? "w-9 h-9 border-[1.5px] border-[#E8542F] bg-[#E8542F]/10 opacity-100 shadow-xs"
+            : mode === "map-dragging"
+            ? "w-7 h-7 border-[1.5px] border-[#E8542F] bg-[#E8542F]/20 opacity-100 shadow-xs scale-90"
+            : "w-[22px] h-[22px] border-[1.5px] border-[#111111]/35 dark:border-white/40 bg-transparent opacity-100"
         }`}
       >
-        {label && (
-          <span className="text-[9px] font-mono font-bold tracking-widest uppercase select-none">
-            {label}
+        {mode === "map" && (
+          <span className="text-[8px] font-mono font-bold tracking-widest text-[#E8542F] uppercase select-none">
+            DRAG
           </span>
         )}
       </div>

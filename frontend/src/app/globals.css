@@ -48,8 +48,63 @@
   --map-route-casing: #FBF8F2;
   --map-panel-bg: #FBF8F2;
 
+  /* Round 3: Concrete, Ink & Sunset Palette */
+  --app-bg: #EFEDE8;
+  --surface: #FFFFFF;
+  --surface-2: #F7F5F0;
+  --line: #E1DDD3;
+  --ink-900: #0E1118;
+  --ink-800: #171C27;
+  --ink-600: #3A4152;
+  --muted: #6B665C;
+  --on-ink: #F4F1EA;
+  --on-ink-muted: #9AA3B2;
+  --orange: #E8542F;
+  --orange-600: #C9411F;
+  --orange-100: #FDE9E2;
+  --teal: #0F6E73;
+  --teal-tint: #DDF1EC;
+  --map-land: #F1F3EE;
+  --map-road: #FFFFFF;
+  --map-road-casing: #D9D5CA;
+  --map-building: #FAF8F3;
+  --map-building-stroke: #B8B2A6;
+  --map-building-shadow: rgba(14, 17, 24, 0.16);
+  --map-water-r3: #78B3C2;
+  --map-water-edge-r3: #5E9BAC;
+  --map-park: #CFE2BC;
+  --map-trees: #9DBB84;
+  --map-inferred-r3: #D9A441;
+
   --font-display: "Inter Tight", "Geist", "Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Custom Slim 6px Scrollbar */
+.slim-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.slim-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.slim-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(14, 17, 24, 0.16);
+  border-radius: 9999px;
+}
+.slim-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 17, 24, 0.30);
+}
+.slim-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(14, 17, 24, 0.16) transparent;
+}
+
+/* Single 2px clean orange ring with soft glow for search */
+.focus-ring-orange:focus {
+  outline: none !important;
+  border-color: #E8542F !important;
+  box-shadow: 0 0 0 2px #E8542F, 0 0 8px 2px rgba(232, 84, 47, 0.15) !important;
 }
 
 /* Left Safe Gutter for Section Navigation Index (>= 1024px) */

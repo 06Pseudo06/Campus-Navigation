@@ -21,31 +21,28 @@ export function ExploreSavedView({
   error = null,
 }: ExploreSavedViewProps) {
   return (
-    <div className="h-full overflow-y-auto p-6 sm:p-8 max-w-5xl mx-auto space-y-8 select-none">
-      {/* Header with Persistence Status */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#111111]/12">
+    <div className="h-full overflow-y-auto px-6 py-6 lg:px-8 space-y-6 max-w-6xl mx-auto select-none slim-scrollbar pb-10 flex flex-col">
+      {/* Sub-Header with Persistence Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-[#E1DDD3] shrink-0">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#5B5750]">
-            <span className="text-[#E8542F]">SAVED DESTINATIONS /</span>
-            <span>PERSONAL ATLAS</span>
+          <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-[#6B665C]">
+            <span className="text-[#E8542F]">&mdash;</span>
+            <span>PERSONAL ATLAS &bull; PERSISTENT BOOKMARKS</span>
           </div>
-          <h2 className="text-3xl font-black uppercase tracking-tight text-[#111111]">
-            Your Bookmarked <span className="italic text-[#E8542F] font-serif font-normal normal-case">Places.</span>
-          </h2>
-          <p className="text-xs sm:text-sm text-[#5B5750] leading-relaxed max-w-xl">
-            Quickly navigate to your bookmarked classrooms, laboratories, offices, and library study hubs.
+          <p className="text-xs sm:text-sm text-[#6B665C] font-sans leading-relaxed">
+            Quickly navigate to your bookmarked classrooms, laboratories, and library study hubs.
           </p>
         </div>
 
         {/* Persistence Status Badge */}
-        <div className="shrink-0">
+        <div className="shrink-0 font-mono">
           {isAuthenticated ? (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-mono font-bold text-emerald-800 uppercase">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 uppercase">
               <span className="w-2 h-2 rounded-full bg-emerald-600" />
               <span>POSTGRESQL SYNCED</span>
             </div>
           ) : (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#111111]/[0.06] border border-[#111111]/12 text-xs font-mono font-bold text-[#5B5750] uppercase">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[#E1DDD3] text-xs font-bold text-[#6B665C] uppercase shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-[#E8542F]" />
               <span>GUEST LOCAL STORAGE</span>
             </div>
@@ -54,25 +51,25 @@ export function ExploreSavedView({
       </div>
 
       {isLoading && (
-        <div className="p-4 rounded-2xl bg-[#FBF8F2] border border-[#111111]/12 text-xs font-mono text-[#5B5750] flex items-center gap-2">
+        <div className="p-3.5 rounded-[14px] bg-white border border-[#E1DDD3] text-xs font-mono text-[#6B665C] flex items-center gap-2 shrink-0">
           <span className="w-2 h-2 rounded-full bg-[#E8542F] animate-ping" />
           <span>Synchronizing bookmarks with atlas…</span>
         </div>
       )}
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-mono text-rose-800">
+        <div className="p-3.5 rounded-[14px] bg-rose-50 border border-rose-200 text-xs font-sans text-rose-800 shrink-0">
           {error}
         </div>
       )}
 
-      {/* Saved Locations List */}
+      {/* Saved Locations List or Vertically Centered Empty State */}
       {savedLocations.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {savedLocations.map((loc) => (
             <div
               key={loc.id}
-              className="p-5 rounded-[24px] bg-[#FBF8F2] border border-[#111111]/12 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+              className="p-5 rounded-[20px] bg-white border border-[#E1DDD3] shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)] hover:shadow-md transition-all flex flex-col justify-between space-y-4"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -82,7 +79,7 @@ export function ExploreSavedView({
                   <button
                     type="button"
                     onClick={() => onRemoveSaved(loc.id)}
-                    className="text-xs font-mono text-[#5B5750] hover:text-rose-600 transition-colors cursor-pointer"
+                    className="text-xs font-mono text-[#6B665C] hover:text-rose-600 transition-colors cursor-pointer"
                     title="Remove from saved"
                     aria-label={`Remove ${loc.name} from saved`}
                   >
@@ -90,45 +87,46 @@ export function ExploreSavedView({
                   </button>
                 </div>
 
-                <h3 className="text-base font-bold uppercase tracking-tight text-[#111111] leading-tight">
+                <h3 className="text-base font-bold uppercase tracking-tight text-[#0E1118] leading-tight font-sans">
                   {loc.name}
                 </h3>
 
-                <p className="text-xs text-[#5B5750] line-clamp-2 leading-relaxed">
+                <p className="text-xs text-[#6B665C] line-clamp-2 leading-relaxed font-sans">
                   {loc.description}
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-[#111111]/10 flex items-center justify-between">
-                <span className="text-[10px] font-mono text-[#5B5750] uppercase">
+              <div className="pt-3 border-t border-[#E1DDD3] flex items-center justify-between">
+                <span className="text-[10px] font-mono text-[#6B665C] uppercase">
                   {loc.category}
                 </span>
 
                 <button
                   type="button"
                   onClick={() => onSelectLocation(loc)}
-                  className="px-3 py-1.5 rounded-full bg-[#111111] hover:bg-[#E8542F] text-white text-xs font-mono font-bold uppercase transition-colors cursor-pointer flex items-center gap-1.5"
+                  className="px-3.5 py-1.5 rounded-full bg-[#0E1118] hover:bg-[#E8542F] text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-xs cursor-pointer"
                 >
-                  <span>NAVIGATE</span>
-                  <span>↗</span>
+                  NAVIGATE &rarr;
                 </button>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        /* Empty State with ✦ Icon */
-        <div className="py-20 flex flex-col items-center justify-center text-center space-y-4 rounded-[28px] bg-[#FBF8F2] border border-[#111111]/10 p-8">
-          <div className="w-12 h-12 rounded-2xl bg-[#E8542F]/10 text-[#E8542F] flex items-center justify-center text-xl font-bold">
-            ✦
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold uppercase tracking-tight text-[#111111]">
-              Nothing Saved Yet
-            </h3>
-            <p className="text-xs sm:text-sm text-[#5B5750] max-w-md mx-auto">
-              Tap the bookmark icon on any building or landmark in the destination panel to save it for instant one-click wayfinding.
-            </p>
+        /* Vertically Centered Empty State */
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[360px] my-auto">
+          <div className="p-10 rounded-[20px] bg-white border border-[#E1DDD3] text-center max-w-md space-y-4 shadow-[0_1px_0_rgba(14,17,24,0.04),0_18px_40px_-18px_rgba(14,17,24,0.18)]">
+            <div className="w-12 h-12 rounded-2xl bg-[#E8542F]/10 text-[#E8542F] mx-auto flex items-center justify-center text-xl font-bold">
+              ✦
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold uppercase tracking-wider text-[#0E1118] font-sans">
+                Nothing Saved Yet
+              </h3>
+              <p className="text-xs text-[#6B665C] leading-relaxed font-sans">
+                Tap the bookmark icon on any building or landmark in the destination panel to save it for instant one-click wayfinding.
+              </p>
+            </div>
           </div>
         </div>
       )}

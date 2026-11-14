@@ -133,3 +133,4 @@ This document serves as the ground-truth specification of all existing controls,
 - **All Destinations Listing:**
   - 48 locations with code pill, name, category, and selected/origin state indicators.
   - Clicking any location sets destination and highlights it on the map.
+

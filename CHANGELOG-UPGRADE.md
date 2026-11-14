@@ -5,7 +5,54 @@ This document outlines the architectural motion and editorial visual redesign ap
 
 ---
 
-## Round 3: Explore (Map) Page Editorial Redesign (Completed)
+## Round 3 (Pass 2): Fixes, Colour Overhaul & Polish ("Concrete, Ink & Sunset")
+
+### 1. Colour Overhaul — Concrete, Ink & Sunset (60/30/10 Rule)
+- **Ambient Canvas Ground:** Replaced flat beige with `--app-bg` (`#EFEDE8`) featuring two soft ambient radial glows (sunset orange `rgba(232,84,47,0.10)` at top-right and deep teal `rgba(15,110,115,0.07)` at bottom-left) to give the application atmosphere and depth.
+- **Card Surfaces:** White cards (`#FFFFFF`) with 20px radius and crisp `#E1DDD3` borders that lift cleanly off the canvas.
+- **Deep Ink Anchors:** Converted the left navigation rail, bottom stats strip, and route result card to deep ink-900 (`#0E1118`) with white/10 borders, creating strong visual contrast and anchor points.
+- **Sunset Accents:** High-impact sunset orange (`#E8542F`) reserved for active tiles, primary CTAs, active route polylines, and grotesk italic accent words.
+- **Removed Giant Beige Wrapper:** Eliminated the monolithic beige wrapper around Routes, Saved, and Help views, rendering white cards directly on `--app-bg`.
+
+### 2. Custom Cursor Precision Engine (`CustomCursor.tsx`)
+- **Strict Size Hierarchy:** Default 22px ring (1.5px border, 4px dot); shrinks to 10px solid orange dot over buttons/links/controls/map controls (`[role=button]`, `data-cursor="ui"`, `summary`); hides completely over text inputs (`input, textarea, select, [contenteditable]`); 36px ring over map surface with 9px mono `DRAG` label (shrinks to 28px while dragging); 10px muted grey dot over disabled controls.
+- **Innermost-First Resolution:** Resolves interactive children before map container, preventing outer `data-cursor="map"` from swallowing button/input cursor states.
+- **Eliminated Stray Dots:** Permanently eliminated perceived stray orange dots (caused by old 40px cursor rendering at automated click coordinates).
+
+### 3. Map Overlay Controls & Canvas Refinements (`ExploreMapCard.tsx`)
+- **4px Drag Deadzone Threshold:** Added `Math.hypot(dx, dy) >= 4` threshold to pan gesture handler so normal mouse clicks on overlay controls are never captured as drags.
+- **Click Propagation Isolation:** Map controls (+, −, compass, Masterplan pill, legend) stop pointer event propagation.
+- **Collapsible Legend:** Defaulted to compact `Legend ›` pill at bottom-left to maximize map visible area.
+- **Dynamic Route Framing:** Smoothly computes bounding box of active route upon calculation and automatically fits zoom and pan to frame the path.
+- **Route Midpoint Pill:** Added dark ink midpoint pill (`133.9 m · ~1.7 min`) with orange border along the active path.
+- **Terrain & River Geometry:** Rendered smooth diagonal Rideau river with Bézier banks (`#78B3C2`, edge `#5E9BAC`) and organic park shapes (`#CFE2BC`) with scattered tree clusters.
+- **Node Collision Avoidance:** Collision detection algorithm prioritizing selected, origin, and landmark node chips at default zoom.
+
+### 4. Route Panel Restructure & Fixed Bottom Docking (`ExploreRoutePanel.tsx`)
+- **Strict Scroll & Dock Architecture:** Scroller container (`flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; slim-scrollbar`) containing header, search, category pills, stepper, destination card, result card, and 48 destinations.
+- **Docked Bottom Bar:** Fixed bar (`flex: none;`) permanently holding the Dijkstra / A* solver engine segmented control and Calculate CTA button.
+- **Smooth Auto-Scroll to Result:** After route calculation, smoothly scrolls the panel scroller to the result card (`scrollerRef.current.scrollTo(...)`).
+- **Recent Searches & Nudge Pill:** Displays recent searches chips from `localStorage` and a bouncing "Destinations ↓" nudge pill.
+- **Deep Ink Result Card:** Focal `#0E1118` route summary card with large walking time and distance numerals, accessible badges, share link copy, and solver comparison.
+
+### 5. Contextual Toolbar Headline (`ExploreToolbar.tsx`)
+- **Per-Tab Dynamic Headline:** Contextual H1 with bold grotesk uppercase and italic orange accent words ("Explore Your *Campus.*", "Curated *Corridors.*", "Your *Places.*", "Here to *Help.*") with mask-up animation.
+- **Intentional Sun Disc:** 130px cropped gradient sun disc with concentric arc.
+- **Single Focus Ring:** Clean 2px border with soft 6px orange glow (`.focus-ring-orange`).
+- **Mobile Responsive:** Scaled typography and compact university chip on small screens.
+
+### 6. Sub-View Layout Refinements
+- **Help View (`ExploreHelpView.tsx`):** Balanced 7fr:5fr Row 1 grid with equal card heights and flexing textarea; full-width Row 2 keyboard shortcuts card evenly split across 2 columns.
+- **Routes View (`ExploreRoutesView.tsx`):** Filter pills (All, Accessible, Under 5 min), mini SVG polyline previews, and full-width "Plan a custom route →" card.
+- **Saved View (`ExploreSavedView.tsx`):** Centered empty state card with `✦` and white destination cards on `--app-bg` with live bookmark synchronization.
+
+### 7. Verification & Automated Testing
+- **Playwright Test Suite (`capture_round3_verification.py`):** Verified map controls (+, −, compass, legend), panel wheel scroll, route result auto-scroll, custom cursor states (button, input, map), and captured cross-viewport screenshots at 1440×900, 1920×1080, 1280×720, and 390×844.
+- **Type-Check & Lint:** Zero TypeScript errors (`tsc --noEmit`) and zero ESLint errors/warnings (`next/core-web-vitals`).
+
+---
+
+## Round 3: Explore (Map) Page Editorial Redesign (Initial)
 
 ### 1. Full Design Language Parity
 - **Editorial Paper Theme:** Completely redesigned the front-end of the Explore page (`/explore`) from the old dark dashboard into the warm editorial architectural identity:

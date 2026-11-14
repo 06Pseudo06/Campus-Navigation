@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { EditorialNavbar } from "@/components/home/EditorialNavbar";
 import { CustomCursor } from "@/components/motion/CustomCursor";
@@ -27,7 +27,6 @@ import { NodeRead } from "@/types/api";
 
 export default function ExploreDashboardPage() {
   const { user, loading: authLoading } = useAuth();
-  const [, startTransition] = useTransition();
 
   // Active navigation tab: explore | routes | saved | help
   const [currentTab, setCurrentTab] = useState<SidebarTab>("explore");
@@ -150,6 +149,13 @@ export default function ExploreDashboardPage() {
         setCurrentTab(tabParam as SidebarTab);
       });
     }
+
+    const algoParam = params.get("algo");
+    if (algoParam === "dijkstra" || algoParam === "astar") {
+      queueMicrotask(() => {
+        setSelectedAlgorithm(algoParam);
+      });
+    }
   }, []);
 
   // Route calculation execution
@@ -265,6 +271,30 @@ export default function ExploreDashboardPage() {
     },
     []
   );
+
+  // Restore route from URL params if present
+  useEffect(() => {
+    if (typeof window === "undefined" || locations.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const fromParam = params.get("from");
+    const toParam = params.get("to");
+    if (fromParam && toParam) {
+      const fromLoc = locations.find(
+        (l) => l.code?.toLowerCase() === fromParam.toLowerCase() || l.id === fromParam
+      );
+      const toLoc = locations.find(
+        (l) => l.code?.toLowerCase() === toParam.toLowerCase() || l.id === toParam
+      );
+      if (fromLoc && toLoc) {
+        queueMicrotask(() => {
+          setOriginLocation(fromLoc);
+          setSelectedLocation(toLoc);
+          setShowRoute(true);
+          calculateRoutePath(fromLoc, toLoc, selectedAlgorithm);
+        });
+      }
+    }
+  }, [locations, calculateRoutePath, selectedAlgorithm]);
 
   // Load Live Campus Data & Graph Topology on Mount
   const loadCampusData = useCallback(async () => {
@@ -464,20 +494,30 @@ export default function ExploreDashboardPage() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#F7F3EC] text-[#111111] flex flex-col select-none">
+    <div className="h-screen w-screen overflow-hidden bg-[#EFEDE8] text-[#0E1118] flex flex-col select-none relative">
+      {/* Soft Ambient Radial Glows (No flat beige!) */}
+      <div
+        className="absolute inset-0 pointer-events-none -z-0"
+        style={{
+          backgroundImage: `radial-gradient(60% 50% at 92% 0%, rgba(232,84,47,0.10), transparent 60%), radial-gradient(50% 40% at 0% 100%, rgba(15,110,115,0.07), transparent 60%)`,
+        }}
+        aria-hidden="true"
+      />
+
       {/* Custom Cursor */}
       <CustomCursor />
 
       {/* 1. Top Fixed Editorial Navbar (72px) with User Chip */}
-      <div className="h-[72px] shrink-0">
+      <div className="h-[72px] shrink-0 relative z-30">
         <EditorialNavbar
           isFixedApp={true}
           rightSlot={<ExploreUserMenu />}
         />
       </div>
 
-      {/* 2. Editorial Toolbar Row (88px) */}
+      {/* 2. Editorial Toolbar Row (88px) with Contextual View Title */}
       <ExploreToolbar
+        currentTab={currentTab}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         campusName="Carleton University"
@@ -503,7 +543,7 @@ export default function ExploreDashboardPage() {
       )}
 
       {/* 3. Main Working Zone (100svh - 160px) */}
-      <div className="flex-1 flex overflow-hidden p-3 sm:p-4 lg:p-5 gap-4 lg:gap-5 relative">
+      <div className="flex-1 flex overflow-hidden p-3 sm:p-4 lg:p-5 gap-4 lg:gap-5 relative z-10">
         {/* Left Icon Rail (72px collapsed, 220px expanded overlay on desktop) */}
         <ExploreRail
           currentTab={currentTab}
@@ -533,7 +573,7 @@ export default function ExploreDashboardPage() {
                 />
               </div>
 
-              {/* Stats Strip under map */}
+              {/* Stats Strip under map (Dark Ink Bar) */}
               <ExploreStatsStrip
                 buildingCount={locations.length}
                 vertexCount={vertexCount}
@@ -572,7 +612,7 @@ export default function ExploreDashboardPage() {
 
             {/* Mobile / Tablet Bottom Sheet (< 1024px) */}
             <div
-              className={`lg:hidden fixed inset-x-0 bottom-16 z-50 transition-all duration-300 ease-out flex flex-col bg-[#FBF8F2] border-t border-[#111111]/15 shadow-2xl rounded-t-[28px] overflow-hidden ${
+              className={`lg:hidden fixed inset-x-0 bottom-16 z-50 transition-all duration-300 ease-out flex flex-col bg-white border-t border-[#E1DDD3] shadow-2xl rounded-t-[20px] overflow-hidden ${
                 mobileSheetSnap === "peek"
                   ? "h-28"
                   : mobileSheetSnap === "half"
@@ -587,10 +627,10 @@ export default function ExploreDashboardPage() {
                     prev === "peek" ? "half" : prev === "half" ? "full" : "peek"
                   )
                 }
-                className="w-full py-2.5 flex items-center justify-center cursor-pointer bg-[#FBF8F2] border-b border-[#111111]/08"
+                className="w-full py-2.5 flex items-center justify-center cursor-pointer bg-white border-b border-[#E1DDD3]"
                 aria-label="Toggle drawer height"
               >
-                <div className="w-12 h-1.5 rounded-full bg-[#111111]/20 hover:bg-[#E8542F] transition-colors" />
+                <div className="w-12 h-1.5 rounded-full bg-[#0E1118]/20 hover:bg-[#E8542F] transition-colors" />
               </div>
 
               <div className="flex-1 overflow-hidden">
@@ -624,17 +664,20 @@ export default function ExploreDashboardPage() {
           </div>
         )}
 
+        {/* Routes View: Placed directly on --app-bg */}
         {currentTab === "routes" && (
-          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+          <main className="flex-1 h-full overflow-hidden">
             <ExploreRoutesView
               locations={locations}
               onSelectRoute={handleSelectPredefinedRoute}
+              onPlanCustomRoute={() => setCurrentTab("explore")}
             />
           </main>
         )}
 
+        {/* Saved View: Placed directly on --app-bg */}
         {currentTab === "saved" && (
-          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+          <main className="flex-1 h-full overflow-hidden">
             <ExploreSavedView
               savedLocations={savedLocationsList}
               onSelectLocation={handleSelectLocation}
@@ -646,8 +689,9 @@ export default function ExploreDashboardPage() {
           </main>
         )}
 
+        {/* Help View: Placed directly on --app-bg */}
         {currentTab === "help" && (
-          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+          <main className="flex-1 h-full overflow-hidden">
             <ExploreHelpView locations={locations} />
           </main>
         )}

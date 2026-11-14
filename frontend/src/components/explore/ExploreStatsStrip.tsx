@@ -48,57 +48,60 @@ export function ExploreStatsStrip({
   }, [buildingCount, vertexCount]);
 
   return (
-    <div className="w-full h-11 px-4 sm:px-6 bg-[#FBF8F2] border border-[#111111]/12 rounded-2xl flex items-center justify-between text-xs font-mono select-none shadow-xs mt-3 shrink-0">
+    <div
+      className="w-full h-11 px-4 sm:px-6 bg-[#0E1118] text-[#F4F1EA] border border-white/10 rounded-[18px] flex items-center justify-between text-xs font-mono select-none shadow-md mt-3 shrink-0"
+      aria-label="Campus Graph Telemetry"
+    >
       {/* 1. Buildings */}
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-[#E8542F]" />
-        <span className="text-[#5B5750] text-[10px] uppercase tracking-wider">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#E8542F]" />
+        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
           BUILDINGS:
         </span>
-        <span className="font-bold text-[#111111] tabular-nums">
+        <span className="font-bold text-white tabular-nums">
           {bldgVal || buildingCount}
         </span>
       </div>
 
-      <div className="h-4 w-px bg-[#111111]/12" aria-hidden="true" />
+      <div className="h-4 w-px bg-white/10" aria-hidden="true" />
 
       {/* 2. Vertices */}
       <div className="flex items-center gap-2">
-        <span className="text-[#E8542F] text-xs">⌁</span>
-        <span className="text-[#5B5750] text-[10px] uppercase tracking-wider">
+        <span className="text-[#E8542F] text-xs">&bull;</span>
+        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
           GRAPH NODES:
         </span>
-        <span className="font-bold text-[#111111] tabular-nums">
+        <span className="font-bold text-white tabular-nums">
           {(vertexVal || vertexCount).toLocaleString()}
         </span>
       </div>
 
-      <div className="hidden xl:block h-4 w-px bg-[#111111]/12" aria-hidden="true" />
+      <div className="hidden xl:block h-4 w-px bg-white/10" aria-hidden="true" />
 
-      {/* 3. Walkways (hidden on 1024-1279px) */}
+      {/* 3. Walkways */}
       <div className="hidden xl:flex items-center gap-2">
-        <span className="text-[#E8542F] text-xs">◫</span>
-        <span className="text-[#5B5750] text-[10px] uppercase tracking-wider">
+        <span className="text-[#E8542F] text-xs">&bull;</span>
+        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
           SURVEYED EDGES:
         </span>
-        <span className="font-bold text-[#111111] tabular-nums">
+        <span className="font-bold text-white tabular-nums">
           {walkwayCount}+
         </span>
       </div>
 
-      <div className="h-4 w-px bg-[#111111]/12" aria-hidden="true" />
+      <div className="h-4 w-px bg-white/10" aria-hidden="true" />
 
       {/* 4. Latency + Engine */}
       <div className="flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-[#5B5750] text-[10px] uppercase tracking-wider">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
           LATENCY:
         </span>
-        <span className="font-bold text-[#111111] tabular-nums">
+        <span className="font-bold text-white tabular-nums">
           {latencyMs.toFixed(1)}ms
         </span>
-        <span className="hidden sm:inline px-1.5 py-0.2 rounded bg-[#111111]/[0.06] text-[9px] font-bold text-[#E8542F] uppercase">
-          {algorithm === "dijkstra" ? "DIJKSTRA" : "A* HEURISTIC"}
+        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#E8542F]/20 border border-[#E8542F]/40 text-[9px] font-bold text-[#E8542F] uppercase">
+          {algorithm === "dijkstra" ? "DIJKSTRA" : "A*"}
         </span>
       </div>
     </div>

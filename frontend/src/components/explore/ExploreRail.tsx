@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { SidebarTab } from "@/types/campus";
 
 interface ExploreRailProps {
@@ -15,6 +15,36 @@ export function ExploreRail({
   savedCount = 0,
 }: ExploreRailProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [badgeBump, setBadgeBump] = useState(false);
+
+  const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const collapseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Bump animation when saved count changes
+  useEffect(() => {
+    if (savedCount > 0) {
+      const startTimer = setTimeout(() => {
+        setBadgeBump(true);
+        const endTimer = setTimeout(() => setBadgeBump(false), 300);
+        return () => clearTimeout(endTimer);
+      }, 0);
+      return () => clearTimeout(startTimer);
+    }
+  }, [savedCount]);
+
+  const handleMouseEnter = () => {
+    if (collapseTimeoutRef.current) clearTimeout(collapseTimeoutRef.current);
+    expandTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(true);
+    }, 150); // 150ms hover-intent delay
+  };
+
+  const handleMouseLeave = () => {
+    if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current);
+    collapseTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(false);
+    }, 250); // 250ms collapse delay
+  };
 
   const tabs: {
     id: SidebarTab;
@@ -88,20 +118,20 @@ export function ExploreRail({
 
   return (
     <>
-      {/* Desktop / Tablet Expandable Rail Wrapper (Fixed 72px in flex flow, expands overlay smoothly) */}
+      {/* Desktop Expandable Left Rail: Dark Ink-900 background */}
       <div className="hidden lg:block w-[72px] shrink-0 h-full relative z-30 select-none">
         <aside
-          onMouseEnter={() => setIsExpanded(true)}
-          onMouseLeave={() => setIsExpanded(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           onFocus={() => setIsExpanded(true)}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget)) {
               setIsExpanded(false);
             }
           }}
-          className={`absolute inset-y-0 left-0 flex flex-col justify-between py-6 bg-[#FBF8F2] border-r border-[#111111]/12 transition-all duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 flex flex-col justify-between py-6 bg-[#0E1118] text-[#F4F1EA] border-r border-white/10 transition-all duration-300 ease-out ${
             isExpanded
-              ? "w-[220px] shadow-2xl bg-[#FBF8F2]/98 backdrop-blur-md rounded-r-[24px]"
+              ? "w-[220px] shadow-2xl rounded-r-[20px]"
               : "w-[72px] rounded-r-none"
           }`}
           aria-label="Campus navigation modes"
@@ -116,36 +146,28 @@ export function ExploreRail({
                   type="button"
                   data-tab={tab.id}
                   onClick={() => onSelectTab(tab.id)}
-                  className={`w-full h-12 group relative flex items-center rounded-2xl transition-all cursor-pointer text-left ${
+                  className={`w-full h-12 group relative flex items-center rounded-[14px] transition-all cursor-pointer text-left ${
                     isExpanded ? "px-3.5 justify-start" : "px-0 justify-center"
                   } ${
                     isActive
-                      ? "bg-[#E8542F]/10 text-[#111111] font-bold"
-                      : "text-[#5B5750] hover:text-[#111111] hover:bg-[#111111]/[0.04]"
+                      ? "bg-[#E8542F] text-white shadow-md shadow-[#E8542F]/25"
+                      : "text-[#9AA3B2] hover:text-white hover:bg-white/[0.08]"
                   }`}
-                  title={tab.label}
+                  title={!isExpanded ? tab.label : undefined}
                   aria-label={tab.label}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  {/* Active Orange Left Bar */}
-                  {isActive && (
-                    <span
-                      className="absolute left-0 top-2 bottom-2 w-1 bg-[#E8542F] rounded-r-full"
-                      aria-hidden="true"
-                    />
-                  )}
-
                   {/* Icon Container */}
-                  <div
-                    className={`relative shrink-0 flex items-center justify-center transition-transform group-hover:scale-108 ${
-                      isActive ? "text-[#E8542F]" : "text-[#5B5750] group-hover:text-[#111111]"
-                    }`}
-                  >
+                  <div className="relative shrink-0 flex items-center justify-center transition-transform group-hover:scale-105">
                     {tab.icon}
 
                     {/* Badge Counter */}
                     {tab.badge !== undefined && (
-                      <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full bg-[#E8542F] text-white text-[9px] font-mono font-bold leading-tight shadow-sm">
+                      <span
+                        className={`absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full text-white text-[9px] font-mono font-bold leading-tight shadow-sm transition-transform ${
+                          isActive ? "bg-[#0E1118] text-[#E8542F]" : "bg-[#E8542F]"
+                        } ${badgeBump ? "scale-125" : "scale-100"}`}
+                      >
                         {tab.badge}
                       </span>
                     )}
@@ -154,10 +176,10 @@ export function ExploreRail({
                   {/* Expanded Text Labels */}
                   {isExpanded && (
                     <div className="ml-3 flex flex-col min-w-0 transition-opacity duration-200">
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#111111] truncate">
+                      <span className="text-xs font-bold font-sans tracking-wide text-[#F4F1EA] truncate">
                         {tab.label}
                       </span>
-                      <span className="text-[10px] font-mono text-[#5B5750] truncate">
+                      <span className="text-[10px] font-mono text-[#9AA3B2] truncate">
                         {tab.sub}
                       </span>
                     </div>
@@ -167,23 +189,23 @@ export function ExploreRail({
             })}
           </div>
 
-          {/* Bottom Rail Mini-Card */}
-          <div className="px-3 pt-4 border-t border-[#111111]/10">
+          {/* Bottom Rail Mini-Card: Ink-800 */}
+          <div className="px-3 pt-4 border-t border-white/10">
             <div
-              className={`rounded-2xl bg-[#F7F3EC] border border-[#111111]/10 p-2.5 flex items-center transition-all ${
+              className={`rounded-[14px] bg-[#171C27] border border-white/08 p-2.5 flex items-center transition-all ${
                 isExpanded ? "gap-2.5" : "justify-center"
               }`}
             >
-              <div className="w-6 h-6 rounded-lg bg-[#E8542F]/10 text-[#E8542F] flex items-center justify-center text-xs font-bold shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-[#E8542F]/20 text-[#E8542F] flex items-center justify-center text-xs font-bold shrink-0">
                 ✦
               </div>
 
               {isExpanded && (
-                <div className="flex flex-col min-w-0 text-left">
-                  <span className="text-[10px] font-bold text-[#111111] truncate">
+                <div className="flex flex-col min-w-0 text-left font-sans">
+                  <span className="text-[10px] font-bold text-[#F4F1EA] truncate">
                     Navigate &bull; Belong
                   </span>
-                  <span className="text-[9px] font-mono text-[#5B5750] truncate uppercase tracking-wider">
+                  <span className="text-[9px] font-mono text-[#9AA3B2] truncate uppercase tracking-wider">
                     Prototype &bull; Phase 3
                   </span>
                 </div>
@@ -193,9 +215,9 @@ export function ExploreRail({
         </aside>
       </div>
 
-      {/* Mobile / Tablet Bottom Tab Bar (< 1024px) */}
+      {/* Mobile Bottom Tab Bar (< 1024px): Dark Ink-900 with 44px+ touch targets */}
       <nav
-        className="lg:hidden fixed bottom-0 inset-x-0 h-16 bg-[#FBF8F2]/95 backdrop-blur-md border-t border-[#111111]/12 flex items-center justify-around px-2 z-40 select-none shadow-lg"
+        className="lg:hidden fixed bottom-0 inset-x-0 h-16 bg-[#0E1118]/95 backdrop-blur-md border-t border-white/10 flex items-center justify-around px-2 z-40 select-none shadow-2xl text-[#9AA3B2]"
         aria-label="Mobile navigation bar"
       >
         {tabs.map((tab) => {
@@ -206,8 +228,8 @@ export function ExploreRail({
               type="button"
               data-tab={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex-1 py-1.5 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                isActive ? "text-[#E8542F]" : "text-[#5B5750] hover:text-[#111111]"
+              className={`flex-1 h-full flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
+                isActive ? "text-[#E8542F]" : "text-[#9AA3B2] hover:text-white"
               }`}
               title={tab.label}
               aria-label={tab.label}
