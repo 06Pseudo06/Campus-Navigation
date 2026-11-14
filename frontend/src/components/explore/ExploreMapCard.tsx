@@ -296,10 +296,15 @@ export function ExploreMapCard({
     return () => cancelAnimationFrame(frameId);
   }, [activeRoute, showRoute, routeWaypointsSvg]);
 
-  // Collision avoidance for node chips: prioritize selected, origin, hovered, landmarks
+  // Collision avoidance for node chips: prioritize selected, origin, hovered, route midpoint, landmarks
   const visibleChipsMap = useMemo(() => {
     const chipSet = new Set<string>();
     const occupied: { x: number; y: number }[] = [];
+
+    // 0. High priority: Route Midpoint chip (protect area around midpoint pill)
+    if (routeMidpoint && activeRoute && showRoute) {
+      occupied.push({ x: routeMidpoint.x, y: routeMidpoint.y - 20 / zoom });
+    }
 
     // 1. High priority: Origin, Destination, Hovered
     locations.forEach((loc) => {
@@ -321,8 +326,8 @@ export function ExploreMapCard({
       if (isHub && !chipSet.has(loc.id) && loc.longitude && loc.latitude) {
         const x = toSvgX(loc.longitude);
         const y = toSvgY(loc.latitude);
-        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 42 / Math.max(1, zoom * 0.9));
-        if (!collides || zoom >= 1.45) {
+        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 44 / Math.max(0.8, zoom * 0.9));
+        if (!collides || zoom >= 1.5) {
           chipSet.add(loc.id);
           occupied.push({ x, y });
         }
@@ -334,8 +339,8 @@ export function ExploreMapCard({
       if (!chipSet.has(loc.id) && loc.longitude && loc.latitude) {
         const x = toSvgX(loc.longitude);
         const y = toSvgY(loc.latitude);
-        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 46 / Math.max(1, zoom * 0.9));
-        if (!collides || zoom >= 1.55) {
+        const collides = occupied.some((occ) => Math.hypot(occ.x - x, occ.y - y) < 48 / Math.max(0.8, zoom * 0.9));
+        if (!collides || zoom >= 1.6) {
           chipSet.add(loc.id);
           occupied.push({ x, y });
         }
@@ -343,7 +348,7 @@ export function ExploreMapCard({
     });
 
     return chipSet;
-  }, [locations, originLocation, selectedLocation, hoveredLocation, zoom, toSvgX, toSvgY]);
+  }, [locations, originLocation, selectedLocation, hoveredLocation, routeMidpoint, activeRoute, showRoute, zoom, toSvgX, toSvgY]);
 
   // Scaled distance calculation for the bottom scale bar
   const scaleMeters = Math.round(250 / zoom);
@@ -608,10 +613,10 @@ export function ExploreMapCard({
                 <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#0E1118" strokeWidth="0.5" strokeOpacity="0.04" />
               </pattern>
 
-              {/* Water Gradient */}
+              {/* Water Gradient: Slower, calming teal */}
               <linearGradient id="riverGradR3" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#78B3C2" />
-                <stop offset="100%" stopColor="#6AA5B4" />
+                <stop offset="0%" stopColor="#8FC0CB" />
+                <stop offset="100%" stopColor="#74A9B7" />
               </linearGradient>
 
               {/* Building Drop Shadow */}
@@ -620,8 +625,8 @@ export function ExploreMapCard({
               </filter>
             </defs>
 
-            {/* Base Canvas Ground: Cool Light Land */}
-            <rect width="1000" height="700" fill="#F1F3EE" />
+            {/* Base Canvas Ground: Cool Calmed Land */}
+            <rect width="1000" height="700" fill="#F3F4F0" />
             <rect width="1000" height="700" fill="url(#lightBlueprintGrid)" />
 
             {/* Decorative Terrain & Green Space (Organic Parks with Scattered Tree Dots) */}
@@ -630,33 +635,33 @@ export function ExploreMapCard({
                 {/* West Park */}
                 <path
                   d="M 60 110 C 140 80, 240 100, 290 170 C 330 230, 280 320, 210 350 C 130 380, 60 300, 50 200 C 45 150, 55 120, 60 110 Z"
-                  fill="#CFE2BC"
+                  fill="#D3DFC3"
                   stroke="#B8CEA4"
                   strokeWidth="1"
                 />
-                <circle cx="110" cy="150" r="4.5" fill="#9DBB84" />
-                <circle cx="125" cy="145" r="3.5" fill="#9DBB84" />
-                <circle cx="170" cy="210" r="5" fill="#9DBB84" />
-                <circle cx="190" cy="200" r="3.5" fill="#9DBB84" />
-                <circle cx="150" cy="270" r="4" fill="#9DBB84" />
-                <circle cx="220" cy="260" r="4.5" fill="#9DBB84" />
+                <circle cx="110" cy="150" r="4.5" fill="#A3BA8E" />
+                <circle cx="125" cy="145" r="3.5" fill="#A3BA8E" />
+                <circle cx="170" cy="210" r="5" fill="#A3BA8E" />
+                <circle cx="190" cy="200" r="3.5" fill="#A3BA8E" />
+                <circle cx="150" cy="270" r="4" fill="#A3BA8E" />
+                <circle cx="220" cy="260" r="4.5" fill="#A3BA8E" />
 
                 {/* Central-East Park */}
                 <path
                   d="M 490 280 C 580 260, 660 300, 680 370 C 700 440, 620 500, 540 500 C 470 500, 440 420, 460 350 C 470 310, 480 290, 490 280 Z"
-                  fill="#CFE2BC"
+                  fill="#D3DFC3"
                   stroke="#B8CEA4"
                   strokeWidth="1"
                 />
-                <circle cx="520" cy="330" r="4" fill="#9DBB84" />
-                <circle cx="535" cy="325" r="3" fill="#9DBB84" />
-                <circle cx="580" cy="390" r="4.5" fill="#9DBB84" />
-                <circle cx="600" cy="410" r="3.5" fill="#9DBB84" />
-                <circle cx="510" cy="430" r="4" fill="#9DBB84" />
+                <circle cx="520" cy="330" r="4" fill="#A3BA8E" />
+                <circle cx="535" cy="325" r="3" fill="#A3BA8E" />
+                <circle cx="580" cy="390" r="4.5" fill="#A3BA8E" />
+                <circle cx="600" cy="410" r="3.5" fill="#A3BA8E" />
+                <circle cx="510" cy="430" r="4" fill="#A3BA8E" />
               </g>
             )}
 
-            {/* Rideau River: Flowing diagonally across map with smooth Bézier banks */}
+            {/* Rideau River: Calm teal with 2px shoreline #6FA3B1 */}
             {layerTerrain && (
               <g id="riverLayer">
                 <path
@@ -666,7 +671,7 @@ export function ExploreMapCard({
                 <path
                   d="M 1000 60 C 860 170, 830 320, 760 450 C 680 590, 550 650, 400 700"
                   fill="none"
-                  stroke="#5E9BAC"
+                  stroke="#6FA3B1"
                   strokeWidth="2"
                   strokeLinecap="round"
                 />
@@ -759,40 +764,10 @@ export function ExploreMapCard({
                     className="animate-pulse"
                   />
                 )}
-
-                {/* Route Midpoint Distance / Time Pill */}
-                {routeMidpoint && activeRoute && (
-                  <g
-                    transform={`translate(${routeMidpoint.x}, ${routeMidpoint.y - 16})`}
-                    className="pointer-events-none select-none"
-                  >
-                    <rect
-                      x="-42"
-                      y="-11"
-                      width="84"
-                      height="22"
-                      rx="11"
-                      fill="#0E1118"
-                      stroke="#E8542F"
-                      strokeWidth="1"
-                      filter="url(#bldgShadowR3)"
-                    />
-                    <text
-                      textAnchor="middle"
-                      y="4"
-                      fill="#FFFFFF"
-                      fontSize="9"
-                      fontFamily="var(--font-mono)"
-                      fontWeight="bold"
-                    >
-                      {activeRoute.distanceMeters} m &bull; ~{activeRoute.estimatedWalkingMinutes} min
-                    </text>
-                  </g>
-                )}
               </g>
             )}
 
-            {/* Render Buildings & Node Chips */}
+            {/* Render Buildings & Node Chips (Constant Screen Size via 1/zoom scale) */}
             {layerBuildings && (
               <g id="buildingsLayer">
                 {locations.map((loc) => {
@@ -806,8 +781,9 @@ export function ExploreMapCard({
                   const isHovered = hoveredLocation?.id === loc.id;
                   const shouldShowChip = visibleChipsMap.has(loc.id) || isHovered;
 
-                  const bWidth = 44;
-                  const bHeight = 26;
+                  const codeStr = loc.code || "BLD";
+                  const chipWidth = Math.max(34, codeStr.length * 8 + 16);
+                  const chipHeight = 22;
 
                   return (
                     <g
@@ -826,133 +802,167 @@ export function ExploreMapCard({
                       onMouseLeave={() => setHoveredLocation(null)}
                       role="button"
                       tabIndex={0}
-                      aria-label={`${loc.name} (${loc.code || "BLDG"}), building`}
+                      aria-label={`${loc.name} (${codeStr}), building`}
                     >
-                      {/* Origin Halo Pulsing Ring (Teal) */}
-                      {isOrigin && (
-                        <circle
-                          r="26"
-                          fill="none"
-                          stroke="#0F6E73"
-                          strokeWidth="2.5"
-                          strokeDasharray="4,3"
-                          className="animate-spin-slow origin-center opacity-85"
-                        />
-                      )}
-
-                      {/* Destination Halo Pulsing Ring (Orange) */}
-                      {isSelected && (
-                        <circle
-                          r="26"
-                          fill="none"
-                          stroke="#E8542F"
-                          strokeWidth="2.5"
-                          strokeDasharray="4,3"
-                          className="animate-spin-slow origin-center opacity-90"
-                        />
-                      )}
-
-                      {shouldShowChip ? (
-                        <>
-                          {/* Full Concrete Footprint Rect */}
-                          <rect
-                            x={-bWidth / 2}
-                            y={-bHeight / 2}
-                            width={bWidth}
-                            height={bHeight}
-                            rx="8"
-                            filter="url(#bldgShadowR3)"
-                            fill={
-                              isSelected
-                                ? "#E8542F"
-                                : isOrigin
-                                ? "#0F6E73"
-                                : isHovered
-                                ? "#0E1118"
-                                : "#FFFFFF"
-                            }
-                            stroke={
-                              isSelected
-                                ? "#C9411F"
-                                : isOrigin
-                                ? "#0A4E52"
-                                : isHovered
-                                ? "#0E1118"
-                                : "#E1DDD3"
-                            }
-                            strokeWidth="1.2"
-                          />
-
-                          {/* Building Code Mono Label */}
-                          <text
-                            x="0"
-                            y="4"
-                            textAnchor="middle"
-                            fontFamily="var(--font-mono)"
-                            fontSize="10"
-                            fontWeight="bold"
-                            letterSpacing="0.05em"
-                            fill={
-                              isSelected || isOrigin || isHovered
-                                ? "#FFFFFF"
-                                : "#0E1118"
-                            }
-                          >
-                            {loc.code || "BLD"}
-                          </text>
-                        </>
-                      ) : (
-                        /* Compact Building Node Dot when chips are clustered */
-                        <>
+                      {/* Sub-container scaled by 1/zoom to maintain constant screen size */}
+                      <g transform={`scale(${1 / zoom})`}>
+                        {/* Origin Halo Pulsing Ring (Teal) */}
+                        {isOrigin && (
                           <circle
-                            r="5"
-                            fill="#FFFFFF"
-                            stroke="#B8B2A6"
-                            strokeWidth="1.5"
-                            filter="url(#bldgShadowR3)"
+                            r="20"
+                            fill="none"
+                            stroke="#0F6E73"
+                            strokeWidth="2"
+                            strokeDasharray="4,3"
+                            className="animate-spin-slow origin-center opacity-85"
                           />
-                          <circle r="2" fill="#6B665C" />
-                        </>
-                      )}
+                        )}
 
-                      {/* Origin 'A' badge */}
-                      {isOrigin && (
-                        <g transform="translate(18, -12)">
-                          <circle r="7" fill="#0F6E73" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <text
-                            x="0"
-                            y="3"
-                            textAnchor="middle"
-                            fontFamily="var(--font-mono)"
-                            fontSize="8"
-                            fontWeight="bold"
-                            fill="#FFFFFF"
-                          >
-                            A
-                          </text>
-                        </g>
-                      )}
+                        {/* Destination Halo Pulsing Ring (Orange) */}
+                        {isSelected && (
+                          <circle
+                            r="20"
+                            fill="none"
+                            stroke="#E8542F"
+                            strokeWidth="2"
+                            strokeDasharray="4,3"
+                            className="animate-spin-slow origin-center opacity-90"
+                          />
+                        )}
 
-                      {/* Destination 'B' badge */}
-                      {isSelected && (
-                        <g transform="translate(18, -12)">
-                          <circle r="7" fill="#E8542F" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <text
-                            x="0"
-                            y="3"
-                            textAnchor="middle"
-                            fontFamily="var(--font-mono)"
-                            fontSize="8"
-                            fontWeight="bold"
-                            fill="#FFFFFF"
-                          >
-                            B
-                          </text>
-                        </g>
-                      )}
+                        {shouldShowChip ? (
+                          <>
+                            {/* Constant Screen Size Chip: padding 4x8, radius 10px, font 11px sans-semibold */}
+                            <rect
+                              x={-chipWidth / 2}
+                              y={-chipHeight / 2}
+                              width={chipWidth}
+                              height={chipHeight}
+                              rx="10"
+                              filter="url(#bldgShadowR3)"
+                              fill={
+                                isSelected
+                                  ? "#E8542F"
+                                  : isOrigin
+                                  ? "#0F6E73"
+                                  : isHovered
+                                  ? "#0E1118"
+                                  : "#FAF8F3"
+                              }
+                              stroke={
+                                isSelected
+                                  ? "#C9411F"
+                                  : isOrigin
+                                  ? "#0A4E52"
+                                  : isHovered
+                                  ? "#0E1118"
+                                  : "#B8B2A6"
+                              }
+                              strokeWidth="1.2"
+                            />
+
+                            {/* Building Code Label: sans-semibold 11px */}
+                            <text
+                              x="0"
+                              y="3.5"
+                              textAnchor="middle"
+                              fontFamily="var(--font-display), -apple-system, sans-serif"
+                              fontSize="11"
+                              fontWeight="600"
+                              letterSpacing="0.02em"
+                              fill={
+                                isSelected || isOrigin || isHovered
+                                  ? "#FFFFFF"
+                                  : "#0E1118"
+                              }
+                            >
+                              {codeStr}
+                            </text>
+                          </>
+                        ) : (
+                          /* Compact Building Node Dot when chips are clustered */
+                          <>
+                            <circle
+                              r="4.5"
+                              fill="#FAF8F3"
+                              stroke="#B8B2A6"
+                              strokeWidth="1.2"
+                              filter="url(#bldgShadowR3)"
+                            />
+                            <circle r="1.8" fill="#6B665C" />
+                          </>
+                        )}
+
+                        {/* Origin 'A' badge */}
+                        {isOrigin && (
+                          <g transform={`translate(${chipWidth / 2 + 2}, -7)`}>
+                            <circle r="6" fill="#0F6E73" stroke="#FFFFFF" strokeWidth="1.2" />
+                            <text
+                              x="0"
+                              y="2.5"
+                              textAnchor="middle"
+                              fontFamily="var(--font-mono)"
+                              fontSize="7.5"
+                              fontWeight="bold"
+                              fill="#FFFFFF"
+                            >
+                              A
+                            </text>
+                          </g>
+                        )}
+
+                        {/* Destination 'B' badge */}
+                        {isSelected && (
+                          <g transform={`translate(${chipWidth / 2 + 2}, -7)`}>
+                            <circle r="6" fill="#E8542F" stroke="#FFFFFF" strokeWidth="1.2" />
+                            <text
+                              x="0"
+                              y="2.5"
+                              textAnchor="middle"
+                              fontFamily="var(--font-mono)"
+                              fontSize="7.5"
+                              fontWeight="bold"
+                              fill="#FFFFFF"
+                            >
+                              B
+                            </text>
+                          </g>
+                        )}
+                      </g>
                     </g>
                   );
                 })}
+              </g>
+            )}
+
+            {/* Route Midpoint Distance / Time Pill - Drawn ABOVE ALL node chips with constant scale */}
+            {routeMidpoint && activeRoute && (
+              <g
+                id="routeMidpointOverlay"
+                transform={`translate(${routeMidpoint.x}, ${routeMidpoint.y - 20 / zoom}) scale(${1 / zoom})`}
+                className="pointer-events-none select-none"
+              >
+                <rect
+                  x="-54"
+                  y="-12"
+                  width="108"
+                  height="24"
+                  rx="12"
+                  fill="#0F141F"
+                  stroke="#E8542F"
+                  strokeWidth="1.5"
+                  filter="url(#bldgShadowR3)"
+                />
+                <text
+                  textAnchor="middle"
+                  y="4"
+                  fill="#FFFFFF"
+                  fontSize="10"
+                  fontFamily="var(--font-mono)"
+                  fontWeight="bold"
+                >
+                  ~{activeRoute.estimatedWalkingMinutes} min &bull; {activeRoute.distanceMeters} m
+                </text>
               </g>
             )}
           </svg>

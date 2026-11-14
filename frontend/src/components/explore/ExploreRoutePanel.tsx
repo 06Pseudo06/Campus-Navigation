@@ -69,6 +69,8 @@ export function ExploreRoutePanel({
     }
   });
   const [compareActive, setCompareActive] = useState(false);
+  const [showAllDestinations, setShowAllDestinations] = useState(false);
+  const [showAllSteps, setShowAllSteps] = useState(false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -166,6 +168,23 @@ export function ExploreRoutePanel({
       );
     });
   }, [locations, selectedCategory, panelSearch]);
+
+  // Sorted destinations: selected/recent first, then alphabetical
+  const sortedDestinations = useMemo(() => {
+    return [...filteredLocations].sort((a, b) => {
+      if (a.id === selectedLocation?.id) return -1;
+      if (b.id === selectedLocation?.id) return 1;
+      if (a.id === originLocation?.id) return -1;
+      if (b.id === originLocation?.id) return 1;
+
+      const aRecent = recentSearches.includes(a.name) || recentSearches.includes(a.code);
+      const bRecent = recentSearches.includes(b.name) || recentSearches.includes(b.code);
+      if (aRecent && !bRecent) return -1;
+      if (!aRecent && bRecent) return 1;
+
+      return a.name.localeCompare(b.name);
+    });
+  }, [filteredLocations, selectedLocation, originLocation, recentSearches]);
 
   // Swap origin and destination
   const handleSwap = () => {
@@ -518,13 +537,13 @@ export function ExploreRoutePanel({
           </div>
         )}
 
-        {/* Route Result Card: Deep Ink-900 Focal Card */}
+        {/* Route Result Card: Deep Ink-Navy Focal Card */}
         {activeRoute && (
           <div
             ref={resultCardRef}
-            className="p-4 rounded-[16px] bg-[#0E1118] text-[#F4F1EA] border border-white/10 shadow-lg space-y-3 animate-fadeIn"
+            className="p-4 rounded-[16px] bg-gradient-to-b from-[#151B28] to-[#0F141F] text-[#F4F1EA] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_28px_rgba(15,20,31,0.35)] space-y-3 animate-fadeIn"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full bg-[#E8542F]/20 border border-[#E8542F]/40 text-[10px] font-mono font-bold text-[#E8542F] uppercase">
                   {selectedAlgorithm === "dijkstra" ? "DIJKSTRA · 1.8 MS" : "A* · 1.2 MS"}
@@ -538,7 +557,7 @@ export function ExploreRoutePanel({
                 <button
                   type="button"
                   onClick={handleCopyShareLink}
-                  className="text-[#9AA3B2] hover:text-white transition-colors cursor-pointer underline"
+                  className="text-[#B4BCCB] hover:text-white transition-colors cursor-pointer underline"
                 >
                   Share Link
                 </button>
@@ -556,7 +575,7 @@ export function ExploreRoutePanel({
             {/* Big Numerals */}
             <div className="grid grid-cols-2 gap-3 py-1">
               <div>
-                <span className="text-[10px] font-mono text-[#9AA3B2] uppercase tracking-wider block">
+                <span className="text-[10px] font-mono text-[#B4BCCB] uppercase tracking-wider block">
                   WALKING TIME
                 </span>
                 <span className="text-2xl font-black text-white tabular-nums font-sans">
@@ -564,7 +583,7 @@ export function ExploreRoutePanel({
                 </span>
               </div>
               <div>
-                <span className="text-[10px] font-mono text-[#9AA3B2] uppercase tracking-wider block">
+                <span className="text-[10px] font-mono text-[#B4BCCB] uppercase tracking-wider block">
                   DISTANCE
                 </span>
                 <span className="text-2xl font-black text-[#E8542F] tabular-nums font-sans">
@@ -575,7 +594,7 @@ export function ExploreRoutePanel({
 
             {/* Engine comparison link */}
             {onSelectAlgorithm && (
-              <div className="pt-1 text-[10px] font-mono text-[#9AA3B2] flex items-center justify-between">
+              <div className="pt-1 text-[10px] font-mono text-[#B4BCCB] flex items-center justify-between">
                 <span>Solvers: Dijkstra (Optimal) &bull; A* (Fast)</span>
                 <button
                   type="button"
@@ -591,109 +610,202 @@ export function ExploreRoutePanel({
               </div>
             )}
 
-            {/* Turn-by-Turn Guidance List */}
-            <div className="space-y-2 pt-2 border-t border-white/10">
-              <span className="text-[10px] font-mono font-bold text-[#9AA3B2] uppercase tracking-wider block">
-                TURN-BY-TURN GUIDANCE ({activeRoute.steps.length} SEGMENTS)
-              </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 slim-scrollbar">
-                {activeRoute.steps.map((st, idx) => (
-                  <div
-                    key={idx}
-                    onMouseEnter={() => onHoverStep?.(idx)}
-                    onMouseLeave={() => onHoverStep?.(null)}
-                    className={`p-2 rounded-[10px] border text-xs flex items-start justify-between gap-2 transition-all cursor-pointer ${
-                      hoveredStepIndex === idx
-                        ? "bg-[#E8542F]/20 border-[#E8542F] shadow-2xs"
-                        : "bg-[#171C27] border-white/08 hover:border-[#E8542F]/40"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span
-                        className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-mono font-bold shrink-0 mt-0.5 ${
-                          hoveredStepIndex === idx ? "bg-[#FFBF29] text-black" : "bg-[#E8542F]"
-                        }`}
-                      >
-                        {idx + 1}
-                      </span>
-                      <div className="leading-snug font-sans">
-                        <p className="text-[#F4F1EA] font-medium text-[11px]">{st.instruction}</p>
-                        {st.isInferred && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-900/60 text-amber-200 border border-amber-600/40">
-                            SYNTHETIC CONNECTION
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-[#9AA3B2] tabular-nums shrink-0">
-                      {st.distanceMeters}m
-                    </span>
-                  </div>
-                ))}
+            {/* Turn-by-Turn Guidance List with Expandable All Steps */}
+            <div className="space-y-2 pt-2 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold text-[#B4BCCB] uppercase tracking-wider block">
+                  TURN-BY-TURN ({activeRoute.steps.length} SEGMENTS)
+                </span>
+                <span className="text-[9px] font-mono text-[#B4BCCB]">
+                  {showAllSteps ? `All ${activeRoute.steps.length} steps` : `First 4 of ${activeRoute.steps.length}`}
+                </span>
               </div>
+
+              <div className={`space-y-1.5 ${showAllSteps ? "max-h-72" : "max-h-48"} overflow-y-auto pr-1 slim-scrollbar transition-all duration-300`}>
+                {(showAllSteps ? activeRoute.steps : activeRoute.steps.slice(0, 4)).map((st, idx) => {
+                  let cleanText = st.instruction.replace(/\[Inferred Connection\]\s*/i, "");
+                  cleanText = cleanText.replace(/inferred_access/gi, "inferred connector");
+                  cleanText = cleanText.replace(/inferred_corridor/gi, "inferred corridor");
+                  cleanText = cleanText.replace(/_/g, " ");
+                  cleanText = cleanText.replace(/(\d+(\.\d+)?)m\b/g, "$1 m");
+                  cleanText = cleanText.replace(/\(Pending survey\)/i, "· pending survey").trim();
+
+                  const isSynthetic = st.isInferred || st.instruction.includes("Inferred") || st.instruction.includes("inferred");
+
+                  return (
+                    <div
+                      key={idx}
+                      title={st.instruction}
+                      onMouseEnter={() => onHoverStep?.(idx)}
+                      onMouseLeave={() => onHoverStep?.(null)}
+                      className={`p-2 rounded-[10px] border text-xs flex items-start justify-between gap-2 transition-all cursor-pointer ${
+                        hoveredStepIndex === idx
+                          ? "bg-[#E8542F]/20 border-[#E8542F] shadow-2xs"
+                          : "bg-[#0F141F] border-white/[0.06] hover:border-[#E8542F]/40"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span
+                          className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[9px] font-mono font-bold shrink-0 mt-0.5 ${
+                            hoveredStepIndex === idx ? "bg-[#FFBF29] text-black" : "bg-[#E8542F]"
+                          }`}
+                        >
+                          {idx + 1}
+                        </span>
+                        <div className="leading-snug font-sans min-w-0">
+                          <p className="text-[#F4F1EA] font-medium text-[11px] truncate">{cleanText}</p>
+                          {isSynthetic && (
+                            <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[8px] font-mono font-bold bg-amber-900/60 text-amber-200 border border-amber-600/40">
+                              SYNTHETIC CONNECTION
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono text-[#B4BCCB] tabular-nums shrink-0">
+                        {st.distanceMeters} m
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {activeRoute.steps.length > 4 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllSteps(!showAllSteps)}
+                  className="w-full py-1.5 px-3 rounded-[10px] bg-white/[0.06] hover:bg-white/[0.12] text-[#B4BCCB] hover:text-white text-[11px] font-mono font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>
+                    {showAllSteps
+                      ? "Show fewer ↑"
+                      : `Show all ${activeRoute.steps.length} steps ↓`}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* 48 All Destinations Listing */}
+        {/* Compact 48 Destinations Listing (First 6 rows with expander) */}
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between">
             <h4 className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#0E1118]">
               {panelSearch ? "Matching Destinations" : "All Carleton Destinations"}
             </h4>
             <span className="text-[10px] font-mono text-[#6B665C]">
-              {filteredLocations.length} locations
+              {sortedDestinations.length} locations
             </span>
           </div>
 
-          <div className="space-y-1">
-            {filteredLocations.map((loc) => {
-              const isLocSelected = selectedLocation?.id === loc.id;
-              const isLocOrigin = originLocation?.id === loc.id;
+          {sortedDestinations.length === 0 ? (
+            <div className="p-6 text-center rounded-[14px] bg-[#F7F5F0] border border-[#E1DDD3] text-xs font-sans text-[#6B665C]">
+              <p className="font-semibold text-[#0E1118]">No matches found for &ldquo;{panelSearch}&rdquo;</p>
+              <p className="mt-1 text-[11px]">Try searching by building code (e.g. ML, PA, ME) or full name.</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {(showAllDestinations
+                ? sortedDestinations
+                : sortedDestinations.slice(0, panelSearch ? 8 : 6)
+              ).map((loc) => {
+                const isLocSelected = selectedLocation?.id === loc.id;
+                const isLocOrigin = originLocation?.id === loc.id;
+                const isSaved = savedLocationIds.includes(loc.id);
 
-              return (
-                <div
-                  key={loc.id}
-                  onClick={() => onSelectLocation(loc)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") onSelectLocation(loc);
-                  }}
-                  tabIndex={0}
-                  className={`p-2.5 rounded-[12px] border text-xs flex items-center justify-between transition-all cursor-pointer relative ${
-                    isLocSelected
-                      ? "bg-[#FDE9E2] border-[#E8542F] text-[#0E1118] font-semibold shadow-xs"
-                      : isLocOrigin
-                      ? "bg-emerald-50 border-[#0F6E73] text-[#0E1118]"
-                      : "bg-white border-[#E1DDD3] hover:bg-[#F7F5F0] hover:border-l-[3px] hover:border-l-[#E8542F] text-[#0E1118]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${
-                        isLocSelected
-                          ? "bg-[#E8542F] text-white"
-                          : isLocOrigin
-                          ? "bg-[#0F6E73] text-white"
-                          : "bg-[#F7F5F0] text-[#6B665C]"
-                      }`}
-                    >
-                      {loc.code || "BLD"}
-                    </span>
-                    <div className="min-w-0 font-sans">
-                      <span className="block truncate font-medium text-[12px]">{loc.name}</span>
-                      <span className="text-[10px] font-mono text-[#6B665C] uppercase">
-                        {loc.category}
+                return (
+                  <div
+                    key={loc.id}
+                    onClick={() => onSelectLocation(loc)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") onSelectLocation(loc);
+                    }}
+                    tabIndex={0}
+                    className={`group h-11 px-3 rounded-[12px] border text-xs flex items-center justify-between transition-all cursor-pointer relative ${
+                      isLocSelected
+                        ? "bg-[#FDE9E2] border-[#E8542F] text-[#0E1118] font-semibold shadow-xs"
+                        : isLocOrigin
+                        ? "bg-emerald-50 border-[#0F6E73] text-[#0E1118]"
+                        : "bg-white border-[#E1DDD3] hover:bg-[#F7F5F0] hover:border-[#E8542F]/60 text-[#0E1118]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`w-9 h-9 rounded-[10px] flex items-center justify-center text-[11px] font-mono font-bold shrink-0 ${
+                          isLocSelected
+                            ? "bg-[#E8542F] text-white shadow-xs"
+                            : isLocOrigin
+                            ? "bg-[#0F6E73] text-white"
+                            : "bg-[#F7F5F0] text-[#0E1118] border border-[#E1DDD3]"
+                        }`}
+                      >
+                        {loc.code || "BLD"}
                       </span>
+                      <div className="min-w-0 font-sans flex items-baseline gap-1.5">
+                        <span className="truncate font-semibold text-[13px]">{loc.name}</span>
+                        <span className="text-[10px] font-mono text-[#6B665C] uppercase shrink-0">
+                          {loc.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Bookmark icon affordance on hover */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSaveLocation(loc.id);
+                        }}
+                        className={`p-1 rounded-md transition-opacity cursor-pointer ${
+                          isSaved ? "opacity-100 text-[#E8542F]" : "opacity-0 group-hover:opacity-100 text-[#6B665C] hover:text-[#E8542F]"
+                        }`}
+                        title={isSaved ? "Remove bookmark" : "Save place"}
+                        aria-label={isSaved ? "Remove bookmark" : "Save place"}
+                      >
+                        <svg className="w-3.5 h-3.5" fill={isSaved ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                      </button>
+
+                      {isLocSelected ? (
+                        <span className="text-[10px] font-mono font-bold text-[#E8542F]">
+                          ✓ DEST
+                        </span>
+                      ) : isLocOrigin ? (
+                        <span className="text-[10px] font-mono font-bold text-[#0F6E73]">
+                          ORIGIN
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[#E8542F] opacity-0 group-hover:opacity-100 transition-opacity">
+                          ↗
+                        </span>
+                      )}
                     </div>
                   </div>
+                );
+              })}
 
-                  <span className="text-[10px] font-mono font-bold text-[#E8542F] shrink-0">
-                    {isLocSelected ? "DESTINATION (B)" : isLocOrigin ? "ORIGIN (A)" : "SELECT ↗"}
+              {/* Show All / Show Less Toggle Button */}
+              {sortedDestinations.length > (panelSearch ? 8 : 6) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllDestinations(!showAllDestinations)}
+                  className="w-full py-2.5 px-3 rounded-[12px] bg-[#F7F5F0] hover:bg-[#E1DDD3] text-[#0E1118] text-xs font-mono font-bold flex items-center justify-between border border-[#E1DDD3] transition-colors cursor-pointer mt-1"
+                >
+                  <span>
+                    {showAllDestinations
+                      ? "Show less ↑"
+                      : `Show all ${sortedDestinations.length} destinations ↓`}
                   </span>
-                </div>
-              );
-            })}
-          </div>
+                  <span className="text-[10px] text-[#6B665C]">
+                    {showAllDestinations
+                      ? `${sortedDestinations.length} of ${sortedDestinations.length}`
+                      : `${panelSearch ? 8 : 6} of ${sortedDestinations.length}`}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer Note */}

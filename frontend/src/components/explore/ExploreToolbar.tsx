@@ -47,13 +47,13 @@ export function ExploreToolbar({
   const currentTitle = titles[currentTab] || titles.explore;
 
   return (
-    <section className="relative w-full h-[88px] px-4 sm:px-6 lg:px-8 bg-[#EFEDE8] flex items-center justify-between gap-4 border-b border-[#E1DDD3] select-none overflow-hidden shrink-0 z-10">
-      {/* Decorative Warm Sun Disc Behind Right End (Intentional 130px arc cropped at right edge) */}
+    <section className="relative w-full h-[88px] px-4 sm:px-6 lg:px-8 bg-[#F2F0EB] flex items-center justify-between gap-4 border-b border-[#E1DDD3] select-none overflow-hidden shrink-0 z-10">
+      {/* Decorative Warm Sun Disc (130px circle cropped ~35% at top-right card edge, behind university chip) */}
       <div
-        className="hidden xl:block absolute -right-10 -bottom-14 w-[130px] h-[130px] rounded-full bg-gradient-to-tr from-[#E8542F] to-[#F2793A] opacity-80 pointer-events-none -z-0 shadow-lg"
+        className="hidden xl:block absolute -top-8 -right-8 w-[130px] h-[130px] rounded-full bg-gradient-to-br from-[#F2793A] to-[#E8542F] pointer-events-none z-0 shadow-md opacity-90"
         aria-hidden="true"
       >
-        <div className="absolute -inset-3 rounded-full border border-[#E8542F]/30" />
+        <div className="absolute -inset-2 rounded-full border border-[#E8542F]/30 pointer-events-none" />
       </div>
 
       {/* Left: Contextual Editorial Headline with Mask-Up Animation */}

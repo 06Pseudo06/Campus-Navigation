@@ -49,13 +49,13 @@ export function ExploreStatsStrip({
 
   return (
     <div
-      className="w-full h-11 px-4 sm:px-6 bg-[#0E1118] text-[#F4F1EA] border border-white/10 rounded-[18px] flex items-center justify-between text-xs font-mono select-none shadow-md mt-3 shrink-0"
+      className="w-full h-11 px-4 sm:px-6 bg-gradient-to-b from-[#151B28] to-[#0F141F] text-[#F4F1EA] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_16px_rgba(15,20,31,0.25)] rounded-[18px] flex items-center justify-between text-xs font-mono select-none mt-3 shrink-0"
       aria-label="Campus Graph Telemetry"
     >
       {/* 1. Buildings */}
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-[#E8542F]" />
-        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
+        <span className="text-[#B4BCCB] text-[10px] uppercase tracking-wider">
           BUILDINGS:
         </span>
         <span className="font-bold text-white tabular-nums">
@@ -68,7 +68,7 @@ export function ExploreStatsStrip({
       {/* 2. Vertices */}
       <div className="flex items-center gap-2">
         <span className="text-[#E8542F] text-xs">&bull;</span>
-        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
+        <span className="text-[#B4BCCB] text-[10px] uppercase tracking-wider">
           GRAPH NODES:
         </span>
         <span className="font-bold text-white tabular-nums">
@@ -81,7 +81,7 @@ export function ExploreStatsStrip({
       {/* 3. Walkways */}
       <div className="hidden xl:flex items-center gap-2">
         <span className="text-[#E8542F] text-xs">&bull;</span>
-        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
+        <span className="text-[#B4BCCB] text-[10px] uppercase tracking-wider">
           SURVEYED EDGES:
         </span>
         <span className="font-bold text-white tabular-nums">
@@ -94,7 +94,7 @@ export function ExploreStatsStrip({
       {/* 4. Latency + Engine */}
       <div className="flex items-center gap-2">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[#9AA3B2] text-[10px] uppercase tracking-wider">
+        <span className="text-[#B4BCCB] text-[10px] uppercase tracking-wider">
           LATENCY:
         </span>
         <span className="font-bold text-white tabular-nums">

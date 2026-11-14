@@ -118,7 +118,15 @@ export function ExploreRail({
 
   return (
     <>
-      {/* Desktop Expandable Left Rail: Dark Ink-900 background */}
+      {/* Soft Scrim (8% ink) when rail is expanded over the map */}
+      {isExpanded && (
+        <div
+          className="hidden lg:block fixed inset-0 bg-[#0E1118]/[0.08] pointer-events-none z-20 transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Desktop Expandable Left Rail: Floating rounded card with ink-navy depth */}
       <div className="hidden lg:block w-[72px] shrink-0 h-full relative z-30 select-none">
         <aside
           onMouseEnter={handleMouseEnter}
@@ -129,10 +137,10 @@ export function ExploreRail({
               setIsExpanded(false);
             }
           }}
-          className={`absolute inset-y-0 left-0 flex flex-col justify-between py-6 bg-[#0E1118] text-[#F4F1EA] border-r border-white/10 transition-all duration-300 ease-out ${
+          className={`absolute inset-y-0 left-0 flex flex-col justify-between py-6 bg-gradient-to-b from-[#151B28] to-[#0F141F] text-[#F4F1EA] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(15,20,31,0.4)] rounded-[22px] transition-all duration-300 ease-out ${
             isExpanded
-              ? "w-[220px] shadow-2xl rounded-r-[20px]"
-              : "w-[72px] rounded-r-none"
+              ? "w-[220px] shadow-2xl z-40"
+              : "w-[72px]"
           }`}
           aria-label="Campus navigation modes"
         >
@@ -151,7 +159,7 @@ export function ExploreRail({
                   } ${
                     isActive
                       ? "bg-[#E8542F] text-white shadow-md shadow-[#E8542F]/25"
-                      : "text-[#9AA3B2] hover:text-white hover:bg-white/[0.08]"
+                      : "text-[#B4BCCB] hover:text-white hover:bg-white/[0.08]"
                   }`}
                   title={!isExpanded ? tab.label : undefined}
                   aria-label={tab.label}
@@ -179,7 +187,7 @@ export function ExploreRail({
                       <span className="text-xs font-bold font-sans tracking-wide text-[#F4F1EA] truncate">
                         {tab.label}
                       </span>
-                      <span className="text-[10px] font-mono text-[#9AA3B2] truncate">
+                      <span className="text-[10px] font-mono text-[#B4BCCB] truncate">
                         {tab.sub}
                       </span>
                     </div>
@@ -189,10 +197,10 @@ export function ExploreRail({
             })}
           </div>
 
-          {/* Bottom Rail Mini-Card: Ink-800 */}
-          <div className="px-3 pt-4 border-t border-white/10">
+          {/* Bottom Rail Mini-Card: Ink Navy Surface */}
+          <div className="px-3 pt-4 border-t border-white/[0.06]">
             <div
-              className={`rounded-[14px] bg-[#171C27] border border-white/08 p-2.5 flex items-center transition-all ${
+              className={`rounded-[14px] bg-[#0F141F] border border-white/[0.06] p-2.5 flex items-center transition-all ${
                 isExpanded ? "gap-2.5" : "justify-center"
               }`}
             >
@@ -205,8 +213,8 @@ export function ExploreRail({
                   <span className="text-[10px] font-bold text-[#F4F1EA] truncate">
                     Navigate &bull; Belong
                   </span>
-                  <span className="text-[9px] font-mono text-[#9AA3B2] truncate uppercase tracking-wider">
-                    Prototype &bull; Phase 3
+                  <span className="text-[9px] font-mono text-[#B4BCCB] truncate uppercase tracking-wider">
+                    Prototype &bull; Phase 4
                   </span>
                 </div>
               )}

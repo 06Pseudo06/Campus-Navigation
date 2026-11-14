@@ -494,12 +494,12 @@ export default function ExploreDashboardPage() {
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#EFEDE8] text-[#0E1118] flex flex-col select-none relative">
-      {/* Soft Ambient Radial Glows (No flat beige!) */}
+    <div className="h-[100svh] w-full overflow-hidden overflow-x-clip bg-[#F2F0EB] text-[#0E1118] flex flex-col select-none relative">
+      {/* Soft Ambient Radial Glows (Warm light top-right, cool counter-glow bottom-left) */}
       <div
         className="absolute inset-0 pointer-events-none -z-0"
         style={{
-          backgroundImage: `radial-gradient(60% 50% at 92% 0%, rgba(232,84,47,0.10), transparent 60%), radial-gradient(50% 40% at 0% 100%, rgba(15,110,115,0.07), transparent 60%)`,
+          backgroundImage: `radial-gradient(60% 50% at 92% 0%, rgba(232,84,47,0.12), transparent 60%), radial-gradient(50% 40% at 0% 100%, rgba(15,110,115,0.07), transparent 60%)`,
         }}
         aria-hidden="true"
       />
