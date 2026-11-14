@@ -122,39 +122,41 @@ export function MapPreviewSection() {
 
   return (
     <section
-      id="routes"
+      id="section-03"
       className="relative w-full bg-[#F7F3EC] text-[#111111] py-20 sm:py-28 overflow-hidden select-none border-b border-[#111111]/12"
       aria-label="Live Routing Map"
     >
       {/* Background architectural grid */}
       <div className="absolute inset-0 blueprint-grid pointer-events-none opacity-40" aria-hidden="true" />
 
-      {/* Decorative architectural image cutout at bottom-left (Reference layout) */}
-      <div className="hidden lg:block absolute -bottom-10 -left-10 w-80 h-72 pointer-events-none select-none z-0 opacity-80 overflow-hidden">
-        <div className="relative w-full h-full transform -rotate-3">
-          <Image
-            src="/images/arch-real_campus.jpg"
-            alt="University campus walkway and architectural elevation"
-            fill
-            sizes="320px"
-            className="object-cover rounded-3xl"
-          />
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-[#F7F3EC]/50 to-[#F7F3EC]" />
-        </div>
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10 z-10">
-        {/* Section Header: 03 / LIVE ROUTING */}
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 section-gutter space-y-10 z-10">
+        {/* Section Header: 03 / REAL ROUTES / LIVE MAP */}
         <div className="flex items-center gap-3 text-xs font-mono font-bold tracking-widest uppercase text-[#111111] pb-4 border-b border-[#111111]/12">
           <span className="text-[#E8542F]">03 /</span>
-          <span>LIVE ROUTING</span>
+          <span>REAL ROUTES &bull; LIVE MAP</span>
           <span className="w-12 h-px bg-[#111111]/20 inline-block" />
         </div>
 
         {/* 2-Column Split: Editorial Copy vs Interactive Dark Map Card */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Left Column: Headline + Copy + Button */}
+          {/* Left Column: Framed Photo + Headline + Copy + Button */}
           <div className="lg:col-span-5 flex flex-col justify-center space-y-6">
+            {/* Architectural Photo Directly Above Heading with Mono Caption */}
+            <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-[#161922] border border-[#111111]/15 shadow-md group">
+              <Image
+                src="/images/arch-real_campus.jpg"
+                alt="Carleton university academic concourse and quadrangle elevation"
+                fill
+                sizes="(max-width: 1024px) 100vw, 480px"
+                className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#111111]/70 via-transparent to-transparent flex items-end p-4">
+                <span className="text-[10px] font-mono tracking-widest uppercase text-white/90">
+                  CAMPUS_QUAD // ARCHITECTURAL ELEVATION &bull; LAT 45.3850° N
+                </span>
+              </div>
+            </div>
+
             {/* Heading: REAL ROUTES. / REAL CAMPUS. */}
             <h2 className="fluid-section-headline font-black tracking-tight uppercase leading-[0.94] text-[#111111]">
               <span>REAL ROUTES.</span> <br />

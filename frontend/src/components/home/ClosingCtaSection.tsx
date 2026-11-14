@@ -24,20 +24,21 @@ export function ClosingCtaSection() {
     const ctx = gsap.context(() => {
       // Background slow parallax
       gsap.to(bgImageRef.current, {
-        y: 80,
+        y: 60,
         ease: "none",
         scrollTrigger: {
           trigger: containerRef.current,
           start: "top bottom",
           end: "bottom top",
           scrub: 1.2,
+          invalidateOnRefresh: true,
         },
       });
 
-      // Headline char-reveal on enter
+      // Headline char/line reveal on enter
       gsap.fromTo(
         [headlineLine1Ref.current, headlineLine2Ref.current],
-        { y: 50, opacity: 0 },
+        { y: 40, opacity: 0 },
         {
           y: 0,
           opacity: 1,
@@ -47,6 +48,7 @@ export function ClosingCtaSection() {
           scrollTrigger: {
             trigger: containerRef.current,
             start: "top 75%",
+            invalidateOnRefresh: true,
           },
         }
       );
@@ -57,12 +59,12 @@ export function ClosingCtaSection() {
 
   return (
     <section
-      id="cta"
+      id="section-06"
       ref={containerRef}
-      className="relative w-full min-h-[580px] lg:min-h-[660px] bg-[#0E1118] text-white flex items-center justify-center overflow-hidden py-24 sm:py-36 select-none"
+      className="relative w-full min-h-[580px] lg:min-h-[660px] bg-[#0E1118] text-white flex items-center justify-center overflow-hidden py-24 sm:py-36 select-none section-gutter"
       aria-label="Start Exploring CampusWay"
     >
-      {/* Dimmed Architectural Photo with Slow Parallax */}
+      {/* Layer 0: Dimmed Architectural Photo with Slow Parallax */}
       <div
         ref={bgImageRef}
         className="absolute inset-0 pointer-events-none z-0 will-change-transform scale-110"
@@ -71,24 +73,29 @@ export function ClosingCtaSection() {
           src="/images/closing-architecture.jpg"
           alt="Illuminated university colonnade at dusk"
           fill
+          unoptimized
           sizes="100vw"
           className="object-cover object-center opacity-30"
         />
-        {/* Deep Charcoal Vignette */}
+        {/* Layer 1: Deep Charcoal Vignette & Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0E1118] via-[#0E1118]/80 to-[#0E1118]/90" />
       </div>
 
-      {/* Decorative Rotating Circular Text Badge in Background */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0 opacity-25 scale-150">
-        <RotatingTextBadge size={280} dark text="CAMPUSWAY ✦ EVERY PLACE HAS A WAY ✦ " />
+      {/* Layer 2: Decorative Rotating Circular Text Badge in Bottom-Right Corner (Non-colliding) */}
+      <div className="absolute right-4 sm:right-8 lg:right-16 bottom-6 sm:bottom-10 pointer-events-none z-[2] opacity-40 hover:opacity-75 transition-opacity">
+        <RotatingTextBadge
+          size={160}
+          dark
+          text="CAMPUSWAY ✦ EVERY PLACE HAS A WAY ✦ "
+        />
       </div>
 
-      {/* Content Container */}
+      {/* Layer 10: Content Container */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-12 text-center space-y-8">
-        {/* Section Tag: 04 / START EXPLORING */}
+        {/* Section Tag: 06 / START EXPLORING */}
         <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-mono tracking-widest uppercase text-white/90">
           <span className="text-[#E8542F] font-bold">✦</span>
-          <span>04 /</span>
+          <span>06 /</span>
           <span>START EXPLORING</span>
         </div>
 
@@ -108,7 +115,7 @@ export function ClosingCtaSection() {
           sub-2ms Dijkstra graph precision, and experience your campus with confidence &mdash; zero login required.
         </p>
 
-        {/* Magnetic Action Buttons */}
+        {/* Action Buttons */}
         <div className="pt-4 flex flex-wrap items-center justify-center gap-5">
           <MagneticButton
             href="/explore"

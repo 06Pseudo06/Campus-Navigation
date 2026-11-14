@@ -4,12 +4,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MagneticButton } from "@/components/motion/MagneticButton";
+import { useSection } from "@/context/SectionContext";
 
 export function EditorialNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { isDarkSection } = useSection();
 
   useEffect(() => {
     let lastScrollY = window.scrollY;
@@ -38,38 +40,45 @@ export function EditorialNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Theme styling based on dark active section (Section 06, etc.)
+  const navBgClass = isDarkSection
+    ? "bg-[#0E1118]/92 backdrop-blur-md py-3.5 border-b border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.36)]"
+    : scrolled
+    ? "bg-[#F7F3EC]/92 backdrop-blur-md py-3.5 border-b border-[#111111]/10 shadow-[0_4px_24px_-4px_rgba(17,17,17,0.06)]"
+    : "bg-transparent py-5 sm:py-7 border-b border-transparent";
+
+  const textColorClass = isDarkSection ? "text-white" : "text-[#111111]";
+  const subTextColorClass = isDarkSection ? "text-white/60" : "text-[#5B5750]";
+  const navLinkColorClass = isDarkSection ? "text-white/70 hover:text-white" : "text-[#5B5750] hover:text-[#111111]";
+
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         navVisible ? "translate-y-0" : "-translate-y-full"
-      } ${
-        scrolled
-          ? "bg-[#F7F3EC]/92 backdrop-blur-md py-3.5 border-b border-[#111111]/10 shadow-[0_4px_24px_-4px_rgba(17,17,17,0.06)]"
-          : "bg-transparent py-5 sm:py-7 border-b border-transparent"
-      }`}
+      } ${navBgClass}`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between">
         {/* Brand: Arch Logo + CampusWay™ + vertical divider + 2-line descriptor */}
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="group flex items-center gap-2.5 text-[#111111] focus:outline-none"
+            className={`group flex items-center gap-2.5 ${textColorClass} focus:outline-none transition-colors duration-250`}
             aria-label="CampusWay Home"
           >
             {/* Elegant Architectural Arch Icon (Burnt Orange) */}
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-t-full border-[2.5px] border-[#E8542F] border-b-0 flex items-end justify-center pb-0.5 transition-transform group-hover:scale-105">
               <div className="w-2.5 h-3.5 sm:w-3 sm:h-4 rounded-t-full border-[2px] border-[#E8542F] border-b-0" />
             </div>
-            <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#111111]">
+            <span className="text-xl sm:text-2xl font-bold tracking-tight">
               CampusWay<sup className="text-[10px] font-normal ml-0.5">™</sup>
             </span>
           </Link>
 
           {/* Thin Vertical Divider */}
-          <div className="hidden sm:block h-6 w-px bg-[#111111]/15" aria-hidden="true" />
+          <div className={`hidden sm:block h-6 w-px ${isDarkSection ? "bg-white/15" : "bg-[#111111]/15"}`} aria-hidden="true" />
 
           {/* 2-line Descriptor: UNIVERSITY / NAVIGATION SYSTEM */}
-          <div className="hidden sm:flex flex-col text-[9px] font-mono font-semibold tracking-widest text-[#5B5750] uppercase leading-tight select-none">
+          <div className={`hidden sm:flex flex-col text-[9px] font-mono font-semibold tracking-widest ${subTextColorClass} uppercase leading-tight select-none transition-colors duration-250`}>
             <span>UNIVERSITY</span>
             <span>NAVIGATION SYSTEM</span>
           </div>
@@ -77,14 +86,14 @@ export function EditorialNavbar() {
 
         {/* Desktop Navigation Links */}
         <nav
-          className="hidden md:flex items-center gap-8 text-[12px] font-mono font-semibold tracking-wider uppercase text-[#5B5750]"
+          className="hidden md:flex items-center gap-8 text-[12px] font-mono font-semibold tracking-wider uppercase"
           aria-label="Main Navigation"
         >
           {/* HOME with active burnt orange underline */}
           <Link
             href="/"
-            className={`group relative py-1 transition-colors duration-150 hover:text-[#111111] ${
-              pathname === "/" ? "text-[#111111]" : ""
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass} ${
+              pathname === "/" ? (isDarkSection ? "!text-white font-bold" : "!text-[#111111] font-bold") : ""
             }`}
           >
             <span>HOME</span>
@@ -97,7 +106,7 @@ export function EditorialNavbar() {
 
           <Link
             href="/explore"
-            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass}`}
           >
             <span>EXPLORE</span>
             <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
@@ -105,7 +114,7 @@ export function EditorialNavbar() {
 
           <Link
             href="/explore?tab=routes"
-            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass}`}
           >
             <span>ROUTES</span>
             <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
@@ -113,26 +122,24 @@ export function EditorialNavbar() {
 
           <Link
             href="/about"
-            className="group relative py-1 transition-colors duration-150 hover:text-[#111111]"
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass}`}
           >
             <span>ABOUT</span>
             <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
           </Link>
 
-          {/* Em-dash indicator */}
-          <span className="text-[#5B5750]/50 select-none" aria-hidden="true">
-            &mdash;
-          </span>
+          {/* Clean hairline separator */}
+          <span className={`h-4 w-px ${isDarkSection ? "bg-white/20" : "bg-[#111111]/15"}`} aria-hidden="true" />
 
           {/* Magnetic Action Button: EXPLORE CAMPUS ↗ */}
           <MagneticButton
             href="/explore"
-            variant="primary"
+            variant={isDarkSection ? "orange" : "primary"}
             cursorLabel="EXPLORE"
             className="px-5 py-2.5 text-[11px]"
           >
             <span>EXPLORE CAMPUS</span>
-            <span className="text-[#E8542F] font-bold text-xs">↗</span>
+            <span className={isDarkSection ? "text-white font-bold text-xs" : "text-[#E8542F] font-bold text-xs"}>↗</span>
           </MagneticButton>
         </nav>
 

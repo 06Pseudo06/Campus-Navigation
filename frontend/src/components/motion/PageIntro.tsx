@@ -12,7 +12,9 @@ export function PageIntro() {
     if (isReducedMotion() || sessionStorage.getItem("campusway_intro_played")) {
       return;
     }
-    setVisible(true);
+    const introRaf = requestAnimationFrame(() => {
+      setVisible(true);
+    });
 
     // Counter animation 00 -> 100 over ~1.1s
     const startTime = performance.now();
@@ -38,7 +40,10 @@ export function PageIntro() {
     };
 
     const rafId = requestAnimationFrame(updateCounter);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(introRaf);
+      cancelAnimationFrame(rafId);
+    };
   }, []);
 
   if (!visible) return null;

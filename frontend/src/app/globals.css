@@ -20,8 +20,29 @@
   --hairline: rgba(17, 17, 17, 0.12);
   --hairline-dark: rgba(247, 243, 236, 0.15);
 
+  /* Strict Z-Index Scale */
+  --z-bg: 0;
+  --z-media: 1;
+  --z-decor: 2;
+  --z-content: 10;
+  --z-side-index: 40;
+  --z-nav: 50;
+  --z-cursor: 100;
+  --z-modal: 200;
+  --z-intro: 999;
+
   --font-display: "Inter Tight", "Geist", "Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Left Safe Gutter for Section Navigation Index (>= 1024px) */
+.section-gutter {
+  padding-left: clamp(16px, 4vw, 48px);
+}
+@media (min-width: 1024px) {
+  .section-gutter {
+    padding-left: clamp(56px, 6vw, 96px);
+  }
 }
 
 html {

@@ -31,6 +31,9 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     });
 
     lenisRef.current = lenis;
+    if (typeof window !== "undefined") {
+      (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+    }
 
     // Connect Lenis to ScrollTrigger
     lenis.on("scroll", ScrollTrigger.update);
@@ -42,12 +45,34 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     gsap.ticker.add(updateTicker);
     gsap.ticker.lagSmoothing(0);
 
+    // Debounced ScrollTrigger refresh on resize, image load, font ready
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const handleRefresh = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        ScrollTrigger.refresh();
+      }, 180);
+    };
+
+    window.addEventListener("resize", handleRefresh);
+    window.addEventListener("load", handleRefresh);
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(handleRefresh);
+    }
+
     return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener("resize", handleRefresh);
+      window.removeEventListener("load", handleRefresh);
       gsap.ticker.remove(updateTicker);
       lenis.destroy();
       lenisRef.current = null;
+      if (typeof window !== "undefined") {
+        delete (window as unknown as { __lenis?: Lenis }).__lenis;
+      }
     };
   }, []);
 
   return <>{children}</>;
 }
+

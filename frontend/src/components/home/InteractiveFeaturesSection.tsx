@@ -87,11 +87,11 @@ const FEATURES: FeatureCard[] = [
 export function InteractiveFeaturesSection() {
   return (
     <section
-      id="features"
+      id="section-02"
       className="relative w-full bg-[#F7F3EC] text-[#111111] py-16 sm:py-24 border-b border-[#111111]/12 select-none overflow-hidden"
       aria-label="What You Can Do"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 section-gutter">
         {/* Section Header: 02 / WHAT YOU CAN DO */}
         <div className="flex items-center justify-center gap-3 text-xs font-mono font-bold tracking-widest uppercase text-[#111111] mb-12 sm:mb-16">
           <span className="text-[#E8542F]">02 /</span>

@@ -1,22 +1,64 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import Link from "next/link";
 import { HairlineDivider } from "@/components/motion/HairlineDivider";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { isReducedMotion } from "@/lib/motion";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export function EditorialFooter() {
+  const footerRef = useRef<HTMLElement>(null);
+  const watermarkRef = useRef<HTMLDivElement>(null);
+
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const lenis = (window as unknown as { __lenis?: { scrollTo: (target: number, options?: object) => void } }).__lenis;
+    if (lenis && !isReducedMotion()) {
+      lenis.scrollTo(0, { duration: 1.4 });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
+  useEffect(() => {
+    if (!watermarkRef.current || !footerRef.current || isReducedMotion()) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        watermarkRef.current,
+        { y: 30, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 1.0,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: footerRef.current,
+            start: "top 85%",
+            invalidateOnRefresh: true,
+          },
+        }
+      );
+    }, footerRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <footer className="relative w-full bg-[#FAF8F5] text-[#111111] pt-16 pb-8 overflow-hidden select-none border-t border-[#111111]/12">
-      {/* ✦ Top Marker Line */}
+    <footer
+      ref={footerRef}
+      className="relative w-full bg-[#FAF8F5] text-[#111111] pt-16 pb-6 overflow-hidden select-none border-t border-[#111111]/12 section-gutter"
+    >
+      {/* Top Marker Line */}
       <HairlineDivider markerCount={1} className="mb-12" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-12">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 items-start justify-between">
-          {/* Brand Column & Newsletter Input (Video 2 reference) */}
+          {/* Brand Column & Dispatch Input */}
           <div className="md:col-span-5 space-y-5">
             <Link href="/" className="inline-flex items-center gap-2.5 text-[#111111]">
               <div className="w-8 h-8 rounded-t-full border-[2.5px] border-[#E8542F] border-b-0 flex items-end justify-center pb-0.5">
@@ -32,7 +74,7 @@ export function EditorialFooter() {
               rigor, dual Dijkstra &amp; A* graph solvers, and zero-login client state.
             </p>
 
-            {/* Newsletter-style Input */}
+            {/* Newsletter Dispatch Input */}
             <div className="pt-2 space-y-2">
               <span className="text-[10px] font-mono tracking-widest uppercase text-[#5B5750] block">
                 CAMPUSWAY DISPATCH // UPDATES
@@ -42,7 +84,7 @@ export function EditorialFooter() {
                   e.preventDefault();
                   alert("Subscribed to CampusWay topological updates.");
                 }}
-                className="flex items-center max-w-sm rounded-full border border-[#111111]/20 p-1 bg-white focus-within:border-[#E8542F]"
+                className="flex items-center max-w-sm rounded-full border border-[#111111]/20 p-1 bg-white focus-within:border-[#E8542F] transition-colors"
               >
                 <input
                   type="email"
@@ -61,7 +103,7 @@ export function EditorialFooter() {
             </div>
           </div>
 
-          {/* Nav Columns: Navigation, Platform, Specification */}
+          {/* Navigation Columns */}
           <div className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-6 text-xs font-mono uppercase tracking-wider">
             {/* Column 1: Navigation */}
             <div className="space-y-3">
@@ -127,7 +169,7 @@ export function EditorialFooter() {
           </div>
 
           <div className="flex items-center gap-6">
-            <span>WARM PAPER #F7F3EC &bull; SUNSET #E8542F</span>
+            <span className="hidden sm:inline">WARM PAPER #F7F3EC &bull; SUNSET #E8542F</span>
             <button
               type="button"
               onClick={scrollToTop}
@@ -139,11 +181,33 @@ export function EditorialFooter() {
           </div>
         </div>
 
-        {/* Huge Cropped Wordmark Rising Into View at Bottom */}
-        <div className="pt-6 overflow-hidden pointer-events-none select-none opacity-10">
-          <span className="block text-[14vw] font-black leading-none tracking-tighter text-[#111111] text-center -mb-8 sm:-mb-14">
-            CAMPUSWAY
-          </span>
+        {/* Edge-to-Edge SVG Watermark with Rising Reveal */}
+        <div
+          ref={watermarkRef}
+          className="w-full overflow-hidden pointer-events-none select-none pt-4 sm:pt-6"
+        >
+          <svg
+            viewBox="0 0 1400 170"
+            className="w-full h-auto text-[#111111]/[0.08] block"
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden="true"
+          >
+            <text
+              x="50%"
+              y="140"
+              textAnchor="middle"
+              fill="currentColor"
+              className="font-black"
+              style={{
+                fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+                fontWeight: 900,
+                fontSize: "172px",
+                letterSpacing: "-0.04em",
+              }}
+            >
+              CAMPUSWAY
+            </text>
+          </svg>
         </div>
       </div>
     </footer>

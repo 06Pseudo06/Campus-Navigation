@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { isReducedMotion } from "@/lib/motion";
@@ -22,18 +21,19 @@ export function ArchitecturalHero() {
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const ctaGroupRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLDivElement>(null);
-  const sideNavRef = useRef<HTMLDivElement>(null);
 
   // Parallax layers
   const buildingLayerRef = useRef<HTMLDivElement>(null);
-  const leavesForegroundRef = useRef<HTMLDivElement>(null);
-  const sparkleRef = useRef<SVGSVGElement>(null);
+  const sunDiscRef = useRef<HTMLDivElement>(null);
+  const leavesTopLeftRef = useRef<HTMLDivElement>(null);
+  const bottomRowRef = useRef<HTMLDivElement>(null);
+  const scrollBadgeRef = useRef<HTMLDivElement>(null);
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState(0);
 
-  // Mouse Parallax
+  // Mouse Parallax (subtle, restrained)
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isReducedMotion() || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -41,13 +41,13 @@ export function ArchitecturalHero() {
     const normY = (e.clientY - rect.top) / rect.height - 0.5;
 
     if (buildingLayerRef.current) {
-      buildingLayerRef.current.style.transform = `translate3d(${-normX * 24}px, ${-normY * 20}px, 0)`;
+      buildingLayerRef.current.style.transform = `translate3d(${-normX * 16}px, ${-normY * 12}px, 0)`;
     }
-    if (leavesForegroundRef.current) {
-      leavesForegroundRef.current.style.transform = `translate3d(${-normX * 36}px, ${-normY * 30}px, 0)`;
+    if (sunDiscRef.current) {
+      sunDiscRef.current.style.transform = `translate3d(${-normX * 8}px, ${-normY * 6}px, 0)`;
     }
-    if (sparkleRef.current) {
-      sparkleRef.current.style.transform = `translate3d(${-normX * 8}px, ${-normY * 8}px, 0)`;
+    if (leavesTopLeftRef.current) {
+      leavesTopLeftRef.current.style.transform = `translate3d(${normX * 14}px, ${normY * 10}px, 0)`;
     }
   };
 
@@ -70,20 +70,30 @@ export function ArchitecturalHero() {
       );
       gsap.set([subtitleRef.current, ctaGroupRef.current], { y: 25, opacity: 0 });
       gsap.set(tagRef.current, { x: -25, opacity: 0 });
-      gsap.set(sideNavRef.current, { opacity: 0 });
-      gsap.set(buildingLayerRef.current, { scale: 0.95, y: 40, opacity: 0 });
+      gsap.set(buildingLayerRef.current, { scale: 0.96, y: 35, opacity: 0 });
+      gsap.set(sunDiscRef.current, { scale: 0.85, opacity: 0 });
 
       // Orchestrated Reveal
       tl.to(
-        buildingLayerRef.current,
+        sunDiscRef.current,
         {
           scale: 1,
-          y: 0,
           opacity: 1,
-          duration: 1.4,
-          ease: "expo.out",
+          duration: 1.2,
+          ease: "power2.out",
         }
       )
+        .to(
+          buildingLayerRef.current,
+          {
+            scale: 1,
+            y: 0,
+            opacity: 1,
+            duration: 1.4,
+            ease: "expo.out",
+          },
+          "-=0.9"
+        )
         .to(
           tagRef.current,
           {
@@ -118,24 +128,87 @@ export function ArchitecturalHero() {
             stagger: 0.12,
           },
           "-=0.5"
-        )
-        .to(sideNavRef.current, { opacity: 1, duration: 0.5 }, "-=0.3");
+        );
 
-      // 2. Scroll Parallax Timeline
-      ScrollTrigger.create({
-        trigger: containerRef.current,
-        start: "top top",
-        end: "bottom top",
-        scrub: 1.2,
-        animation: gsap
-          .timeline()
-          .to(buildingLayerRef.current, { y: 130, scale: 1.03, ease: "none" })
-          .to(leavesForegroundRef.current, { y: 180, ease: "none" }, 0)
-          // Headline lines drift horizontally apart while fading
-          .to(headlineLine1Ref.current, { x: -40, opacity: 0.5, ease: "none" }, 0)
-          .to(headlineLine2Ref.current, { x: -20, opacity: 0.5, ease: "none" }, 0)
-          .to(headlineLine3Ref.current, { x: 30, opacity: 0.5, ease: "none" }, 0)
-          .to(headlineLine4Ref.current, { x: 50, opacity: 0.5, ease: "none" }, 0),
+      // 2. Slow natural foliage sway
+      if (leavesTopLeftRef.current) {
+        gsap.to(leavesTopLeftRef.current, {
+          rotation: 1.5,
+          transformOrigin: "top left",
+          duration: 10,
+          ease: "sine.inOut",
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+
+      // 3. Symmetrical scrubbed headline fade-out
+      // Progress 0-0.35: 100% opaque, in place. Progress 0.35-1.0: translates up ~8% and fades to 0
+      const headlineTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "bottom 35%",
+          scrub: 0.6,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      headlineTl
+        .to({}, { duration: 0.35 })
+        .to(
+          [
+            headlineLine1Ref.current,
+            headlineLine2Ref.current,
+            headlineLine3Ref.current,
+            headlineLine4Ref.current,
+          ],
+          {
+            y: "-8%",
+            opacity: 0,
+            stagger: 0.08,
+            ease: "power2.inOut",
+            duration: 0.65,
+          }
+        );
+
+      // 4. Parallax scroll on building & sun (clamped travel <= 6%)
+      gsap.to(buildingLayerRef.current, {
+        y: "5%",
+        ease: "none",
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 1.0,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      gsap.to(sunDiscRef.current, {
+        y: "3%",
+        ease: "none",
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 1.2,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      // 5. Fade out scroll badge and bottom metadata together at 10% scroll
+      gsap.to([bottomRowRef.current, scrollBadgeRef.current], {
+        opacity: 0,
+        y: 12,
+        ease: "power2.out",
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "top -12%",
+          scrub: 0.5,
+          invalidateOnRefresh: true,
+        },
       });
     }, containerRef);
 
@@ -155,61 +228,114 @@ export function ArchitecturalHero() {
 
   return (
     <section
-      id="hero"
+      id="section-01"
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full min-h-[96vh] lg:min-h-screen bg-[#F7F3EC] text-[#111111] overflow-hidden flex flex-col justify-between pt-24 sm:pt-28 pb-6 lg:pb-10 border-b border-[#111111]/12 select-none"
+      className="relative w-full min-h-[100svh] bg-[#F7F3EC] text-[#111111] overflow-hidden flex flex-col justify-between pt-24 sm:pt-28 pb-6 lg:pb-8 select-none"
       aria-label="Campus Wayfinding Reimagined"
     >
-      {/* 1. TOP-LEFT SOFT FOLIAGE OVERLAY */}
+      {/* 1. TOP-LEFT SOFT FOLIAGE OVERLAY (Feathered, multiplied into paper, no box edges) */}
       <div
-        className="absolute top-0 left-0 w-24 sm:w-32 lg:w-40 h-auto pointer-events-none z-30 opacity-70 select-none"
+        ref={leavesTopLeftRef}
+        className="absolute -top-[3vw] -left-[3vw] w-[clamp(240px,28vw,440px)] pointer-events-none z-[2] select-none"
+        style={{
+          mixBlendMode: "multiply",
+          opacity: 0.65,
+          WebkitMaskImage: "radial-gradient(ellipse at top left, #000 25%, transparent 72%)",
+          maskImage: "radial-gradient(ellipse at top left, #000 25%, transparent 72%)",
+        }}
         aria-hidden="true"
       >
         <Image
           src="/images/hero-foliage-top-left.png"
           alt=""
-          width={75}
-          height={95}
+          width={300}
+          height={380}
           priority
+          unoptimized
           className="w-full h-auto object-contain object-top-left"
         />
       </div>
 
-      {/* 2. BACKGROUND BLUEPRINT GRID OVERLAY (~4% opacity) */}
+      {/* 2. BACKGROUND ARCHITECTURAL BLUEPRINT GRID (~4% opacity) */}
       <div className="absolute inset-0 blueprint-grid pointer-events-none z-0" aria-hidden="true" />
 
-      {/* 3. MAIN HERO GRID */}
-      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-4 items-center my-auto">
-        {/* LEFT COLUMN: Section Counter + Tag + Headline + Subtitle + CTAs */}
-        <div className="lg:col-span-6 xl:col-span-6 flex flex-col justify-center space-y-5 lg:space-y-6 z-20 pt-4 lg:pt-0">
-          {/* Vertical Counter (| 01, 02, 03) & Section Header Tag */}
-          <div className="flex items-center gap-5 sm:gap-6">
-            {/* Left Margin Section Counter */}
-            <div
-              ref={sideNavRef}
-              className="hidden sm:flex flex-col text-[11px] font-mono tracking-widest text-[#5B5750] leading-snug select-none"
-            >
-              <div className="flex items-center gap-1.5 text-[#111111] font-bold">
-                <span className="w-1 h-3 bg-[#E8542F] rounded-full" />
-                <span>01</span>
-              </div>
-              <span className="pl-2.5 opacity-60">02</span>
-              <span className="pl-2.5 opacity-60">03</span>
-            </div>
+      {/* 3. SUN DISC & CONCENTRIC OUTLINE ARC (Behind Building) */}
+      <div
+        ref={sunDiscRef}
+        className="hidden lg:block absolute right-[4vw] top-[14%] w-[clamp(440px,52vw,740px)] aspect-square pointer-events-none z-[1]"
+        aria-hidden="true"
+      >
+        <svg className="w-full h-full" viewBox="0 0 600 600" fill="none">
+          <defs>
+            <radialGradient id="heroSunGrad" cx="50%" cy="45%" r="50%" fx="45%" fy="40%">
+              <stop offset="0%" stopColor="#F2793A" />
+              <stop offset="60%" stopColor="#E8542F" />
+              <stop offset="100%" stopColor="#C9411F" />
+            </radialGradient>
+          </defs>
 
-            {/* Tag: 01 / CAMPUS WAYFINDING, REIMAGINED ————— */}
-            <div
-              ref={tagRef}
-              className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#111111]"
-            >
-              <span className="text-[#E8542F]">01 /</span>
-              <span className="tracking-wider">CAMPUS WAYFINDING, REIMAGINED</span>
-              <span className="w-12 sm:w-24 h-px bg-[#111111]/25" aria-hidden="true" />
-            </div>
+          {/* Thin Outer Concentric Arc (~52vw) */}
+          <circle cx="300" cy="300" r="285" stroke="#111111" strokeOpacity="0.12" strokeWidth="1.2" />
+
+          {/* Luminous Orange Sun Disc (~40vw) */}
+          <circle cx="300" cy="300" r="235" fill="url(#heroSunGrad)" />
+
+          {/* Subtle Fine Crosshair Sparkle */}
+          <line x1="300" y1="215" x2="300" y2="385" stroke="#F7F3EC" strokeOpacity="0.4" strokeWidth="1.2" />
+          <line x1="215" y1="300" x2="385" y2="300" stroke="#F7F3EC" strokeOpacity="0.4" strokeWidth="1.2" />
+          <circle cx="300" cy="300" r="2.5" fill="#FFFFFF" />
+        </svg>
+      </div>
+
+      {/* 4. MONUMENTAL FULL-BLEED CURVED UNIVERSITY BUILDING */}
+      <div
+        ref={buildingLayerRef}
+        className="absolute right-[-3vw] bottom-0 w-[clamp(520px,62vw,1100px)] h-[clamp(460px,88svh,920px)] pointer-events-none z-[2] select-none flex items-end justify-end overflow-visible"
+      >
+        <Image
+          src="/images/hero-curved-fullbleed.webp"
+          alt="Monumental curved brutalist concrete university building with sunset disc and glowing glass curtain wall"
+          width={1671}
+          height={941}
+          priority
+          unoptimized
+          className="w-full h-full object-contain object-bottom-right drop-shadow-[0_24px_48px_rgba(17,17,17,0.14)]"
+        />
+
+        {/* Elevation Tag at Right Edge */}
+        <div className="absolute bottom-3 right-6 text-[10px] font-mono tracking-widest text-[#5B5750]/70 uppercase hidden sm:block">
+          ELEV. +84.2M &bull; QUAD
+        </div>
+      </div>
+
+      {/* Top Right Architectural Callout: CAMPUS MAP ROUTES SPACES */}
+      <div className="hidden lg:flex flex-col items-end gap-1 absolute top-20 right-12 z-20 pointer-events-none text-right">
+        <div className="flex flex-col text-[9px] font-mono font-medium tracking-widest text-[#5B5750] uppercase leading-tight">
+          <span>CAMPUS</span>
+          <span>MAP</span>
+          <span>ROUTES</span>
+          <span>SPACES</span>
+        </div>
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" className="stroke-[#111111]/30 mt-1">
+          <line x1="0" y1="36" x2="36" y2="0" strokeWidth="1" />
+        </svg>
+      </div>
+
+      {/* 5. MAIN HERO CONTENT COLUMN (Left Aligned with Safe Gutter) */}
+      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 section-gutter flex flex-col justify-center my-auto pt-6 lg:pt-0">
+        <div className="max-w-xl lg:max-w-2xl flex flex-col space-y-5 lg:space-y-6">
+          {/* Section Kicker: 01 / CAMPUS WAYFINDING, REIMAGINED ————— */}
+          <div
+            ref={tagRef}
+            className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#111111]"
+          >
+            <span className="text-[#E8542F]">01 /</span>
+            <span className="tracking-wider">CAMPUS WAYFINDING, REIMAGINED</span>
+            <span className="w-12 sm:w-24 h-px bg-[#111111]/25" aria-hidden="true" />
           </div>
 
-          {/* EXACT HEADLINE (Masked reveal line by line) */}
+          {/* EXACT HEADLINE */}
           <h1 className="fluid-hero-headline font-black tracking-tight uppercase text-[#111111]">
             <span className="block overflow-hidden">
               <span ref={headlineLine1Ref} className="block">
@@ -253,7 +379,7 @@ export function ArchitecturalHero() {
               <span className="text-[#E8542F] font-bold text-sm">↗</span>
             </MagneticButton>
 
-            {/* Circular Play Button + WATCH / OVERVIEW */}
+            {/* Circular Play Button + WATCH OVERVIEW */}
             <button
               type="button"
               onClick={() => {
@@ -280,88 +406,53 @@ export function ArchitecturalHero() {
             </button>
           </div>
         </div>
-
-        {/* RIGHT COLUMN: FULL-BLEED MONUMENTAL HERO VISUAL */}
-        <div className="lg:col-span-6 xl:col-span-6 relative w-full h-[460px] sm:h-[560px] lg:h-[680px] xl:h-[720px] flex items-center justify-center lg:justify-end overflow-visible">
-          {/* Top Right Architectural Annotation (Reference: CAMPUS MAP ROUTES SPACES) */}
-          <div className="hidden lg:flex flex-col items-end gap-1 absolute top-2 right-4 z-20 pointer-events-none text-right">
-            <div className="flex flex-col text-[9px] font-mono font-medium tracking-widest text-[#5B5750] uppercase leading-tight">
-              <span>CAMPUS</span>
-              <span>MAP</span>
-              <span>ROUTES</span>
-              <span>SPACES</span>
-            </div>
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none" className="stroke-[#111111]/30 mt-1">
-              <line x1="0" y1="36" x2="36" y2="0" strokeWidth="1" />
-            </svg>
-          </div>
-
-          {/* MONUMENTAL FULL-BLEED CURVED CONCRETE UNIVERSITY BUILDING & GLOWING SUN DISC */}
-          <div
-            ref={buildingLayerRef}
-            className="relative w-[115%] sm:w-[125%] lg:w-[138%] xl:w-[145%] max-w-none h-full flex items-end justify-end pointer-events-none z-10 transform translate-x-2 sm:translate-x-6 lg:translate-x-8 translate-y-2 lg:translate-y-4 select-none"
-          >
-            <Image
-              src="/images/hero-curved-fullbleed.webp"
-              alt="Monumental curved brutalist concrete university building with sunset disc and glowing glass curtain wall"
-              width={1671}
-              height={941}
-              priority
-              unoptimized
-              className="w-full h-auto object-contain object-bottom-right drop-shadow-[0_24px_48px_rgba(17,17,17,0.14)]"
-            />
-          </div>
-
-          {/* FOREGROUND ELEVATION LABEL AT RIGHT EDGE */}
-          <div
-            ref={leavesForegroundRef}
-            className="absolute bottom-2 right-0 w-auto h-auto pointer-events-none z-20 select-none"
-            aria-hidden="true"
-          >
-            <span className="text-[10px] font-mono tracking-widest text-[#5B5750]/70 uppercase hidden sm:block">
-              ELEV. +84.2M &bull; QUAD
-            </span>
-          </div>
-        </div>
       </div>
 
-      {/* 4. BOTTOM BAR: SCROLL INDICATOR + ROTATING SCROLL BADGE + STATS */}
-      <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between text-xs font-mono text-[#5B5750] pt-4">
-        {/* Bottom Left Mouse Scroll Indicator */}
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-7 rounded-full border border-[#111111]/40 flex items-start justify-center p-1">
-            <span className="w-1 h-1.5 bg-[#E8542F] rounded-full animate-bounce" />
+      {/* 6. BOTTOM BAR: SCROLL INDICATOR & STATS ROW (Safely separated, zero overlaps) */}
+      <div
+        ref={bottomRowRef}
+        className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 section-gutter flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono text-[#5B5750] pt-4"
+      >
+        <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+          {/* Scroll to Explore Mouse Indicator */}
+          <div className="flex items-center gap-3">
+            <div className="w-4 h-7 rounded-full border border-[#111111]/40 flex items-start justify-center p-1">
+              <span className="w-1 h-1.5 bg-[#E8542F] rounded-full animate-bounce" />
+            </div>
+            <span className="tracking-widest uppercase text-[#5B5750] text-[11px] font-semibold">
+              SCROLL TO EXPLORE &mdash;
+            </span>
           </div>
-          <span className="tracking-widest uppercase text-[#5B5750] text-[11px] font-semibold">
-            SCROLL TO EXPLORE &mdash;&mdash;&mdash;
-          </span>
-        </div>
 
-        {/* Center / Right: Pulsing Rotating Circular Scroll CTA */}
-        <div className="flex items-center gap-6">
-          <RotatingTextBadge
-            size={90}
-            onClick={() => {
-              const el = document.getElementById("features");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
-          />
-
-          {/* Key Specs Pill */}
-          <div className="hidden md:flex items-center gap-4 text-[10px] tracking-wider uppercase text-[#5B5750]">
+          {/* Key Specs Line (Grouped cleanly with scroll line) */}
+          <div className="flex items-center gap-3 text-[10px] font-mono tracking-wider uppercase text-[#5B5750]">
             <span>48 CAMPUS BUILDINGS</span>
-            <span>&bull;</span>
+            <span className="text-[#111111]/30">&bull;</span>
             <span>1,957 VERTICES</span>
-            <span>&bull;</span>
+            <span className="text-[#111111]/30">&bull;</span>
             <span className="text-[#E8542F] font-semibold">ZERO LOGIN REQUIRED</span>
           </div>
         </div>
       </div>
 
-      {/* 5. FULL-SCREEN ACCESSIBLE WATCH OVERVIEW MODAL */}
+      {/* 7. ROTATING CIRCULAR SCROLL BADGE (Positioned bottom-right without colliding with stats) */}
+      <div
+        ref={scrollBadgeRef}
+        className="hidden md:block fixed lg:absolute right-[clamp(24px,4vw,64px)] bottom-[clamp(88px,12svh,140px)] z-20 pointer-events-auto"
+      >
+        <RotatingTextBadge
+          size={92}
+          onClick={() => {
+            const el = document.getElementById("section-02");
+            if (el) el.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
+      </div>
+
+      {/* 8. FULL-SCREEN ACCESSIBLE WATCH OVERVIEW MODAL */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-[#0E1118]/80 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-[200] bg-[#0E1118]/80 backdrop-blur-md flex items-center justify-center p-4"
           onClick={() => setModalOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -459,16 +550,16 @@ export function ArchitecturalHero() {
                     onClick={() => setModalStep((s) => Math.min(2, s + 1))}
                     className="px-6 py-2.5 rounded-full bg-[#111111] hover:bg-[#E8542F] text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
                   >
-                    Next Step &rarr;
+                    Next &rarr;
                   </button>
                 ) : (
-                  <Link
-                    href="/explore"
+                  <button
+                    type="button"
                     onClick={() => setModalOpen(false)}
-                    className="px-6 py-2.5 rounded-full bg-[#E8542F] hover:bg-[#C9411F] text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
+                    className="px-6 py-2.5 rounded-full bg-[#E8542F] text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
                   >
-                    Launch Live Map ↗
-                  </Link>
+                    Start Exploring ↗
+                  </button>
                 )}
               </div>
             </div>

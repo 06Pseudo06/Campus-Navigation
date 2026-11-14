@@ -9,13 +9,14 @@ export function CustomCursor() {
   const [label, setLabel] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [isTouchDevice] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(pointer: coarse)").matches;
-  });
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || isTouchDevice || isReducedMotion()) return;
+    if (typeof window === "undefined") return;
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    if (isTouch || isReducedMotion()) return;
+
+    setEnabled(true);
 
     let mouseX = -100;
     let mouseY = -100;
@@ -28,14 +29,15 @@ export function CustomCursor() {
       mouseY = e.clientY;
       setIsVisible(true);
 
-      // Check for custom cursor label
-      const target = (e.target as HTMLElement)?.closest("[data-cursor]");
+      // Check for custom cursor label safely across all target types
+      const el = e.target instanceof Element ? e.target : (e.target as Node)?.parentElement;
+      const target = el?.closest ? el.closest("[data-cursor]") : null;
       if (target) {
         const customLabel = target.getAttribute("data-cursor");
         setLabel(customLabel || null);
         setIsHovered(true);
       } else {
-        const isClickable = (e.target as HTMLElement)?.closest("a, button, input, [role='button']");
+        const isClickable = el?.closest ? el.closest("a, button, input, [role='button']") : null;
         setIsHovered(!!isClickable);
         setLabel(null);
       }
@@ -69,9 +71,9 @@ export function CustomCursor() {
       document.removeEventListener("mouseleave", onMouseLeave);
       cancelAnimationFrame(rafId);
     };
-  }, [isTouchDevice]);
+  }, []);
 
-  if (isTouchDevice || isReducedMotion()) return null;
+  if (!enabled) return null;
 
   return (
     <div

@@ -16,28 +16,28 @@ const STEPS = [
     title: "SEARCH",
     description: "Look up any campus hall, lecture theater, elevator, or quadrangle by official code or alias.",
     chips: ["+ 48 BUILDINGS", "+ COORDINATE MAPPED"],
-    image: "/images/arch-gallery_1.jpg",
+    image: "/images/274ded96b5ab24b17eba47db4e7c69dd.jpg",
   },
   {
     num: "02",
     title: "ROUTE",
     description: "Sub-2ms graph traversal analyzes 1,957 walking edges to generate optimal paths.",
     chips: ["+ DIJKSTRA SOLVER", "+ A* HEURISTIC"],
-    image: "/images/arch-gallery_2.jpg",
+    image: "/images/arch-navigate.jpg",
   },
   {
     num: "03",
     title: "WALK",
     description: "Live turn-by-turn guidance with ramp accessibility, level grade entries, and distance tags.",
     chips: ["+ ACCESSIBLE", "+ STEP-FREE"],
-    image: "/images/arch-gallery_3.jpg",
+    image: "/images/arch-real_campus.jpg",
   },
   {
     num: "04",
     title: "SAVE",
     description: "Bookmark frequent classrooms and workspaces to your browser atlas with zero sign-in barrier.",
     chips: ["+ ZERO LOGIN", "+ OFFLINE ATLAS"],
-    image: "/images/arch-gallery_4.jpg",
+    image: "/images/arch-save.jpg",
   },
 ];
 
@@ -53,11 +53,10 @@ export function HowItWorksSection() {
     if (!isDesktop) return;
 
     const ctx = gsap.context(() => {
-      // Pinned horizontal timeline on desktop
       const track = trackRef.current;
       if (!track) return;
 
-      const totalScroll = track.scrollWidth - window.innerWidth + 120;
+      const totalScroll = track.scrollWidth - window.innerWidth + clampNumber(window.innerWidth * 0.15, 120, 240);
 
       gsap.to(track, {
         x: -totalScroll,
@@ -65,9 +64,18 @@ export function HowItWorksSection() {
         scrollTrigger: {
           trigger: containerRef.current,
           pin: true,
+          pinSpacing: true,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
           scrub: 1.0,
           start: "top top",
-          end: `+=${totalScroll * 1.5}`,
+          // Proportional pin duration (~3.8x viewport height for 4 steps)
+          end: () => "+=" + Math.round(window.innerHeight * 3.8) + "px",
+          snap: {
+            snapTo: 1 / (STEPS.length - 1),
+            duration: { min: 0.25, max: 0.6 },
+            ease: "power1.inOut",
+          },
           onUpdate: (self) => {
             const stepIdx = Math.min(STEPS.length - 1, Math.floor(self.progress * STEPS.length));
             setActiveStep(stepIdx);
@@ -81,12 +89,12 @@ export function HowItWorksSection() {
 
   return (
     <section
-      id="how-it-works"
+      id="section-04"
       ref={containerRef}
-      className="relative w-full bg-[#F7F3EC] text-[#111111] py-20 lg:py-28 overflow-hidden select-none border-b border-[#111111]/12"
+      className="relative w-full bg-[#F7F3EC] text-[#111111] pt-20 lg:pt-28 pb-[12vh] overflow-hidden select-none border-b border-[#111111]/12"
       aria-label="How CampusWay Works"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 section-gutter mb-8">
         <div className="flex items-center justify-between pb-4 border-b border-[#111111]/12">
           <div className="flex items-center gap-3 text-xs font-mono font-bold tracking-widest uppercase text-[#111111]">
             <span className="text-[#E8542F]">04 /</span>
@@ -98,21 +106,21 @@ export function HowItWorksSection() {
         </div>
       </div>
 
-      {/* Horizontal Scroll Track */}
-      <div className="w-full overflow-hidden px-4 sm:px-6 lg:px-12">
+      {/* Pinned Horizontal Track (Desktop) / Fluid Row (Mobile) */}
+      <div className="w-full overflow-hidden">
         <div
           ref={trackRef}
-          className="flex flex-col lg:flex-row items-stretch lg:items-center gap-8 lg:gap-16 will-change-transform"
+          className="flex flex-col lg:flex-row gap-6 sm:gap-8 px-4 sm:px-6 lg:px-16 section-gutter w-full lg:w-max will-change-transform"
         >
           {STEPS.map((step, idx) => {
-            const isActive = idx === activeStep;
+            const isActive = activeStep === idx;
             return (
               <div
                 key={idx}
-                className={`relative shrink-0 w-full lg:w-[460px] p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${
+                className={`relative shrink-0 w-full lg:w-[480px] p-6 sm:p-8 rounded-3xl border transition-all duration-300 ${
                   isActive
                     ? "bg-white border-[#111111] shadow-2xl"
-                    : "bg-[#FAF6F0] border-[#111111]/12 opacity-85 hover:opacity-100"
+                    : "bg-[#FAF6F0] border-[#111111]/12 opacity-90 hover:opacity-100"
                 }`}
               >
                 {/* Step Numeral & Arrow */}
@@ -126,10 +134,10 @@ export function HowItWorksSection() {
                   </span>
                 </div>
 
-                {/* Giant Word */}
+                {/* Giant Step Heading */}
                 <h3
                   className={`text-4xl sm:text-5xl font-black uppercase tracking-tight mb-3 transition-colors ${
-                    isActive ? "text-[#111111]" : "text-[#111111]/70"
+                    isActive ? "text-[#111111]" : "text-[#111111]/75"
                   }`}
                 >
                   {step.title}
@@ -140,7 +148,7 @@ export function HowItWorksSection() {
                   {step.description}
                 </p>
 
-                {/* Supporting Image in Frame */}
+                {/* Real Architectural Photograph */}
                 <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-[#111111]/10 mb-6 border border-[#111111]/10">
                   <Image
                     src={step.image}
@@ -148,19 +156,20 @@ export function HowItWorksSection() {
                     fill
                     unoptimized
                     loading="eager"
-                    sizes="(max-width: 1024px) 100vw, 420px"
+                    sizes="(max-width: 1024px) 100vw, 480px"
                     className="object-cover object-center grayscale hover:grayscale-0 transition-all duration-500"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#111111]/40 via-transparent to-transparent" />
                 </div>
 
-                {/* Mono Chips */}
-                <div className="flex flex-wrap gap-2 text-[10px] font-mono">
-                  {step.chips.map((ch, cIdx) => (
+                {/* Chips */}
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#111111]/08">
+                  {step.chips.map((chip, cIdx) => (
                     <span
                       key={cIdx}
-                      className="px-3 py-1 rounded-full bg-[#111111]/06 border border-[#111111]/10 text-[#111111] font-bold"
+                      className="px-3 py-1 rounded-full bg-[#111111]/06 text-[10px] font-mono tracking-wider text-[#111111] uppercase font-semibold"
                     >
-                      {ch}
+                      {chip}
                     </span>
                   ))}
                 </div>
@@ -171,4 +180,8 @@ export function HowItWorksSection() {
       </div>
     </section>
   );
+}
+
+function clampNumber(val: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, val));
 }
