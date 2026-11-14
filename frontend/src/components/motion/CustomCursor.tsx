@@ -16,7 +16,9 @@ export function CustomCursor() {
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
     if (isTouch || isReducedMotion()) return;
 
-    setEnabled(true);
+    const enableRaf = requestAnimationFrame(() => {
+      setEnabled(true);
+    });
 
     let mouseX = -100;
     let mouseY = -100;
@@ -67,6 +69,7 @@ export function CustomCursor() {
     rafId = requestAnimationFrame(render);
 
     return () => {
+      cancelAnimationFrame(enableRaf);
       window.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseleave", onMouseLeave);
       cancelAnimationFrame(rafId);

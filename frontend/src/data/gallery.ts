@@ -195,3 +195,4 @@ export const GALLERY_ITEMS: GalleryItem[] = [
     rowSpanDesktop: "lg:row-span-4",
   },
 ];
+

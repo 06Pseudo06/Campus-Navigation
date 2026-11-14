@@ -5,6 +5,68 @@ This document outlines the architectural motion and editorial visual redesign ap
 
 ---
 
+## Round 3: Explore (Map) Page Editorial Redesign (Completed)
+
+### 1. Full Design Language Parity
+- **Editorial Paper Theme:** Completely redesigned the front-end of the Explore page (`/explore`) from the old dark dashboard into the warm editorial architectural identity:
+  - Base: Warm ivory/cream paper (`#F7F3EC`)
+  - Typography: Near-black ink (`#111111`) with bold grotesk uppercase and italic sunset-orange (`#E8542F`) accent words
+  - Accents: Terracotta/sunset orange (`#E8542F`), soft sage/teal river curves (`#A9C6C9`), and cream concrete building tones
+  - Hairlines: Fine architectural gridlines, ✦ star annotations, and mono uppercase micro-labels
+- **Full Viewport App Shell:** Configured full-viewport `100svh` layout with zero window scrolling and Lenis smooth scroll safely disabled on interactive elements (`data-lenis-prevent`).
+- **Algorithm & Graph Preservation:** Retained 100% of underlying graph models, Dijkstra and A* pathfinding solvers, GPS waypoint coordinates, and API data contracts without modification.
+
+### 2. Fixed Editorial Navbar & User Session Slot
+- **Fixed App Navbar Mode (`EditorialNavbar.tsx`):** Added `isFixedApp` prop to freeze the navbar at 72px without hide-on-scroll behavior, highlighting `/explore` with an active orange underline.
+- **Visitor User Chip (`ExploreUserMenu.tsx`):** Embedded an avatar chip in the navbar CTA slot (`[CE]` avatar, "Campus Explorer · Visitor") with a restyled dropdown for signing in, guest privileges, and session management.
+
+### 3. Editorial Toolbar Row (`ExploreToolbar.tsx`)
+- **Visual Composition:** 88px high toolbar featuring section label `CAMPUS ATLAS / LIVE GRAPH ———`, headline **"Explore Your *Campus.*"**, and a decorative architectural sun disc (~120px) positioned behind.
+- **Global Search:** Pill search input with `/` keyboard focus shortcut and Esc clear behavior.
+- **University Crest Chip:** Carleton University crest badge displaying live graph node count and `DEMO DATA` pill.
+
+### 4. Collapsible Left Rail & Mobile Tab Bar (`ExploreRail.tsx`)
+- **Expandable Icon Rail:** Desktop 72px collapsed rail that expands smoothly to 220px overlay on hover/focus without shifting adjacent grid or map elements.
+- **Navigation Modes:** Four dedicated tabs (Explore, Predefined Routes, Bookmarked Places with live count badge, and Visitor Assistance).
+- **Bottom Status:** Architectural mini-card (`✦ Navigate • Belong / Prototype • Phase 3`).
+- **Mobile Bottom Navigation Bar (< 1024px):** Fixed 64px tab bar with 44px+ touch targets and active state indicators.
+
+### 5. Architectural Light Map Card (`ExploreMapCard.tsx`)
+- **Editorial Map Ground:** Light SVG canvas (`#F1ECE2`) with fine 4% architectural coordinate grid, Rideau River soft teal curves, and greenspace park washes.
+- **Concrete Building Footprints:** 48 verified Carleton University buildings rendered as rounded concrete monoliths with mono codes and hover elevations.
+- **Waypoint & Origin/Destination Pins:**
+  - Origin (A): Forest-green pin with animated pulsing halo.
+  - Destination (B): Sunset-orange pin with pulsing halo.
+  - Shift-click node interaction to quickly reassign Origin.
+- **Self-Drawing Route Path:** 5px sunset-orange active path enclosed in 9px cream casing with SVG dasharray draw-in animation.
+- **Interactive Step Segment Highlighting:** Hovering any turn guidance step in the route panel dynamically illuminates the corresponding path segment on the map in warm gold (`#FFBF29`).
+- **Map Controls & Popovers:**
+  - Campus Masterplan dropdown popover with individual layer switches (Buildings, Surveyed Walkways, Inferred Connectors, Terrain).
+  - Floating compass reset button and zoom in/out controls (+ / -).
+  - Collapsible walkway connectivity legend with physical vs. inferred indicators.
+  - Architectural scale bar (meters adaptive to zoom level) and north arrow.
+
+### 6. Interactive Route & Destination Panel (`ExploreRoutePanel.tsx`)
+- **Paper Panel Shell:** 400px desktop right card (`#FBF8F2`, `rounded-[28px]`, hairline border) with header `▬ PLAN A ROUTE / 01`, **"Where *to?*"**, and live API status pill.
+- **Search & Filter Chips:** Fast destination filtering by name or code, with category filter pills (`All`, `Buildings`, `Landmarks`).
+- **Connected Stepper:** Origin (A) and Destination (B) select dropdowns connected by a vertical dotted line, complete with a 180° animated swap button.
+- **Destination Feature Card:** Architectural photo thumbnail, bookmark toggle with pop toast feedback, and verified pedestrian access point status.
+- **Solver Engine Selector:** Segmented toggle between Dijkstra and A* (Heuristic) solvers.
+- **Primary CTA:** Magnetic orange calculate button with loading spinner and topology fallback state.
+- **Auto-Scrolling Route Summary Card:** Smoothly scrolls into view upon calculation, featuring large walking time and distance numerals, accessible badges, latency metrics, and turn-by-turn guidance list.
+- **Destinations Listing:** 48-location scrollable directory with mono category tags.
+
+### 7. Integrated Sub-Views
+- **Predefined Routes (`ExploreRoutesView.tsx`):** Curated high-traffic corridors (Central Quad, Research Artery, Engineering Corridor) with verified distance, walking time, and one-click execution.
+- **Saved Places (`ExploreSavedView.tsx`):** Personal atlas displaying bookmarked locations with guest local storage sync, one-click navigate button, and ✦ empty state.
+- **Visitor Assistance (`ExploreHelpView.tsx`):** Assistance request dispatch form (escort, directions, access), emergency contact directory, and keyboard navigation cheatsheet.
+
+### 8. Tablet & Mobile Bottom Sheet Drawer (< 1024px)
+- **Three-Stage Gesture Drawer:** Fluid snap heights: peek (112px), half (55svh), and full (90svh) with draggable pill handle.
+- **Touch-Optimized:** Full access to route calculation, destination search, and turn guidance on mobile devices.
+
+---
+
 ## Round 2: Polish & Bug-Fix Pass (Completed)
 
 ### 1. Section Numbering & Global Side Timeline Index

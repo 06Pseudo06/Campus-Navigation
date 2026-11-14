@@ -48,3 +48,4 @@ export function SectionProvider({ children }: { children: React.ReactNode }) {
 export function useSection() {
   return useContext(SectionContext);
 }
+

@@ -2,13 +2,18 @@
 
 import React, { useState, useEffect, useMemo, useTransition, useCallback, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Sidebar } from "@/components/dashboard/Sidebar";
-import { Topbar } from "@/components/dashboard/Topbar";
-import { CampusMap } from "@/components/dashboard/CampusMap";
-import { DestinationPanel } from "@/components/dashboard/DestinationPanel";
-import { RoutesTab } from "@/components/dashboard/RoutesTab";
-import { SavedTab } from "@/components/dashboard/SavedTab";
-import { HelpTab } from "@/components/dashboard/HelpTab";
+import { EditorialNavbar } from "@/components/home/EditorialNavbar";
+import { CustomCursor } from "@/components/motion/CustomCursor";
+import { ExploreUserMenu } from "@/components/explore/ExploreUserMenu";
+import { ExploreToolbar } from "@/components/explore/ExploreToolbar";
+import { ExploreRail } from "@/components/explore/ExploreRail";
+import { ExploreStatsStrip } from "@/components/explore/ExploreStatsStrip";
+import { ExploreMapCard } from "@/components/explore/ExploreMapCard";
+import { ExploreRoutePanel } from "@/components/explore/ExploreRoutePanel";
+import { ExploreRoutesView } from "@/components/explore/ExploreRoutesView";
+import { ExploreSavedView } from "@/components/explore/ExploreSavedView";
+import { ExploreHelpView } from "@/components/explore/ExploreHelpView";
+
 import { CARLETON_DEMO_LOCATIONS } from "@/data/carletonLocations";
 import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
@@ -17,30 +22,25 @@ import {
   CampusLocation,
   CampusRoute,
   SidebarTab,
-  MapDisplayMode,
 } from "@/types/campus";
 import { NodeRead } from "@/types/api";
-import { Spinner, CampusWayLogo } from "@/components/icons/Icons";
 
 export default function ExploreDashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const [, startTransition] = useTransition();
 
-  // Active navigation tab
+  // Active navigation tab: explore | routes | saved | help
   const [currentTab, setCurrentTab] = useState<SidebarTab>("explore");
 
-  // Mobile menu / drawer controls
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  // Mobile sheet snap height: "peek" (112px) | "half" (55svh) | "full" (92svh)
+  const [mobileSheetSnap, setMobileSheetSnap] = useState<"peek" | "half" | "full">("peek");
 
   // Global search & filter query
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Map display mode: always Carleton live demo
-  const [mapDisplayMode, setMapDisplayMode] = useState<MapDisplayMode>("carleton_demo");
-
-  // Initial campus locations & node cache
+  // Campus locations & graph nodes
   const [locations, setLocations] = useState<CampusLocation[]>(CARLETON_DEMO_LOCATIONS);
+  const [vertexCount, setVertexCount] = useState<number>(1957);
   const [isLoadingLocations, setIsLoadingLocations] = useState<boolean>(false);
   const [locationsError, setLocationsError] = useState<string | null>(null);
 
@@ -54,8 +54,10 @@ export default function ExploreDashboardPage() {
   const isCalculatingRouteRef = useRef<boolean>(false);
 
   // Default origin (MacOdrum Library - ML) and destination (Paterson Hall - PA)
-  const defaultInitialOrigin = CARLETON_DEMO_LOCATIONS.find((l) => l.code === "ML") || CARLETON_DEMO_LOCATIONS[0];
-  const defaultInitialDest = CARLETON_DEMO_LOCATIONS.find((l) => l.code === "PA") || CARLETON_DEMO_LOCATIONS[1];
+  const defaultInitialOrigin =
+    CARLETON_DEMO_LOCATIONS.find((l) => l.code === "ML") || CARLETON_DEMO_LOCATIONS[0];
+  const defaultInitialDest =
+    CARLETON_DEMO_LOCATIONS.find((l) => l.code === "PA") || CARLETON_DEMO_LOCATIONS[1];
 
   // Routing endpoints state
   const [originLocation, setOriginLocation] = useState<CampusLocation | null>(defaultInitialOrigin);
@@ -67,8 +69,9 @@ export default function ExploreDashboardPage() {
   const [showRoute, setShowRoute] = useState<boolean>(true);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [hoveredStepIndex, setHoveredStepIndex] = useState<number | null>(null);
 
-  // Saved location IDs & state (read strictly from guest storage without injecting fake bookmarks)
+  // Saved location IDs & state
   const [savedIds, setSavedIds] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       return favoriteService.getGuestFavorites();
@@ -87,12 +90,9 @@ export default function ExploreDashboardPage() {
     setSavedError(null);
     try {
       if (currentUser && currentUser.id) {
-        // Authenticated user: fetch from PostgreSQL
         try {
           const userFavs = await favoriteService.getMyFavorites();
           const backendIds = userFavs.map((f) => f.location_id);
-
-          // Check if guest has any unsaved bookmarks to safely migrate
           const guestIds = favoriteService.getGuestFavorites();
           if (guestIds.length > 0) {
             const merged = await favoriteService.syncGuestFavoritesToUser(currentUser.id, backendIds);
@@ -106,7 +106,6 @@ export default function ExploreDashboardPage() {
           setSavedError(err instanceof Error ? err.message : "Failed to load saved favorites from server.");
         }
       } else {
-        // Guest user: load from localStorage
         const guestIds = favoriteService.getGuestFavorites();
         setSavedIds(guestIds);
       }
@@ -115,7 +114,6 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // Sync favorites whenever user authentication state (ID) changes
   const userId = user?.id;
   useEffect(() => {
     let active = true;
@@ -146,9 +144,15 @@ export default function ExploreDashboardPage() {
         if (timer) clearTimeout(timer);
       };
     }
+    const tabParam = params.get("tab");
+    if (tabParam === "routes" || tabParam === "saved" || tabParam === "help") {
+      queueMicrotask(() => {
+        setCurrentTab(tabParam as SidebarTab);
+      });
+    }
   }, []);
 
-  // 2. User-Driven Route Calculation Execution Method
+  // Route calculation execution
   const calculateRoutePath = useCallback(
     async (
       origin: CampusLocation | null,
@@ -166,7 +170,6 @@ export default function ExploreDashboardPage() {
         return;
       }
 
-      // Check topology coverage
       if (origin.hasRouteTopology === false) {
         setRouteError(
           `Routing topology unavailable: Origin "${origin.name}" access connection requires verification.`
@@ -183,7 +186,6 @@ export default function ExploreDashboardPage() {
         return;
       }
 
-      // Prevent concurrent execution: abort previous pending calculation
       if (isCalculatingRouteRef.current) {
         routeAbortControllerRef.current?.abort();
       }
@@ -197,7 +199,6 @@ export default function ExploreDashboardPage() {
       setRouteError(null);
 
       try {
-        // Resolve origin node ID
         let originNodeId = origin.nearestNodeId;
         if (!originNodeId) {
           const originNodes = await routeService.getNodesForLocation(origin.id, controller.signal);
@@ -206,7 +207,6 @@ export default function ExploreDashboardPage() {
           }
         }
 
-        // Resolve destination node ID
         let destinationNodeId = destination.nearestNodeId;
         if (!destinationNodeId) {
           const destNodes = await routeService.getNodesForLocation(destination.id, controller.signal);
@@ -223,7 +223,6 @@ export default function ExploreDashboardPage() {
           throw new Error("Unable to identify active navigation nodes for the selected locations.");
         }
 
-        // Call backend shortest path calculation
         const routeResp = await routeService.calculateRoute(
           originNodeId,
           destinationNodeId,
@@ -236,7 +235,6 @@ export default function ExploreDashboardPage() {
           return;
         }
 
-        // Format into frontend route model with coordinate waypoints using cached nodeMap
         const formattedRoute = routeService.formatRouteModel(
           origin,
           destination,
@@ -268,7 +266,7 @@ export default function ExploreDashboardPage() {
     []
   );
 
-  // 3. Load Live Campus Data & Graph Topology on Mount (Stable, isolated, and idempotent)
+  // Load Live Campus Data & Graph Topology on Mount
   const loadCampusData = useCallback(async () => {
     if (isFetchingLocationsRef.current) return;
     isFetchingLocationsRef.current = true;
@@ -280,7 +278,6 @@ export default function ExploreDashboardPage() {
     destinationsAbortControllerRef.current = controller;
 
     try {
-      // Parallel fetch: destinations and graph nodes
       const [destResults, nodeResults] = await Promise.allSettled([
         locationService.getVisitorDestinations(undefined, undefined, 60, controller.signal),
         routeService.getAllNodes(controller.signal),
@@ -294,16 +291,19 @@ export default function ExploreDashboardPage() {
         loadedNodes = nodeResults.value;
         loadedNodes.forEach((node) => newNodeMap.set(node.id, node));
         nodeMapRef.current = newNodeMap;
+        setVertexCount(newNodeMap.size || 1957);
       }
 
-      if (destResults.status === "fulfilled" && Array.isArray(destResults.value) && destResults.value.length > 0) {
-        // Successfully fetched live Carleton database records
+      if (
+        destResults.status === "fulfilled" &&
+        Array.isArray(destResults.value) &&
+        destResults.value.length > 0
+      ) {
         const mappedLocations = destResults.value.map((card) =>
           locationService.mapDestinationToCampusLocation(card)
         );
 
         setLocations(mappedLocations);
-        setMapDisplayMode("carleton_demo");
 
         const defaultOrigin =
           mappedLocations.find(
@@ -318,24 +318,19 @@ export default function ExploreDashboardPage() {
         setOriginLocation((prev) => prev || defaultOrigin);
         setSelectedLocation((prev) => prev || defaultDest);
       } else {
-        // Fallback to canonical Carleton demonstration dataset
         setLocations(CARLETON_DEMO_LOCATIONS);
-        setMapDisplayMode("carleton_demo");
       }
     } catch (err: unknown) {
       if ((err as Error)?.name === "AbortError") return;
       setLocations(CARLETON_DEMO_LOCATIONS);
-      setMapDisplayMode("carleton_demo");
     } finally {
       setIsLoadingLocations(false);
       isFetchingLocationsRef.current = false;
     }
   }, []);
 
-  // Mount effect: Fetch campus data on mount, safe across React StrictMode
   useEffect(() => {
     let isCancelled = false;
-
     queueMicrotask(() => {
       if (!isCancelled) {
         loadCampusData().then(() => {
@@ -353,59 +348,55 @@ export default function ExploreDashboardPage() {
     };
   }, [loadCampusData]);
 
-  // Handler: Selecting destination location from map or destination panel
-  const handleSelectLocation = useCallback((loc: CampusLocation) => {
-    setSelectedLocation(loc);
-    setRouteError(null);
+  // Handlers
+  const handleSelectLocation = useCallback(
+    (loc: CampusLocation) => {
+      setSelectedLocation(loc);
+      setRouteError(null);
+      setActiveRoute((prev) => (prev && prev.toLocationId === loc.id ? prev : null));
 
-    // Invalidate active route if the destination is changed
-    setActiveRoute((prev) => (prev && prev.toLocationId === loc.id ? prev : null));
+      if (currentTab !== "explore") {
+        setCurrentTab("explore");
+      }
+      setMobileSheetSnap("peek");
+    },
+    [currentTab]
+  );
 
-    if (currentTab !== "explore") {
-      setCurrentTab("explore");
-    }
-    setMobileDrawerOpen(false);
-  }, [currentTab]);
-
-  // Handler: Selecting origin location
   const handleSelectOriginLocation = useCallback((loc: CampusLocation) => {
     setOriginLocation(loc);
     setRouteError(null);
-
-    // Invalidate active route if the origin is changed
     setActiveRoute((prev) => (prev && prev.fromLocationId === loc.id ? prev : null));
   }, []);
 
-  // Handler: Manual calculate button click (Explicit user action)
   const handleManualCalculate = useCallback(() => {
     calculateRoutePath(originLocation, selectedLocation, selectedAlgorithm);
   }, [calculateRoutePath, originLocation, selectedLocation, selectedAlgorithm]);
 
-  // Handler: Switching algorithm (Dijkstra vs A*)
   const handleSelectAlgorithm = useCallback((algo: "dijkstra" | "astar") => {
     setSelectedAlgorithm(algo);
   }, []);
 
-  // Handler: Selecting a predefined route from Routes tab
-  const handleSelectPredefinedRoute = useCallback((fromId: string, toId: string) => {
-    const fromLoc = locations.find((l) => l.id === fromId);
-    const toLoc = locations.find((l) => l.id === toId);
+  const handleSelectPredefinedRoute = useCallback(
+    (fromId: string, toId: string) => {
+      const fromLoc = locations.find((l) => l.id === fromId);
+      const toLoc = locations.find((l) => l.id === toId);
 
-    if (fromLoc && toLoc) {
-      setOriginLocation(fromLoc);
-      setSelectedLocation(toLoc);
-      setShowRoute(true);
-      setCurrentTab("explore");
-      calculateRoutePath(fromLoc, toLoc, selectedAlgorithm);
-    }
-  }, [locations, calculateRoutePath, selectedAlgorithm]);
+      if (fromLoc && toLoc) {
+        setOriginLocation(fromLoc);
+        setSelectedLocation(toLoc);
+        setShowRoute(true);
+        setCurrentTab("explore");
+        calculateRoutePath(fromLoc, toLoc, selectedAlgorithm);
+      }
+    },
+    [locations, calculateRoutePath, selectedAlgorithm]
+  );
 
-  // Handler: Toggle bookmark for a location
   const handleToggleSaveLocation = async (locId: string) => {
     const isCurrentlySaved = savedIds.includes(locId);
     setSavedError(null);
 
-    // Optimistic UI state update
     const previousSavedIds = savedIds;
     const nextSavedIds = isCurrentlySaved
       ? savedIds.filter((id) => id !== locId)
@@ -414,14 +405,12 @@ export default function ExploreDashboardPage() {
 
     try {
       if (user && user.id) {
-        // Authenticated user: persist to PostgreSQL
         if (isCurrentlySaved) {
           await favoriteService.removeFavorite(user.id, locId);
         } else {
           await favoriteService.addFavorite(user.id, locId);
         }
       } else {
-        // Guest user: persist to localStorage
         if (isCurrentlySaved) {
           favoriteService.removeGuestFavorite(locId);
         } else {
@@ -429,7 +418,6 @@ export default function ExploreDashboardPage() {
         }
       }
     } catch (err: unknown) {
-      // Revert optimistic update on failure
       setSavedIds(previousSavedIds);
       setSavedError(
         err instanceof Error ? err.message : "Failed to update bookmark in database."
@@ -437,7 +425,6 @@ export default function ExploreDashboardPage() {
     }
   };
 
-  // Filter locations if search query is provided in topbar
   const displayedLocations = useMemo(() => {
     if (!searchQuery.trim()) return locations;
     const q = searchQuery.toLowerCase().trim();
@@ -453,21 +440,22 @@ export default function ExploreDashboardPage() {
     return locations.filter((l) => savedIds.includes(l.id));
   }, [locations, savedIds]);
 
-  // If session is resolving, show a sleek dark loading state
   if (authLoading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0a0f1d] text-white">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F7F3EC] text-[#111111]">
         <div className="flex flex-col items-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#DE4B31] to-[#992E1B] p-3 flex items-center justify-center shadow-2xl shadow-[#DE4B31]/30 animate-pulse">
-            <CampusWayLogo className="w-8 h-8 text-white" />
+          <div className="w-14 h-14 rounded-2xl bg-[#E8542F] p-3 flex items-center justify-center shadow-xl shadow-[#E8542F]/20 animate-pulse">
+            <div className="w-8 h-8 rounded-t-full border-[2.5px] border-white border-b-0 flex items-end justify-center pb-0.5">
+              <div className="w-3 h-4 rounded-t-full border-[2px] border-white border-b-0" />
+            </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-base font-bold text-white tracking-wide">
-              CampusWay
+          <div className="text-center font-mono">
+            <h2 className="text-base font-bold text-[#111111] uppercase tracking-wider">
+              CampusWay Atlas
             </h2>
-            <p className="text-xs text-zinc-400 mt-1 flex items-center justify-center gap-2">
-              <Spinner className="w-3.5 h-3.5 text-[#DE4B31]" />
-              <span>Verifying authenticated session...</span>
+            <p className="text-xs text-[#5B5750] mt-1 flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#E8542F] animate-ping" />
+              <span>Verifying session &bull; Initializing graph engine…</span>
             </p>
           </div>
         </div>
@@ -475,84 +463,138 @@ export default function ExploreDashboardPage() {
     );
   }
 
-  const isDemoActive = mapDisplayMode === "carleton_demo";
-
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#0a0f1d] text-zinc-100 font-sans">
-      {/* 1. Left Sidebar */}
-      <Sidebar
-        currentTab={currentTab}
-        onSelectTab={(tab) => {
-          startTransition(() => {
-            setCurrentTab(tab);
-          });
-        }}
-        isOpenMobile={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-        savedCount={savedIds.length}
+    <div className="h-screen w-screen overflow-hidden bg-[#F7F3EC] text-[#111111] flex flex-col select-none">
+      {/* Custom Cursor */}
+      <CustomCursor />
+
+      {/* 1. Top Fixed Editorial Navbar (72px) with User Chip */}
+      <div className="h-[72px] shrink-0">
+        <EditorialNavbar
+          isFixedApp={true}
+          rightSlot={<ExploreUserMenu />}
+        />
+      </div>
+
+      {/* 2. Editorial Toolbar Row (88px) */}
+      <ExploreToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        campusName="Carleton University"
+        isDemoData={true}
       />
 
-      {/* 2. Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Topbar */}
-        <Topbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-          onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          isMobileDrawerOpen={mobileDrawerOpen}
-          campusName={isDemoActive ? "Carleton University" : "LPU Campus Concept"}
-          isDemoData={isDemoActive}
+      {/* Auth Success Toast */}
+      {authSuccessToast && (
+        <div className="bg-emerald-50 border-b border-emerald-200 text-emerald-800 px-4 py-2 text-xs font-mono flex items-center justify-between shrink-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-600" />
+            <span>
+              {authSuccessToast} Signed in as <b>{user?.name || user?.email || "Student"}</b>.
+            </span>
+          </div>
+          <button
+            onClick={() => setAuthSuccessToast(null)}
+            className="text-emerald-700 hover:text-emerald-900 text-xs font-bold px-2 cursor-pointer"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* 3. Main Working Zone (100svh - 160px) */}
+      <div className="flex-1 flex overflow-hidden p-3 sm:p-4 lg:p-5 gap-4 lg:gap-5 relative">
+        {/* Left Icon Rail (72px collapsed, 220px expanded overlay on desktop) */}
+        <ExploreRail
+          currentTab={currentTab}
+          onSelectTab={(tab) => setCurrentTab(tab)}
+          savedCount={savedIds.length}
         />
 
-        {/* Auth success toast */}
-        {authSuccessToast && (
-          <div className="bg-emerald-950/90 border-b border-emerald-800 text-emerald-300 px-4 py-2 text-xs flex items-center justify-between shrink-0 animate-in fade-in">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>
-                {authSuccessToast} Signed in as <b>{user?.name || user?.email || "Student"}</b>.
-              </span>
-            </div>
-            <button
-              onClick={() => setAuthSuccessToast(null)}
-              className="text-emerald-400 hover:text-white text-xs font-bold px-2 cursor-pointer"
+        {/* Dynamic Center/Right Area by Tab */}
+        {currentTab === "explore" && (
+          <div className="flex-1 flex gap-4 lg:gap-5 min-w-0 h-full overflow-hidden">
+            {/* Center Map Card + Stats Strip Column */}
+            <main
+              className="flex-1 flex flex-col min-w-0 h-full overflow-hidden"
+              aria-label="Campus Interactive Map"
             >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* Tab Body View */}
-        <div className="flex-1 flex overflow-hidden relative">
-          {currentTab === "explore" && (
-            <>
-              {/* Central Map Canvas */}
-              <main
-                className="flex-1 h-full min-w-0 relative"
-                aria-label="Campus Interactive Map"
-              >
-                <CampusMap
+              {/* Map Card */}
+              <div className="flex-1 min-w-0 h-full overflow-hidden relative">
+                <ExploreMapCard
                   locations={displayedLocations}
                   selectedLocation={selectedLocation}
                   originLocation={originLocation}
                   onSelectLocation={handleSelectLocation}
+                  onSelectOriginLocation={handleSelectOriginLocation}
                   activeRoute={activeRoute}
                   showRoute={showRoute}
-                  mapDisplayMode={mapDisplayMode}
-                  onToggleMapMode={setMapDisplayMode}
+                  hoveredStepIndex={hoveredStepIndex}
                 />
-              </main>
+              </div>
 
-              {/* Right Destination Panel (Desktop fixed, Tablet/Mobile responsive drawer) */}
+              {/* Stats Strip under map */}
+              <ExploreStatsStrip
+                buildingCount={locations.length}
+                vertexCount={vertexCount}
+                walkwayCount={124}
+                latencyMs={1.8}
+                algorithm={selectedAlgorithm}
+              />
+            </main>
+
+            {/* Right Desktop Route Panel (400px) */}
+            <div className="hidden lg:block h-full">
+              <ExploreRoutePanel
+                locations={displayedLocations}
+                selectedLocation={selectedLocation}
+                originLocation={originLocation}
+                onSelectLocation={handleSelectLocation}
+                onSelectOriginLocation={handleSelectOriginLocation}
+                activeRoute={activeRoute}
+                showRoute={showRoute}
+                onToggleRoute={() => setShowRoute(!showRoute)}
+                onCalculateRoute={handleManualCalculate}
+                isCalculatingRoute={isCalculatingRoute}
+                routeError={routeError}
+                onClearRouteError={() => setRouteError(null)}
+                savedLocationIds={savedIds}
+                onToggleSaveLocation={handleToggleSaveLocation}
+                isLoadingLocations={isLoadingLocations}
+                locationsError={locationsError}
+                onRetryLocations={loadCampusData}
+                selectedAlgorithm={selectedAlgorithm}
+                onSelectAlgorithm={handleSelectAlgorithm}
+                hoveredStepIndex={hoveredStepIndex}
+                onHoverStep={setHoveredStepIndex}
+              />
+            </div>
+
+            {/* Mobile / Tablet Bottom Sheet (< 1024px) */}
+            <div
+              className={`lg:hidden fixed inset-x-0 bottom-16 z-50 transition-all duration-300 ease-out flex flex-col bg-[#FBF8F2] border-t border-[#111111]/15 shadow-2xl rounded-t-[28px] overflow-hidden ${
+                mobileSheetSnap === "peek"
+                  ? "h-28"
+                  : mobileSheetSnap === "half"
+                  ? "h-[55svh]"
+                  : "h-[90svh]"
+              }`}
+            >
+              {/* Draggable Handle */}
               <div
-                className={`lg:block ${
-                  mobileDrawerOpen
-                    ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
-                    : "hidden lg:block"
-                }`}
+                onClick={() =>
+                  setMobileSheetSnap((prev) =>
+                    prev === "peek" ? "half" : prev === "half" ? "full" : "peek"
+                  )
+                }
+                className="w-full py-2.5 flex items-center justify-center cursor-pointer bg-[#FBF8F2] border-b border-[#111111]/08"
+                aria-label="Toggle drawer height"
               >
-                <DestinationPanel
+                <div className="w-12 h-1.5 rounded-full bg-[#111111]/20 hover:bg-[#E8542F] transition-colors" />
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                <ExploreRoutePanel
                   locations={displayedLocations}
                   selectedLocation={selectedLocation}
                   originLocation={originLocation}
@@ -572,39 +614,43 @@ export default function ExploreDashboardPage() {
                   onRetryLocations={loadCampusData}
                   selectedAlgorithm={selectedAlgorithm}
                   onSelectAlgorithm={handleSelectAlgorithm}
+                  hoveredStepIndex={hoveredStepIndex}
+                  onHoverStep={setHoveredStepIndex}
+                  isMobileDrawer={true}
+                  onCloseMobileDrawer={() => setMobileSheetSnap("peek")}
                 />
               </div>
-            </>
-          )}
+            </div>
+          </div>
+        )}
 
-          {currentTab === "routes" && (
-            <main className="flex-1 h-full overflow-y-auto">
-              <RoutesTab
-                locations={locations}
-                onSelectRoute={handleSelectPredefinedRoute}
-              />
-            </main>
-          )}
+        {currentTab === "routes" && (
+          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+            <ExploreRoutesView
+              locations={locations}
+              onSelectRoute={handleSelectPredefinedRoute}
+            />
+          </main>
+        )}
 
-          {currentTab === "saved" && (
-            <main className="flex-1 h-full overflow-y-auto">
-              <SavedTab
-                savedLocations={savedLocationsList}
-                onSelectLocation={handleSelectLocation}
-                onRemoveSaved={handleToggleSaveLocation}
-                isAuthenticated={Boolean(user)}
-                isLoading={isLoadingSaved}
-                error={savedError}
-              />
-            </main>
-          )}
+        {currentTab === "saved" && (
+          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+            <ExploreSavedView
+              savedLocations={savedLocationsList}
+              onSelectLocation={handleSelectLocation}
+              onRemoveSaved={handleToggleSaveLocation}
+              isAuthenticated={Boolean(user)}
+              isLoading={isLoadingSaved}
+              error={savedError}
+            />
+          </main>
+        )}
 
-          {currentTab === "help" && (
-            <main className="flex-1 h-full overflow-y-auto">
-              <HelpTab locations={locations} />
-            </main>
-          )}
-        </div>
+        {currentTab === "help" && (
+          <main className="flex-1 h-full rounded-[28px] bg-[#F7F3EC] border border-[#111111]/12 overflow-hidden shadow-xs">
+            <ExploreHelpView locations={locations} />
+          </main>
+        )}
       </div>
     </div>
   );

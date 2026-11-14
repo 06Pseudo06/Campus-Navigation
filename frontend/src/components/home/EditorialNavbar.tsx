@@ -6,7 +6,12 @@ import { usePathname } from "next/navigation";
 import { MagneticButton } from "@/components/motion/MagneticButton";
 import { useSection } from "@/context/SectionContext";
 
-export function EditorialNavbar() {
+interface EditorialNavbarProps {
+  rightSlot?: React.ReactNode;
+  isFixedApp?: boolean;
+}
+
+export function EditorialNavbar({ rightSlot, isFixedApp = false }: EditorialNavbarProps = {}) {
   const [scrolled, setScrolled] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,6 +19,7 @@ export function EditorialNavbar() {
   const { isDarkSection } = useSection();
 
   useEffect(() => {
+    if (isFixedApp) return;
     let lastScrollY = window.scrollY;
 
     function handleScroll() {
@@ -38,10 +44,12 @@ export function EditorialNavbar() {
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [isFixedApp]);
 
   // Theme styling based on dark active section (Section 06, etc.)
-  const navBgClass = isDarkSection
+  const navBgClass = isFixedApp
+    ? "bg-[#F7F3EC]/95 backdrop-blur-md py-3.5 border-b border-[#111111]/12 shadow-[0_2px_12px_rgba(17,17,17,0.04)]"
+    : isDarkSection
     ? "bg-[#0E1118]/92 backdrop-blur-md py-3.5 border-b border-white/12 shadow-[0_8px_32px_rgba(0,0,0,0.36)]"
     : scrolled
     ? "bg-[#F7F3EC]/92 backdrop-blur-md py-3.5 border-b border-[#111111]/10 shadow-[0_4px_24px_-4px_rgba(17,17,17,0.06)]"
@@ -106,10 +114,16 @@ export function EditorialNavbar() {
 
           <Link
             href="/explore"
-            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass}`}
+            className={`group relative py-1 transition-colors duration-150 ${navLinkColorClass} ${
+              pathname?.startsWith("/explore") ? (isDarkSection ? "!text-white font-bold" : "!text-[#111111] font-bold") : ""
+            }`}
           >
             <span>EXPLORE</span>
-            <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
+            {pathname?.startsWith("/explore") ? (
+              <span className="absolute left-0 bottom-0 w-full h-[2px] bg-[#E8542F] rounded-full" />
+            ) : (
+              <span className="absolute left-0 bottom-0 w-0 h-[1.5px] bg-[#E8542F] transition-all duration-300 group-hover:w-full" />
+            )}
           </Link>
 
           <Link
@@ -131,27 +145,35 @@ export function EditorialNavbar() {
           {/* Clean hairline separator */}
           <span className={`h-4 w-px ${isDarkSection ? "bg-white/20" : "bg-[#111111]/15"}`} aria-hidden="true" />
 
-          {/* Magnetic Action Button: EXPLORE CAMPUS ↗ */}
-          <MagneticButton
-            href="/explore"
-            variant={isDarkSection ? "orange" : "primary"}
-            cursorLabel="EXPLORE"
-            className="px-5 py-2.5 text-[11px]"
-          >
-            <span>EXPLORE CAMPUS</span>
-            <span className={isDarkSection ? "text-white font-bold text-xs" : "text-[#E8542F] font-bold text-xs"}>↗</span>
-          </MagneticButton>
+          {/* Action Slot: Custom rightSlot (e.g. user chip) or Magnetic Button EXPLORE CAMPUS */}
+          {rightSlot ? (
+            rightSlot
+          ) : (
+            <MagneticButton
+              href="/explore"
+              variant={isDarkSection ? "orange" : "primary"}
+              cursorLabel="EXPLORE"
+              className="px-5 py-2.5 text-[11px]"
+            >
+              <span>EXPLORE CAMPUS</span>
+              <span className={isDarkSection ? "text-white font-bold text-xs" : "text-[#E8542F] font-bold text-xs"}>↗</span>
+            </MagneticButton>
+          )}
         </nav>
 
-        {/* Mobile Hamburger Trigger */}
+        {/* Mobile Action / Menu Trigger */}
         <div className="flex md:hidden items-center gap-2">
-          <Link
-            href="/explore"
-            className="px-3.5 py-1.5 rounded-full bg-[#111111] text-white text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5"
-          >
-            <span>EXPLORE</span>
-            <span className="text-[#E8542F]">↗</span>
-          </Link>
+          {rightSlot ? (
+            rightSlot
+          ) : (
+            <Link
+              href="/explore"
+              className="px-3.5 py-1.5 rounded-full bg-[#111111] text-white text-[10px] font-mono font-bold tracking-widest uppercase flex items-center gap-1.5"
+            >
+              <span>EXPLORE</span>
+              <span className="text-[#E8542F]">↗</span>
+            </Link>
+          )}
 
           <button
             type="button"

@@ -31,6 +31,23 @@
   --z-modal: 200;
   --z-intro: 999;
 
+  /* CampusWay Map-Specific Tokens */
+  --map-ground: #F1ECE2;
+  --map-grid: rgba(17, 17, 17, 0.04);
+  --map-water: #A9C6C9;
+  --map-water-edge: #8FB1B5;
+  --map-parks: #DCE4CB;
+  --map-trees: #B9C9A0;
+  --map-bldg-fill: #EAE3D7;
+  --map-bldg-stroke: #BFB5A4;
+  --map-bldg-shadow: rgba(17, 17, 17, 0.14);
+  --map-walkway: #B7AC9B;
+  --map-inferred: #D9A441;
+  --map-origin: #1F9D6B;
+  --map-destination: #E8542F;
+  --map-route-casing: #FBF8F2;
+  --map-panel-bg: #FBF8F2;
+
   --font-display: "Inter Tight", "Geist", "Neue Montreal", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
