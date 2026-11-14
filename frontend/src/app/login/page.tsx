@@ -42,23 +42,27 @@ export default function LoginPage() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const nextParam = params.get("next");
-    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
-      setRedirectPath(nextParam);
-    }
-
     const err = params.get("error");
     const notice = params.get("notice");
-    if (err === "google_not_configured") {
-      setNoticeMsg("Google OAuth credentials are not configured on the backend yet.");
-    } else if (err === "cancelled") {
-      setNoticeMsg("Google sign-in was cancelled.");
-    } else if (err === "invalid_state") {
-      setErrorMsg("Session or security state expired. Please try signing in again.");
-    } else if (notice === "logged_out") {
-      setNoticeMsg("You have been signed out successfully.");
-    } else if (err) {
-      setErrorMsg(`Authentication error: ${err}`);
-    }
+
+    const timer = setTimeout(() => {
+      if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
+        setRedirectPath(nextParam);
+      }
+      if (err === "google_not_configured") {
+        setNoticeMsg("Google OAuth credentials are not configured on the backend yet.");
+      } else if (err === "cancelled") {
+        setNoticeMsg("Google sign-in was cancelled.");
+      } else if (err === "invalid_state") {
+        setErrorMsg("Session or security state expired. Please try signing in again.");
+      } else if (notice === "logged_out") {
+        setNoticeMsg("You have been signed out successfully.");
+      } else if (err) {
+        setErrorMsg(`Authentication error: ${err}`);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // If already authenticated, redirect to destination
@@ -236,6 +240,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => {
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = "/auth/google/login";
           }}
           className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer"

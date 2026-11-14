@@ -15,6 +15,13 @@ export default function SignupPage() {
   // Wizard Steps: 1 = Details, 2 = Verify Email, 3 = Welcome & Home Building
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
+  // If already authenticated, redirect to explore
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.push("/explore");
+    }
+  }, [user, authLoading, router]);
+
   // Form Fields
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -89,6 +96,7 @@ export default function SignupPage() {
         fullName: fullName.trim(),
         email: email.trim(),
         password,
+        confirmPassword: password,
       });
 
       if (response.success) {
@@ -161,6 +169,7 @@ export default function SignupPage() {
           <button
             type="button"
             onClick={() => {
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
               window.location.href = "/auth/google/login";
             }}
             className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer"

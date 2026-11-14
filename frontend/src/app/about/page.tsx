@@ -6,7 +6,6 @@ import Link from "next/link";
 import { EditorialNavbar } from "@/components/home/EditorialNavbar";
 import { EditorialFooter } from "@/components/home/EditorialFooter";
 import { CustomCursor } from "@/components/motion/CustomCursor";
-import { HairlineDivider } from "@/components/motion/HairlineDivider";
 import { DEVELOPER_PROFILE } from "@/content/developer";
 import { isReducedMotion } from "@/lib/motion";
 import { gsap } from "gsap";
@@ -27,10 +26,12 @@ export default function AboutPage() {
 
   useEffect(() => {
     if (isReducedMotion()) {
-      setBldgCount(48);
-      setNodeCount(1957);
-      setEdgeCount(124);
-      return;
+      const raf = requestAnimationFrame(() => {
+        setBldgCount(48);
+        setNodeCount(1957);
+        setEdgeCount(124);
+      });
+      return () => cancelAnimationFrame(raf);
     }
 
     const duration = 1200;
