@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     DEFAULT_WALKING_SPEED_MPS: float = 1.3
 
     # External Provider Configuration (Integration interfaces)
+    FIREBASE_SERVICE_ACCOUNT_PATH: str = "secrets/campusway-firebase-admin.json"
+    FIREBASE_PROJECT_ID: str = "campusway-1ed82"
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"

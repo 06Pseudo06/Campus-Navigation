@@ -45,6 +45,10 @@ class GoogleLoginRequest(BaseModel):
     id_token: str = Field(..., min_length=10, description="Google OAuth ID Token from client authentication")
 
 
+class FirebaseLoginRequest(BaseModel):
+    id_token: str = Field(..., min_length=10, description="Firebase ID Token from client authentication")
+
+
 class PhoneSendOTPRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=20, description="Mobile number with country code, e.g. +919876543210")
 
