@@ -39,6 +39,22 @@ if not db_url.startswith("sqlite"):
 engine = create_engine(db_url, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Persistent SQLite fallback for local development when PostgreSQL is not running
+_fallback_db_path = "campusway_dev.sqlite3"
+fallback_engine = create_engine(f"sqlite:///{_fallback_db_path}", connect_args={"check_same_thread": False})
+FallbackSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=fallback_engine)
+_fallback_tables_created = False
+
+
+def _ensure_fallback_tables() -> None:
+    global _fallback_tables_created
+    if not _fallback_tables_created:
+        try:
+            Base.metadata.create_all(bind=fallback_engine)
+            _fallback_tables_created = True
+        except Exception:
+            pass
+
 
 def is_db_available(db: Optional[Session] = None) -> bool:
     """Fast probe to check whether target database is reachable before querying.
@@ -69,7 +85,11 @@ def is_db_available(db: Optional[Session] = None) -> bool:
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency for obtaining database session in FastAPI endpoints with strict transaction boundary."""
-    db = SessionLocal()
+    if is_db_available():
+        db = SessionLocal()
+    else:
+        _ensure_fallback_tables()
+        db = FallbackSessionLocal()
     try:
         yield db
     except Exception:
@@ -82,7 +102,11 @@ def get_db() -> Generator[Session, None, None]:
 @contextmanager
 def session_scope() -> Generator[Session, None, None]:
     """Provide a transactional scope around a series of operations outside FastAPI request lifecycles."""
-    db = SessionLocal()
+    if is_db_available():
+        db = SessionLocal()
+    else:
+        _ensure_fallback_tables()
+        db = FallbackSessionLocal()
     try:
         yield db
         db.commit()

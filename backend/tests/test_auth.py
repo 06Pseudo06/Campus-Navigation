@@ -228,3 +228,99 @@ def test_security_manager_session_tokens_and_oauth_state():
     assert data is not None
     assert data["user_id"] == "user-uuid-123"
     assert data["token_hash"] == h
+
+
+def test_firebase_auth_google_flow(client):
+    """Verify Firebase ID token verification for Google Sign-In and user registration."""
+    from app.services.firebase_auth import set_mock_firebase_verifier
+
+    mock_google_claims = {
+        "uid": "firebase-uid-google-456",
+        "email": "firebase_student@campusway.edu",
+        "email_verified": True,
+        "name": "Firebase Google Student",
+        "phone_number": None,
+        "sign_in_provider": "google.com",
+    }
+    set_mock_firebase_verifier(lambda tok: mock_google_claims)
+
+    try:
+        res = client.post("/api/v1/auth/firebase", json={"id_token": "valid_mock_firebase_google_token"})
+        assert res.status_code == 200
+        data = res.json()
+        assert "access_token" in data
+        assert data["user"]["email"] == "firebase_student@campusway.edu"
+        assert data["user"]["full_name"] == "Firebase Google Student"
+        assert any(ident["provider"] == "google" for ident in data["user"]["identities"])
+        token = data["access_token"]
+
+        # Verify profile with JWT access token
+        res_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert res_me.status_code == 200
+        assert res_me.json()["email"] == "firebase_student@campusway.edu"
+    finally:
+        set_mock_firebase_verifier(None)
+
+
+def test_firebase_auth_phone_otp_flow(client):
+    """Verify Firebase ID token verification for Phone OTP and user creation."""
+    from app.services.firebase_auth import set_mock_firebase_verifier
+
+    mock_phone_claims = {
+        "uid": "firebase-uid-phone-789",
+        "email": None,
+        "email_verified": False,
+        "name": None,
+        "phone_number": "+919876543219",
+        "sign_in_provider": "phone",
+    }
+    set_mock_firebase_verifier(lambda tok: mock_phone_claims)
+
+    try:
+        res = client.post("/api/v1/auth/firebase", json={"id_token": "valid_mock_firebase_phone_token"})
+        assert res.status_code == 200
+        data = res.json()
+        assert "access_token" in data
+        assert data["user"]["phone"] == "+919876543219"
+        assert any(ident["provider"] == "phone_otp" for ident in data["user"]["identities"])
+        token = data["access_token"]
+
+        # Verify profile
+        res_me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert res_me.status_code == 200
+        assert res_me.json()["phone"] == "+919876543219"
+    finally:
+        set_mock_firebase_verifier(None)
+
+
+def test_firebase_auth_idempotent_login(client):
+    """Verify that repeated logins with the same Firebase UID return the same user without duplicate entries."""
+    from app.services.firebase_auth import set_mock_firebase_verifier
+
+    mock_claims = {
+        "uid": "firebase-uid-idempotent-101",
+        "email": "idempotent@campusway.edu",
+        "email_verified": True,
+        "name": "Original Name",
+        "phone_number": None,
+        "sign_in_provider": "google.com",
+    }
+    set_mock_firebase_verifier(lambda tok: mock_claims)
+
+    try:
+        res1 = client.post("/api/v1/auth/firebase", json={"id_token": "mock_token_1"})
+        assert res1.status_code == 200
+        user_id_1 = res1.json()["user"]["id"]
+
+        # Login again with updated name
+        mock_claims["name"] = "Updated Name"
+        res2 = client.post("/api/v1/auth/firebase", json={"id_token": "mock_token_2"})
+        assert res2.status_code == 200
+        user_id_2 = res2.json()["user"]["id"]
+
+        # Same user ID must be returned
+        assert user_id_1 == user_id_2
+        assert res2.json()["user"]["full_name"] == "Updated Name"
+    finally:
+        set_mock_firebase_verifier(None)
+

@@ -189,7 +189,7 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
-from app.core.database import get_db
+from app.core.database import get_async_db
 from app.repositories.postgres_user_repository import PostgresUserRepository
 
 
@@ -197,11 +197,15 @@ async def get_db_optional(
     settings: Settings = Depends(get_settings),
 ) -> AsyncGenerator[Optional[AsyncSession], None]:
     """Yields an active database session when DATABASE_URL is configured, or None for in-memory mode."""
-    if not settings.is_database_configured:
+    if not getattr(settings, "is_database_configured", False):
         yield None
         return
-    async for session in get_db():
-        yield session
+    try:
+        async for session in get_async_db():
+            yield session
+    except Exception:
+        yield None
+
 
 
 def get_user_repository(

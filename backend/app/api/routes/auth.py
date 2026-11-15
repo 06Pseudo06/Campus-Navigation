@@ -7,6 +7,7 @@ from app.api.dependencies import get_current_user, get_db
 from app.core.config import settings
 from app.models.user import User
 from app.schemas.auth import (
+    FirebaseLoginRequest,
     GoogleLoginRequest,
     LoginRequest,
     MessageResponse,
@@ -85,6 +86,24 @@ def google_sign_in(
     """Authenticate or register user using a Google OAuth ID Token."""
     try:
         user, token = auth_service.authenticate_google(db, google_in.id_token)
+        return TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            expires_in_seconds=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=UserRead.model_validate(user),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post("/firebase", response_model=TokenResponse)
+def firebase_sign_in(
+    firebase_in: FirebaseLoginRequest,
+    db: Session = Depends(get_db),
+):
+    """Authenticate or register user using a client-side Firebase ID Token (Google, Phone OTP, Email)."""
+    try:
+        user, token = auth_service.authenticate_firebase(db, firebase_in.id_token)
         return TokenResponse(
             access_token=token,
             token_type="bearer",
