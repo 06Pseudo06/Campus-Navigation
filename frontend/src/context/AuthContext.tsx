@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { useRouter } from "next/navigation";
 import { UserProfile } from "@/types/auth";
 import { authService } from "@/services/authService";
+import { auth, firebaseSignOut } from "@/lib/firebase";
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
+      await firebaseSignOut(auth).catch(() => {});
       await authService.logout();
       setUser(null);
       // Redirect to login page after successful logout

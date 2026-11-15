@@ -245,6 +245,54 @@ export const authService = {
   },
 
   /**
+   * Authenticate or register user via Firebase ID Token: POST /api/v1/auth/firebase
+   */
+  async loginWithFirebase(idToken: string): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/firebase`;
+
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          id_token: idToken.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          success: false,
+          message:
+            errorData?.detail ||
+            `Firebase authentication failed (${response.status}): ${response.statusText}`,
+          isBackendConnected: true,
+        };
+      }
+
+      const result = await response.json();
+      if (result.access_token && typeof window !== "undefined") {
+        localStorage.setItem("campusway_access_token", result.access_token);
+      }
+      return {
+        success: true,
+        message: "Authentication successful.",
+        data: result,
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}. Ensure the backend service is running on port 8000.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
    * Authenticate or register user via Google OAuth ID Token: POST /api/v1/auth/google
    */
   async loginWithGoogle(idToken: string): Promise<ApiResponse> {
