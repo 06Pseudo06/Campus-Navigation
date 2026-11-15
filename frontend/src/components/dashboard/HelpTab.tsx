@@ -111,7 +111,7 @@ export function HelpTab() {
             <textarea
               value={ticketMessage}
               onChange={(e) => setTicketMessage(e.target.value)}
-              placeholder="e.g. Where is the Dean of Engineering's office located in Block 34?"
+              placeholder="e.g. How do I walk from the Main Gate to Block 1?"
               rows={3}
               className="w-full p-3 text-xs bg-zinc-950 border border-zinc-800 rounded-xl text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31]"
               required

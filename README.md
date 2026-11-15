@@ -79,7 +79,7 @@ graph TD
 
 ### 4. Interactive Frontend Dashboard (`frontend/src/`)
 - Responsive dark-theme architectural magazine UI.
-- Interactive campus exploration dashboard (`/explore`) with Block 34 navigation, popular route teasers, and saved destinations.
+- Interactive campus exploration dashboard (`/explore`) backed only by the verified Dataset C campus survey, with searchable destinations and route planning over its pedestrian graph.
 - Context-driven hero CTAs that react to user authentication status in real time.
 
 ### 5. Provenance-Aware Map Import Pipeline (`/api/v1/import`)
@@ -162,7 +162,8 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 #### Frontend (`frontend/.env.local`)
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_public_token
 ```
 
 #### Backend (`backend/.env`)

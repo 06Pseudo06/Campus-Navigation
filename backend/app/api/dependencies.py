@@ -10,9 +10,15 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.core.sync_database import get_sync_db
 from app.models.user import User
+
+
+# Re-export get_sync_db as get_db so all route modules that do
+# ``from app.api.dependencies import get_db`` receive a *synchronous* Session.
+# This matches the sync ORM calls (db.query, db.commit) used throughout the services.
+get_db = get_sync_db
 
 
 def require_admin_role(
@@ -177,4 +183,3 @@ __all__ = [
     "get_current_user_id",
     "get_current_user",
 ]
-

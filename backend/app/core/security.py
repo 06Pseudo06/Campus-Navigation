@@ -342,3 +342,106 @@ class SecurityManager:
 
 def get_security_manager() -> SecurityManager:
     return SecurityManager(settings.SESSION_SECRET)
+
+
+
+# =====================================================================
+# Base64-URL Encoding Utilities (used by QR wayfinding tokens)
+# =====================================================================
+
+import base64 as _base64
+
+
+def _b64_url_encode(data: bytes) -> str:
+    """Encode bytes to a URL-safe base64 string (no padding)."""
+    return _base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _b64_url_decode(s: str) -> bytes:
+    """Decode a URL-safe base64 string (auto-pads)."""
+    padding = 4 - len(s) % 4
+    if padding != 4:
+        s += "=" * padding
+    return _base64.urlsafe_b64decode(s)
+
+
+# =====================================================================
+# JWT Access Token Utilities (used by admin/moderator dependencies)
+# =====================================================================
+
+import jwt as _pyjwt
+
+
+def decode_access_token(token: str) -> dict:
+    """Decode and validate a JWT access token.
+
+    Returns the decoded payload dict. Raises ``ValueError`` when the token
+    is invalid, expired, or otherwise un-decodable so callers can fall
+    through to alternative auth strategies.
+    """
+    from app.core.config import settings as _cfg
+    try:
+        payload = _pyjwt.decode(
+            token,
+            _cfg.JWT_SECRET_KEY,
+            algorithms=[_cfg.JWT_ALGORITHM],
+        )
+        return payload
+    except _pyjwt.ExpiredSignatureError:
+        raise ValueError("Token has expired")
+    except _pyjwt.InvalidTokenError as exc:
+        raise ValueError(f"Invalid token: {exc}")
+
+
+def create_access_token(data: dict, expires_minutes: Optional[int] = None) -> str:
+    """Create a signed JWT access token (HS256).
+
+    ``data`` should contain at least ``{"sub": "<user_id>"}`` and optionally
+    ``{"role": "admin"}``.
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.core.config import settings as _cfg
+
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=expires_minutes or _cfg.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    to_encode.update({"exp": expire})
+    return _pyjwt.encode(to_encode, _cfg.JWT_SECRET_KEY, algorithm=_cfg.JWT_ALGORITHM)
+
+
+# =====================================================================
+# Argon2id Password Hashing Utilities
+# =====================================================================
+
+import argon2
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
+
+# Argon2id password hasher instance configured according to OWASP recommendations
+_hasher = PasswordHasher(
+    time_cost=2,
+    memory_cost=65536,
+    parallelism=1,
+    hash_len=32,
+    salt_len=16,
+    type=argon2.Type.ID,
+)
+
+
+def hash_password(password: str) -> str:
+    """Hash a plaintext password using Argon2id."""
+    return _hasher.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a plaintext password against an Argon2id hash.
+    Returns True if valid, False otherwise. Never throws.
+    """
+    if not hashed_password or not plain_password:
+        return False
+    try:
+        return _hasher.verify(hashed_password, plain_password)
+    except (VerifyMismatchError, VerificationError, InvalidHashError):
+        return False

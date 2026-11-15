@@ -1,7 +1,17 @@
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import Settings, settings
-from app.api.routes import api_router
+from app.config import Settings, get_settings
+from app.api.v1.auth import router as auth_router
+
+# --- Module Routers (Locations, Routing, Assistance, Favorites, Reports, Imports) ---
+from app.api.routes.locations import router as locations_router
+from app.api.routes.routing import router as routing_router
+from app.api.routes.assistance import router as assistance_router
+from app.api.routes.favorites import router as favorites_router
+from app.api.routes.reports import router as reports_router
+from app.api.routes.imports import router as imports_router
+
+settings = get_settings()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -27,13 +37,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Attach Complete Core API Router (Locations, Routing, Assistance, Favorites, Reports, Import, Auth)
-app.include_router(api_router, prefix=settings.API_V1_STR)
+# Mount Module Routers — Campus Map, Routing, Assistance, Favorites, Reports, Imports
+app.include_router(locations_router, prefix="/api/v1/locations", tags=["Locations"])
+app.include_router(routing_router, prefix="/api/v1/routing", tags=["Routing"])
+app.include_router(assistance_router, prefix="/api/v1/assistance", tags=["Assistance"])
+app.include_router(favorites_router, prefix="/api/v1/favorites", tags=["Favorites"])
+app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(imports_router, prefix="/api/v1/imports", tags=["Imports"])
 
 # Direct alias for browser cookie auth routes (/auth/...)
 try:
-    from app.api.v1.auth import router as auth_session_router
-    app.include_router(auth_session_router, prefix="")
+    app.include_router(auth_router, prefix="")
 except Exception:
     pass
 

@@ -83,6 +83,13 @@ coverage/
 # Database data
 pgdata/
 *.sqlite3
+*.db
+
+# Temp test/dev scripts
+backend/run_server.py
+backend/test_api_quick.py
+backend/test_db_direct.py
+backend/test_campusway.db
 
 # Editor & OS files
 .vscode/

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
@@ -11,19 +10,18 @@ import { RoutesTab } from "@/components/dashboard/RoutesTab";
 import { SavedTab } from "@/components/dashboard/SavedTab";
 import { HelpTab } from "@/components/dashboard/HelpTab";
 import {
-  SAMPLE_LOCATIONS,
+  mapBackendToFrontend,
 } from "@/data/campusData";
+import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
 import {
   CampusLocation,
   CampusRoute,
   SidebarTab,
 } from "@/types/campus";
-import { Spinner, CampusWayLogo } from "@/components/icons/Icons";
 
 export default function ExploreDashboardPage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [, startTransition] = useTransition();
 
   // Active navigation tab
@@ -36,29 +34,52 @@ export default function ExploreDashboardPage() {
   // Global search & filter query
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Location selection: default to Block 34 as requested
-  const defaultLocation =
-    SAMPLE_LOCATIONS.find((l) => l.id === "loc-block-34") || SAMPLE_LOCATIONS[0];
-  const [selectedLocation, setSelectedLocation] =
-    useState<CampusLocation | null>(defaultLocation);
+  // Dataset C locations loaded from the backend.
+  const [apiLocations, setApiLocations] = useState<CampusLocation[]>([]);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
+  const allLocations = apiLocations;
+
+  // Starting point and destination are chosen from Dataset C after it loads.
+  const [originLocation, setOriginLocation] = useState<CampusLocation | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<CampusLocation | null>(null);
 
   // Route preview state
   const [activeRoute, setActiveRoute] = useState<CampusRoute | null>(null);
-  const [showRoute, setShowRoute] = useState<boolean>(true); // Initial demo displays route to Block 34
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [showRoute, setShowRoute] = useState<boolean>(true);
 
   // Saved location IDs
-  const [savedIds, setSavedIds] = useState<string[]>(["loc-block-34", "loc-library"]);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
 
   // Success toast for OAuth redirect (?auth=success)
   const [authSuccessToast, setAuthSuccessToast] = useState<string | null>(null);
 
-  // 1. Authentication Gate
+  // Fetch public campus locations on mount.
   useEffect(() => {
-    if (!authLoading && !user) {
-      // User is not authenticated; redirect to login
-      router.push("/login?error=session_required");
+    let cancelled = false;
+    async function fetchLocations() {
+      try {
+        const backendLocations = await locationService.getLocations();
+        if (!cancelled) {
+          const mapped = backendLocations.map(mapBackendToFrontend);
+          setApiLocations(mapped);
+
+          const mainGate = mapped.find((l) => l.slug === "gate-1");
+          const block1 = mapped.find((l) => l.slug === "block-1");
+          setOriginLocation(mainGate ?? null);
+          setSelectedLocation(block1 ?? mapped.find((l) => l.id !== mainGate?.id) ?? null);
+        }
+      } catch (err) {
+        console.warn("[ExplorePage] Verified campus locations are unavailable:", err);
+      } finally {
+        if (!cancelled) setLocationsLoaded(true);
+      }
     }
-  }, [user, authLoading, router]);
+    fetchLocations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Check URL search parameters on mount
   useEffect(() => {
@@ -70,7 +91,6 @@ export default function ExploreDashboardPage() {
         setAuthSuccessToast("Successfully authenticated with Google OAuth!");
         timer = setTimeout(() => {
           setAuthSuccessToast(null);
-          // Clean URL query without reload
           window.history.replaceState({}, document.title, window.location.pathname);
         }, 4500);
       });
@@ -80,48 +100,119 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // 2. Fetch/update route whenever destination changes
+  // Calculate only after the public location catalog has loaded.
   useEffect(() => {
     let isCancelled = false;
-    if (selectedLocation) {
+
+    if (locationsLoaded && apiLocations.length === 0) {
+      queueMicrotask(() => {
+        if (!isCancelled) {
+          setActiveRoute(null);
+          setRouteError("Verified campus locations are currently unavailable.");
+        }
+      });
+    } else if (locationsLoaded && originLocation && selectedLocation && originLocation.id !== selectedLocation.id) {
+      queueMicrotask(() => {
+        if (!isCancelled) {
+          setActiveRoute(null);
+          setRouteError(null);
+        }
+      });
       routeService
-        .calculateRoute("loc-main-gate", selectedLocation.id)
+        .calculateRoute(originLocation, selectedLocation)
         .then((rt) => {
           if (!isCancelled) {
             setActiveRoute(rt);
+          }
+        })
+        .catch((err) => {
+          console.warn("[ExplorePage] Route calculation error:", err);
+          if (!isCancelled) {
+            setActiveRoute(null);
+            setRouteError(err instanceof Error ? err.message : "Unable to calculate this route.");
           }
         });
     } else {
       queueMicrotask(() => {
         if (!isCancelled) {
           setActiveRoute(null);
+          setRouteError(null);
         }
       });
     }
+
     return () => {
       isCancelled = true;
     };
-  }, [selectedLocation]);
+  }, [apiLocations.length, locationsLoaded, originLocation, selectedLocation]);
 
-  // Handler: Selecting a location from map or destination panel
-  const handleSelectLocation = (loc: CampusLocation) => {
+  // Handler: Selecting origin location
+  const handleSelectOrigin = (loc: CampusLocation) => {
+    setOriginLocation(loc);
+    setShowRoute(true);
+    if (currentTab !== "explore") setCurrentTab("explore");
+  };
+
+  // Handler: Selecting destination location
+  const handleSelectDestination = (loc: CampusLocation) => {
     setSelectedLocation(loc);
-    // When a location is selected from Routes/Saved tab, automatically switch to explore tab
-    if (currentTab !== "explore") {
-      setCurrentTab("explore");
-    }
-    // Automatically close mobile destination drawer when a location is chosen so user sees map
+    setShowRoute(true);
+    if (currentTab !== "explore") setCurrentTab("explore");
     setMobileDrawerOpen(false);
   };
 
-  // Handler: Selecting a predefined route from Routes tab
-  const handleSelectPredefinedRoute = (fromId: string, toId: string) => {
-    const targetLoc = SAMPLE_LOCATIONS.find((l) => l.id === toId);
-    if (targetLoc) {
-      setSelectedLocation(targetLoc);
-      setShowRoute(true);
-      setCurrentTab("explore");
+  // Handler: Swapping origin and destination
+  const handleSwapLocations = () => {
+    const temp = originLocation;
+    setOriginLocation(selectedLocation);
+    setSelectedLocation(temp);
+  };
+
+  // Handler: Use Current GPS location as starting point
+  const handleUseCurrentLocation = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const currentLoc: CampusLocation = {
+          id: "current-gps-location",
+          name: "My Current Location",
+          code: "GPS",
+          category: "landmark",
+          description: `Live GPS: ${pos.coords.latitude.toFixed(5)}° N, ${pos.coords.longitude.toFixed(5)}° E`,
+          coordinates: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          },
+          accessibility: "Current Location",
+          popular: false,
+        };
+        setOriginLocation(currentLoc);
+        setShowRoute(true);
+      },
+      (err) => {
+        console.warn("[Geolocation] Error acquiring position:", err);
+        alert(
+          "Could not detect your current location. Please verify that browser location permissions are granted."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Handler: Selecting a route built from the loaded Dataset C locations.
+  const handleSelectPredefinedRoute = (fromId: string, toId: string) => {
+    const origLoc = allLocations.find((l) => l.id === fromId);
+    const destLoc = allLocations.find((l) => l.id === toId);
+
+    if (origLoc) setOriginLocation(origLoc);
+    if (destLoc) setSelectedLocation(destLoc);
+
+    setShowRoute(true);
+    setCurrentTab("explore");
   };
 
   // Handler: Toggle bookmark for a location
@@ -131,53 +222,22 @@ export default function ExploreDashboardPage() {
     );
   };
 
-  // Filter locations if search query is provided in topbar
+  // 4. Search: API-powered when connected, client-side fallback
   const displayedLocations = useMemo(() => {
-    if (!searchQuery.trim()) return SAMPLE_LOCATIONS;
+    if (!searchQuery.trim()) return allLocations;
     const q = searchQuery.toLowerCase().trim();
-    return SAMPLE_LOCATIONS.filter(
+    return allLocations.filter(
       (loc) =>
         loc.name.toLowerCase().includes(q) ||
         loc.code.toLowerCase().includes(q) ||
         loc.description.toLowerCase().includes(q) ||
         loc.departments?.some((d) => d.toLowerCase().includes(q))
     );
-  }, [searchQuery]);
+  }, [searchQuery, allLocations]);
 
   const savedLocationsList = useMemo(() => {
-    return SAMPLE_LOCATIONS.filter((l) => savedIds.includes(l.id));
-  }, [savedIds]);
-
-  // If session is resolving, show a sleek dark loading state
-  if (authLoading) {
-    return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#0a0f1d] text-white">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#DE4B31] to-[#992E1B] p-3 flex items-center justify-center shadow-2xl shadow-[#DE4B31]/30 animate-pulse">
-            <CampusWayLogo className="w-8 h-8 text-white" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-base font-bold text-white tracking-wide">
-              CampusWay
-            </h2>
-            <p className="text-xs text-zinc-400 mt-1 flex items-center justify-center gap-2">
-              <Spinner className="w-3.5 h-3.5 text-[#DE4B31]" />
-              <span>Verifying authenticated session...</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated, the useEffect is redirecting to /login
-  if (!user) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#0a0f1d] text-zinc-400 text-xs">
-        Redirecting to sign-in...
-      </div>
-    );
-  }
+    return allLocations.filter((l) => savedIds.includes(l.id));
+  }, [savedIds, allLocations]);
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#0a0f1d] text-zinc-100 font-sans">
@@ -200,6 +260,9 @@ export default function ExploreDashboardPage() {
         <Topbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          locationsStatus={
+            !locationsLoaded ? "loading" : apiLocations.length > 0 ? "available" : "unavailable"
+          }
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
           isMobileDrawerOpen={mobileDrawerOpen}
@@ -211,7 +274,7 @@ export default function ExploreDashboardPage() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
               <span>
-                {authSuccessToast} Signed in as <b>{user.name || user.email}</b>.
+                {authSuccessToast} Signed in as <b>{user?.name || user?.email || "your account"}</b>.
               </span>
             </div>
             <button
@@ -234,14 +297,17 @@ export default function ExploreDashboardPage() {
               >
                 <CampusMap
                   locations={displayedLocations}
+                  originLocation={originLocation}
                   selectedLocation={selectedLocation}
-                  onSelectLocation={handleSelectLocation}
+                  onSelectLocation={handleSelectDestination}
+                  onSetOrigin={handleSelectOrigin}
+                  onSetDestination={handleSelectDestination}
                   activeRoute={activeRoute}
                   showRoute={showRoute}
                 />
               </main>
 
-              {/* Right Destination Panel (Desktop fixed, Tablet/Mobile responsive drawer) */}
+              {/* Right Destination Panel (Point A to Point B Routing) */}
               <div
                 className={`lg:block ${
                   mobileDrawerOpen
@@ -251,11 +317,16 @@ export default function ExploreDashboardPage() {
               >
                 <DestinationPanel
                   locations={displayedLocations}
+                  originLocation={originLocation}
                   selectedLocation={selectedLocation}
-                  onSelectLocation={handleSelectLocation}
+                  onSelectOrigin={handleSelectOrigin}
+                  onSelectDestination={handleSelectDestination}
+                  onSwapLocations={handleSwapLocations}
+                  onUseCurrentLocation={handleUseCurrentLocation}
                   activeRoute={activeRoute}
                   showRoute={showRoute}
                   onToggleRoute={() => setShowRoute(!showRoute)}
+                  routeError={routeError}
                   savedLocationIds={savedIds}
                   onToggleSaveLocation={handleToggleSaveLocation}
                 />
@@ -266,7 +337,7 @@ export default function ExploreDashboardPage() {
           {currentTab === "routes" && (
             <main className="flex-1 h-full overflow-y-auto">
               <RoutesTab
-                locations={SAMPLE_LOCATIONS}
+                locations={allLocations}
                 onSelectRoute={handleSelectPredefinedRoute}
               />
             </main>
@@ -276,7 +347,7 @@ export default function ExploreDashboardPage() {
             <main className="flex-1 h-full overflow-y-auto">
               <SavedTab
                 savedLocations={savedLocationsList}
-                onSelectLocation={handleSelectLocation}
+                onSelectLocation={handleSelectDestination}
                 onRemoveSaved={handleToggleSaveLocation}
               />
             </main>

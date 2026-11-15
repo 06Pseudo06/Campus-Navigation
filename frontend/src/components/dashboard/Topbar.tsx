@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
   UniversityIcon,
@@ -18,6 +19,7 @@ interface TopbarProps {
   onOpenMobileSidebar: () => void;
   onToggleMobileDrawer?: () => void;
   isMobileDrawerOpen?: boolean;
+  locationsStatus?: "loading" | "available" | "unavailable";
 }
 
 export function Topbar({
@@ -26,6 +28,7 @@ export function Topbar({
   onOpenMobileSidebar,
   onToggleMobileDrawer,
   isMobileDrawerOpen,
+  locationsStatus = "loading",
 }: TopbarProps) {
   const { user, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -83,14 +86,18 @@ export function Topbar({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-white truncate max-w-[140px] sm:max-w-[200px]">
-                Demo Campus
+                LPU Campus
               </span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700/70 text-zinc-400 font-mono">
-                Sample
+                {locationsStatus === "available"
+                  ? "Verified survey"
+                  : locationsStatus === "loading"
+                    ? "Loading locations"
+                    : "Locations unavailable"}
               </span>
             </div>
             <span className="text-[10px] text-zinc-400 hidden sm:inline">
-              Central University Quad
+              Lovely Professional University · Phagwara
             </span>
           </div>
         </div>
@@ -195,7 +202,7 @@ export function Topbar({
               </div>
 
               {/* Status information */}
-              <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80">
+              {user && <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80">
                 <div className="flex items-center justify-between">
                   <span>Authentication</span>
                   <span className="text-zinc-200 font-mono">Google OAuth 2.0</span>
@@ -204,18 +211,24 @@ export function Topbar({
                   <span>Session Storage</span>
                   <span className="text-zinc-200 font-mono">HTTP-Only Cookie</span>
                 </div>
-              </div>
+              </div>}
 
               {/* Actions */}
               <div className="p-1.5">
-                <button
+                {user ? <button
                   type="button"
                   onClick={handleSignOut}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-300 hover:text-white hover:bg-rose-950/50 rounded-xl transition-colors cursor-pointer"
                 >
                   <SignOutIcon className="w-4 h-4 text-rose-400" />
                   <span>Sign Out</span>
-                </button>
+                </button> : <Link
+                  href="/login"
+                  onClick={() => setProfileDropdownOpen(false)}
+                  className="block w-full px-3 py-2 text-xs font-medium text-center text-white bg-[#DE4B31] hover:bg-[#b83821] rounded-xl"
+                >
+                  Sign in for saved places
+                </Link>}
               </div>
             </div>
           )}

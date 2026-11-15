@@ -1,15 +1,15 @@
-export type LocationCategory = "all" | "building" | "room" | "landmark" | "gate" | "service";
+export type LocationCategory = "all" | "building" | "room" | "landmark" | "gate" | "service" | "hostel";
 
 export interface CampusCoordinates {
-  x: number; // Percentage 0-100 across map width
-  y: number; // Percentage 0-100 across map height
+  lat: number;  // GPS latitude
+  lng: number;  // GPS longitude
 }
 
 export interface CampusLocation {
   id: string;
   name: string;
   code: string;
-  category: "building" | "room" | "landmark" | "gate" | "service";
+  category: "building" | "room" | "landmark" | "gate" | "service" | "hostel";
   parentBuildingId?: string; // For rooms
   description: string;
   coordinates: CampusCoordinates;
@@ -25,14 +25,20 @@ export interface CampusLocation {
   operatingHours?: string;
   facilities?: string[];
   departments?: string[];
-  accessibility: string;
+  accessibility?: string;
   popular?: boolean;
+  // Backend-specific fields
+  slug?: string;
+  nodeId?: string; // Associated graph node ID for routing
 }
 
 export interface RouteWaypoint {
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   label?: string;
+  // Legacy SVG fields (kept for backward compat with RoutesTab/SavedTab)
+  x?: number;
+  y?: number;
 }
 
 export interface RouteStep {
@@ -55,5 +61,5 @@ export interface CampusRoute {
   isDemonstrationData: boolean;
 }
 
-export type MapLayerMode = "standard" | "blueprint" | "satellite" | "accessibility";
+export type MapLayerMode = "standard" | "dark" | "satellite" | "streets";
 export type SidebarTab = "explore" | "routes" | "saved" | "help";
