@@ -6,6 +6,19 @@ import { useAuth } from "@/context/AuthContext";
 import { PhoneIcon, Spinner, InfoIcon } from "@/components/icons/Icons";
 import { authService } from "@/services/authService";
 import { CountryCode, FormErrors } from "@/types/auth";
+import {
+  auth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
+} from "@/lib/firebase";
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
 
 const COUNTRIES: CountryCode[] = [
   { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳" },
@@ -33,6 +46,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [systemNotice, setSystemNotice] = useState<{
     type: "info" | "error" | "warning";
     message: string;
@@ -82,6 +96,25 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
     return Object.keys(errs).length === 0;
   };
 
+  const getRecaptchaVerifier = (): RecaptchaVerifier | null => {
+    if (typeof window === "undefined") return null;
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+        callback: () => {
+          // reCAPTCHA solved
+        },
+        "expired-callback": () => {
+          setSystemNotice({
+            type: "warning",
+            message: "Security check expired. Please request OTP again.",
+          });
+        },
+      });
+    }
+    return window.recaptchaVerifier;
+  };
+
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSystemNotice(null);
@@ -89,30 +122,48 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
     if (!validatePhone()) return;
 
     setLoading(true);
-    try {
-      const response = await authService.requestPhoneOtp(
-        selectedCountry,
-        phoneNumber.trim()
-      );
+    const cleanedDial = selectedCountry.trim().startsWith("+") ? selectedCountry.trim() : `+${selectedCountry.trim()}`;
+    const cleanedNumber = phoneNumber.trim().replace(/\D/g, "");
+    const fullPhone = `${cleanedDial}${cleanedNumber}`;
 
-      if (response.success) {
-        setSystemNotice({
-          type: "info",
-          message: response.message,
-        });
-        setStep("otp");
-        setCountdown(30);
-      } else {
-        setSystemNotice({
-          type: "warning",
-          message: response.message,
-        });
+    try {
+      const verifier = getRecaptchaVerifier();
+      if (!verifier) {
+        throw new Error("Unable to initialize verification widget.");
       }
-    } catch {
+
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      setConfirmationResult(confirmation);
+      window.confirmationResult = confirmation;
+
+      setSystemNotice({
+        type: "info",
+        message: `Verification code sent to ${fullPhone}. Enter the 6-digit code below.`,
+      });
+      setStep("otp");
+      setCountdown(30);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      let msg = "Failed to dispatch verification code. Please check your number and try again.";
+      if (error?.code === "auth/invalid-phone-number") {
+        msg = "The mobile phone number format is invalid.";
+      } else if (error?.code === "auth/too-many-requests") {
+        msg = "Too many attempts. Please wait a few moments before requesting a new code.";
+      } else if (error?.code === "auth/quota-exceeded") {
+        msg = "SMS daily quota reached for this project.";
+      } else if (error?.message) {
+        msg = error.message;
+      }
       setSystemNotice({
         type: "error",
-        message: "An unexpected error occurred while requesting OTP.",
+        message: msg,
       });
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = undefined;
+        } catch {}
+      }
     } finally {
       setLoading(false);
     }
@@ -124,31 +175,51 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
 
     if (!validateOtp()) return;
 
+    const conf = confirmationResult || window.confirmationResult;
+    if (!conf) {
+      setSystemNotice({
+        type: "error",
+        message: "Verification session has expired. Please request a new OTP code.",
+      });
+      setStep("phone");
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await authService.verifyPhoneOtp(
-        selectedCountry,
-        phoneNumber.trim(),
-        otp.trim()
-      );
+      // 1. Confirm OTP with Firebase
+      const credential = await conf.confirm(otp.trim());
+      const idToken = await credential.user.getIdToken();
+
+      // 2. Transmit verified token to backend PostgreSQL session endpoint
+      const response = await authService.loginWithFirebase(idToken);
 
       if (response.success) {
         setSystemNotice({
           type: "info",
-          message: response.message,
+          message: "Phone number verified and session established.",
         });
         await refreshUser();
-        router.push("/explore");
+        router.push("/explore?auth=success");
       } else {
         setSystemNotice({
           type: "error",
-          message: response.message,
+          message: response.message || "Failed to establish session with backend.",
         });
       }
-    } catch {
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      let msg = "Invalid verification code. Please verify the 6 digits and try again.";
+      if (error?.code === "auth/invalid-verification-code") {
+        msg = "Incorrect OTP code. Please enter the valid code sent to your phone.";
+      } else if (error?.code === "auth/code-expired") {
+        msg = "The verification code has expired. Please click 'Resend OTP'.";
+      } else if (error?.message) {
+        msg = error.message;
+      }
       setSystemNotice({
         type: "error",
-        message: "An unexpected error occurred while verifying OTP.",
+        message: msg,
       });
     } finally {
       setLoading(false);
@@ -160,23 +231,31 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
     setLoading(true);
     setSystemNotice(null);
 
+    const cleanedDial = selectedCountry.trim().startsWith("+") ? selectedCountry.trim() : `+${selectedCountry.trim()}`;
+    const cleanedNumber = phoneNumber.trim().replace(/\D/g, "");
+    const fullPhone = `${cleanedDial}${cleanedNumber}`;
+
     try {
-      const response = await authService.requestPhoneOtp(
-        selectedCountry,
-        phoneNumber.trim()
-      );
-      if (response.success) {
-        setSystemNotice({
-          type: "info",
-          message: response.message,
-        });
-        setCountdown(30);
-      } else {
-        setSystemNotice({
-          type: "warning",
-          message: response.message,
-        });
+      const verifier = getRecaptchaVerifier();
+      if (!verifier) {
+        throw new Error("Verification widget unavailable.");
       }
+
+      const confirmation = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      setConfirmationResult(confirmation);
+      window.confirmationResult = confirmation;
+
+      setSystemNotice({
+        type: "info",
+        message: `A new verification code has been dispatched to ${fullPhone}.`,
+      });
+      setCountdown(30);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      setSystemNotice({
+        type: "error",
+        message: error?.message || "Failed to resend verification code.",
+      });
     } finally {
       setLoading(false);
     }
@@ -184,7 +263,10 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
 
   return (
     <div className="space-y-4">
-      {/* System Status / Phase 1 Notice Banner */}
+      {/* Invisible reCAPTCHA container for Firebase Phone Auth */}
+      <div id="recaptcha-container" />
+
+      {/* System Status / Notice Banner */}
       {systemNotice && (
         <div
           role="alert"
@@ -262,7 +344,7 @@ export function PhoneOtpForm({ onBackToEmail, mode = "login" }: PhoneOtpFormProp
           </div>
 
           <p className="text-xs text-gray-500 leading-normal">
-            We will send a one-time verification code to verify your mobile number.
+            We will send a one-time verification code via SMS to verify your mobile number.
           </p>
 
           {/* Request OTP Button */}

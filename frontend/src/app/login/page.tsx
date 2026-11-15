@@ -6,6 +6,21 @@ import { useRouter } from "next/navigation";
 import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
+import {
+  auth,
+  googleProvider,
+  signInWithPopup,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  type ConfirmationResult,
+} from "@/lib/firebase";
+
+declare global {
+  interface Window {
+    recaptchaVerifier?: RecaptchaVerifier;
+    confirmationResult?: ConfirmationResult;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,6 +42,7 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpBoxes, setOtpBoxes] = useState<string[]>(["", "", "", "", "", ""]);
   const [otpCountdown, setOtpCountdown] = useState(30);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Feedback states
@@ -90,6 +106,35 @@ export default function LoginPage() {
     }
   };
 
+  // Google OAuth Popup with Firebase
+  const handleGoogleSignIn = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+    setNoticeMsg(null);
+
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const idToken = await userCredential.user.getIdToken();
+      const res = await authService.loginWithFirebase(idToken);
+
+      if (res.success) {
+        await refreshUser();
+        router.push(redirectPath);
+      } else {
+        setErrorMsg(res.message || "Failed to establish session with backend.");
+      }
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === "auth/popup-closed-by-user" || error?.code === "auth/cancelled-popup-request") {
+        return;
+      }
+      setErrorMsg(error?.message || "Google sign-in could not be completed.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Email Submit
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +158,6 @@ export default function LoginPage() {
         await refreshUser();
         router.push(redirectPath);
       } else {
-        // Generic security error message to prevent enumeration
         setErrorMsg(response.message || "Email or password is incorrect.");
       }
     } catch {
@@ -123,7 +167,7 @@ export default function LoginPage() {
     }
   };
 
-  // Request Phone OTP
+  // Request Phone OTP via Firebase
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -131,29 +175,55 @@ export default function LoginPage() {
 
     const clean = phone.replace(/\D/g, "");
     if (!clean || clean.length < 7 || clean.length > 15) {
-      setErrorMsg("Please enter a valid phone number.");
+      setErrorMsg("Please enter a valid phone number (7-15 digits).");
       return;
     }
 
+    const fullPhone = `${countryCode.trim()}${clean}`;
     setIsLoading(true);
+
     try {
-      const res = await authService.requestPhoneOtp(countryCode, phone);
-      if (res.success) {
-        setOtpSent(true);
-        setOtpCountdown(30);
-        setNoticeMsg(res.message || `Verification passcode sent to ${countryCode} ${phone}`);
-        setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
-      } else {
-        setErrorMsg(res.message || "Failed to dispatch verification code.");
+      if (typeof window !== "undefined" && !window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, "login-recaptcha-container", {
+          size: "invisible",
+          callback: () => {},
+        });
       }
-    } catch {
-      setErrorMsg("Unable to request verification code. Please try again.");
+      const verifier = window.recaptchaVerifier;
+      if (!verifier) throw new Error("Verification widget unavailable.");
+
+      const conf = await signInWithPhoneNumber(auth, fullPhone, verifier);
+      setConfirmationResult(conf);
+      window.confirmationResult = conf;
+      setOtpSent(true);
+      setOtpCountdown(30);
+      setNoticeMsg(`Verification passcode sent to ${fullPhone}.`);
+      setTimeout(() => otpInputRefs.current[0]?.focus(), 100);
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      let msg = "Failed to dispatch verification code. Please check your number.";
+      if (error?.code === "auth/invalid-phone-number") {
+        msg = "The mobile phone number format is invalid.";
+      } else if (error?.code === "auth/too-many-requests") {
+        msg = "Too many attempts. Please wait a few moments before requesting a new code.";
+      } else if (error?.code === "auth/quota-exceeded") {
+        msg = "SMS quota exceeded for this project.";
+      } else if (error?.message) {
+        msg = error.message;
+      }
+      setErrorMsg(msg);
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = undefined;
+        } catch {}
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Verify Phone OTP
+  // Verify Phone OTP via Firebase
   const handleVerifyOtp = async () => {
     const code = otpBoxes.join("").trim();
     if (code.length !== 6) {
@@ -161,18 +231,38 @@ export default function LoginPage() {
       return;
     }
 
+    const conf = confirmationResult || window.confirmationResult;
+    if (!conf) {
+      setErrorMsg("Verification session has expired. Please request a new code.");
+      setOtpSent(false);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await authService.verifyPhoneOtp(countryCode, phone, code);
+      const credential = await conf.confirm(code);
+      const idToken = await credential.user.getIdToken();
+
+      // Submit verified Firebase ID token to FastAPI backend
+      const res = await authService.loginWithFirebase(idToken);
       if (res.success) {
         await refreshUser();
         router.push(redirectPath);
       } else {
-        setErrorMsg(res.message || "Invalid or expired passcode.");
+        setErrorMsg(res.message || "Failed to establish session with backend.");
       }
-    } catch {
-      setErrorMsg("Passcode verification failed. Please try again.");
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      let msg = "Invalid verification passcode.";
+      if (error?.code === "auth/invalid-verification-code") {
+        msg = "Incorrect OTP code. Please verify the 6 digits and try again.";
+      } else if (error?.code === "auth/code-expired") {
+        msg = "The verification code has expired. Please request a new one.";
+      } else if (error?.message) {
+        msg = error.message;
+      }
+      setErrorMsg(msg);
     } finally {
       setIsLoading(false);
     }
@@ -236,14 +326,15 @@ export default function LoginPage() {
       }
     >
       <div className="space-y-5">
-        {/* Google OAuth Button (52px height) */}
+        {/* Invisible reCAPTCHA container for Phone Auth */}
+        <div id="login-recaptcha-container" />
+
+        {/* Google OAuth Button */}
         <button
           type="button"
-          onClick={() => {
-            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-            window.location.href = "/auth/google/login";
-          }}
-          className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer"
+          onClick={handleGoogleSignIn}
+          disabled={isLoading}
+          className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer disabled:opacity-60"
           aria-label="Continue with Google"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -311,7 +402,7 @@ export default function LoginPage() {
           <div
             role="alert"
             aria-live="assertive"
-            className="p-3 rounded-[12px] bg-rose-50 border border-rose-200 text-xs font-sans text-rose-800 animate-shake"
+            className="p-3 rounded-[12px] bg-rose-50 border border-rose-200 text-xs font-sans text-rose-800"
           >
             {errorMsg}
           </div>
@@ -541,7 +632,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Secondary Guest Explorer Option (Prominent but secondary) */}
+        {/* Secondary Guest Explorer Option */}
         <div className="pt-2 border-t border-[#E1DDD3] space-y-1.5 text-center">
           <Link
             href="/explore"

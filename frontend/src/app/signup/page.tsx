@@ -7,6 +7,7 @@ import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
 import { useAuth } from "@/context/AuthContext";
 import { authService } from "@/services/authService";
 import { CARLETON_DEMO_LOCATIONS } from "@/data/carletonLocations";
+import { auth, googleProvider, signInWithPopup } from "@/lib/firebase";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -69,6 +70,32 @@ export default function SignupPage() {
     }
     return () => clearTimeout(timer);
   }, [currentStep, resendCooldown]);
+
+  // Handle Google Sign-in with Firebase
+  const handleGoogleSignIn = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      const idToken = await userCredential.user.getIdToken();
+      const res = await authService.loginWithFirebase(idToken);
+      if (res.success) {
+        await refreshUser();
+        router.push("/explore?auth=welcome");
+      } else {
+        setErrorMsg(res.message || "Failed to establish session with backend.");
+      }
+    } catch (err: unknown) {
+      const error = err as { code?: string; message?: string };
+      if (error?.code === "auth/popup-closed-by-user" || error?.code === "auth/cancelled-popup-request") {
+        return;
+      }
+      setErrorMsg(error?.message || "Google sign-in could not be completed.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle Step 1 Submit
   const handleStep1Submit = async (e: React.FormEvent) => {
@@ -168,11 +195,9 @@ export default function SignupPage() {
           {/* Continue with Google */}
           <button
             type="button"
-            onClick={() => {
-              // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-              window.location.href = "/auth/google/login";
-            }}
-            className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer"
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full h-[52px] rounded-full border border-[#E1DDD3] bg-white hover:bg-[#F7F5F0] active:scale-98 text-[#0E1118] text-xs font-mono font-bold flex items-center justify-center gap-3 transition-all shadow-xs cursor-pointer disabled:opacity-60"
             aria-label="Sign up with Google"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
