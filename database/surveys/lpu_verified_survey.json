@@ -1,0 +1,557 @@
+{
+  "schema_version": 1,
+  "dataset_name": "LPU surveyed pedestrian route graph",
+  "source": "Coordinates and connections supplied by the project team in chat on 2026-11-12 and 2026-11-13",
+  "status": "confirmed_project_route_data",
+  "distance_method": "straight_line_haversine_estimate",
+  "notes": [
+    "The project team confirmed these are actual campus route points and that every listed path is open in both directions.",
+    "As requested, each path segment is modeled as a straight line between its endpoint coordinates.",
+    "Wheelchair accessibility has not been confirmed; route edges are stored as not accessibility-verified.",
+    "Block 8 (8A and 8B) shares the supplied entrance coordinate. DMS coordinates were converted to decimal degrees.",
+    "All 29 explicitly surveyed connections are bidirectional. J8 to J9 was explicitly supplied and is recorded as P-029.",
+    "Straight-line segment geometry and Haversine distances are estimates, not GPS-tracked pedestrian paths or measured walking distances."
+  ],
+  "nodes": [
+    {
+      "survey_id": "G1-ENTRY",
+      "node_type": "gate_entrance",
+      "name": "Gate 1 (Main Gate)",
+      "location_slug": "gate-1",
+      "location_type": "gate",
+      "coordinates": {
+        "latitude": 31.260565,
+        "longitude": 75.706815
+      }
+    },
+    {
+      "survey_id": "J-001",
+      "node_type": "junction",
+      "name": "Junction 1",
+      "coordinates": {
+        "latitude": 31.259467,
+        "longitude": 75.706656
+      }
+    },
+    {
+      "survey_id": "J-002",
+      "node_type": "junction",
+      "name": "Junction 2",
+      "coordinates": {
+        "latitude": 31.25949,
+        "longitude": 75.707234
+      }
+    },
+    {
+      "survey_id": "HOSTEL-GATE-ENTRY",
+      "node_type": "gate_entrance",
+      "name": "Hosteller Exit/Entry Gate",
+      "location_slug": "hosteller-exit-entry-gate",
+      "location_type": "gate",
+      "coordinates": {
+        "latitude": 31.260193,
+        "longitude": 75.707385
+      }
+    },
+    {
+      "survey_id": "MAIN-GATE-PARKING",
+      "node_type": "parking_entrance",
+      "name": "LPU Main Gate Parking",
+      "location_slug": "visitor-parking",
+      "location_type": "service",
+      "coordinates": {
+        "latitude": 31.259424,
+        "longitude": 75.705887
+      }
+    },
+    {
+      "survey_id": "BALDEV-RAJ-MITTAL-PARK",
+      "node_type": "landmark",
+      "name": "Baldev Raj Mittal Park",
+      "location_slug": "baldev-raj-mittal-park",
+      "location_type": "landmark",
+      "coordinates": {
+        "latitude": 31.258994,
+        "longitude": 75.706935
+      }
+    },
+    {
+      "survey_id": "J-003",
+      "node_type": "junction",
+      "name": "Junction 3",
+      "coordinates": {
+        "latitude": 31.258618,
+        "longitude": 75.706667
+      }
+    },
+    {
+      "survey_id": "J-004",
+      "node_type": "junction",
+      "name": "Junction 4",
+      "coordinates": {
+        "latitude": 31.25861,
+        "longitude": 75.707202
+      }
+    },
+    {
+      "survey_id": "UNIVERSITY-HOSPITAL",
+      "node_type": "building_entrance",
+      "name": "University Hospital",
+      "location_slug": "uni-hospital",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.258222,
+        "longitude": 75.706861
+      }
+    },
+    {
+      "survey_id": "BALDEV-RAJ-MITTAL-AUDITORIUM",
+      "node_type": "building_entrance",
+      "name": "Shri Baldev Raj Mittal Auditorium",
+      "location_slug": "baldev-auditorium",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.25831,
+        "longitude": 75.707822
+      }
+    },
+    {
+      "survey_id": "BLOCK-1-FASHION-DESIGN",
+      "node_type": "building_entrance",
+      "name": "Block 1 (Fashion Design)",
+      "location_slug": "block-1",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.258646,
+        "longitude": 75.708691
+      }
+    },
+    {
+      "survey_id": "J-005",
+      "node_type": "junction",
+      "name": "Junction 5",
+      "coordinates": {
+        "latitude": 31.258138,
+        "longitude": 75.70761
+      }
+    },
+    {
+      "survey_id": "J-006",
+      "node_type": "junction",
+      "name": "Junction 6",
+      "coordinates": {
+        "latitude": 31.257736,
+        "longitude": 75.707627
+      }
+    },
+    {
+      "survey_id": "J-007",
+      "node_type": "junction",
+      "name": "Junction 7",
+      "coordinates": {
+        "latitude": 31.257144,
+        "longitude": 75.707564
+      }
+    },
+    {
+      "survey_id": "CC-FOOD-COURT",
+      "node_type": "building_entrance",
+      "name": "CC Food Court",
+      "location_slug": "cc-food-court",
+      "location_type": "service",
+      "coordinates": {
+        "latitude": 31.257773,
+        "longitude": 75.708166
+      }
+    },
+    {
+      "survey_id": "BLOCK-2",
+      "node_type": "building_entrance",
+      "name": "Block 2",
+      "location_slug": "block-2",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.257531,
+        "longitude": 75.707387
+      }
+    },
+    {
+      "survey_id": "J-008",
+      "node_type": "junction",
+      "name": "Junction 8",
+      "coordinates": {
+        "latitude": 31.257115,
+        "longitude": 75.707091
+      }
+    },
+    {
+      "survey_id": "J-009",
+      "node_type": "junction",
+      "name": "Junction 9",
+      "coordinates": {
+        "latitude": 31.25707,
+        "longitude": 75.706619
+      }
+    },
+    {
+      "survey_id": "TRACER",
+      "node_type": "building_entrance",
+      "name": "Tracer",
+      "location_slug": "tracer",
+      "location_type": "landmark",
+      "coordinates": {
+        "latitude": 31.256946,
+        "longitude": 75.707421
+      }
+    },
+    {
+      "survey_id": "BLOCK-8",
+      "node_type": "building_entrance",
+      "name": "Block 8 (8A & 8B)",
+      "location_slug": "block-8",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.2569166667,
+        "longitude": 75.7070833333
+      }
+    },
+    {
+      "survey_id": "J-010",
+      "node_type": "junction",
+      "name": "Junction 10",
+      "coordinates": {
+        "latitude": 31.256792,
+        "longitude": 75.706429
+      }
+    },
+    {
+      "survey_id": "BLOCK-8C",
+      "node_type": "building_entrance",
+      "name": "Block 8C (Product and Industrial Block)",
+      "location_slug": "block-8c",
+      "location_type": "building",
+      "coordinates": {
+        "latitude": 31.256681,
+        "longitude": 75.706516
+      }
+    },
+    {
+      "survey_id": "GH2-SECURITY-OFFICE",
+      "node_type": "building_entrance",
+      "name": "GH2 Security Office",
+      "location_slug": "gh-2-security-office",
+      "location_type": "service",
+      "coordinates": {
+        "latitude": 31.256919,
+        "longitude": 75.706063
+      }
+    },
+    {
+      "survey_id": "GH-2",
+      "node_type": "building_entrance",
+      "name": "Girls Hostel 2 (GH-2)",
+      "location_slug": "gh-2",
+      "location_type": "hostel",
+      "coordinates": {
+        "latitude": 31.256989,
+        "longitude": 75.706048
+      }
+    },
+    {
+      "survey_id": "J-011",
+      "node_type": "junction",
+      "name": "Junction 11",
+      "coordinates": {
+        "latitude": 31.256366,
+        "longitude": 75.706299
+      }
+    },
+    {
+      "survey_id": "MB-FOOD-SQUARE",
+      "node_type": "building_entrance",
+      "name": "MB Food Square",
+      "location_slug": "mb-food-square",
+      "location_type": "service",
+      "coordinates": {
+        "latitude": 31.256442,
+        "longitude": 75.708606
+      }
+    },
+    {
+      "survey_id": "J-012",
+      "node_type": "junction",
+      "name": "Junction 12",
+      "coordinates": {
+        "latitude": 31.256142,
+        "longitude": 75.706096
+      }
+    }
+  ],
+  "segments": [
+    {
+      "survey_id": "P-001",
+      "from": "G1-ENTRY",
+      "to": "J-001",
+      "path_type": "footpath",
+      "distance_m": 123.0,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-002",
+      "from": "J-001",
+      "to": "J-002",
+      "path_type": "footpath",
+      "distance_m": 55.0,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-003",
+      "from": "J-002",
+      "to": "HOSTEL-GATE-ENTRY",
+      "path_type": "footpath",
+      "distance_m": 79.5,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-004",
+      "from": "MAIN-GATE-PARKING",
+      "to": "J-001",
+      "path_type": "footpath",
+      "distance_m": 73.3,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-005",
+      "from": "J-001",
+      "to": "BALDEV-RAJ-MITTAL-PARK",
+      "path_type": "footpath",
+      "distance_m": 58.9,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-006",
+      "from": "J-001",
+      "to": "J-003",
+      "path_type": "footpath",
+      "distance_m": 94.4,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-007",
+      "from": "J-003",
+      "to": "UNIVERSITY-HOSPITAL",
+      "path_type": "footpath",
+      "distance_m": 47.7,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-008",
+      "from": "J-003",
+      "to": "J-004",
+      "path_type": "footpath",
+      "distance_m": 50.9,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-009",
+      "from": "J-004",
+      "to": "UNIVERSITY-HOSPITAL",
+      "path_type": "footpath",
+      "distance_m": 53.9,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-010",
+      "from": "J-004",
+      "to": "BALDEV-RAJ-MITTAL-AUDITORIUM",
+      "path_type": "footpath",
+      "distance_m": 67.7,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-011",
+      "from": "J-004",
+      "to": "BLOCK-1-FASHION-DESIGN",
+      "path_type": "footpath",
+      "distance_m": 141.6,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-012",
+      "from": "BALDEV-RAJ-MITTAL-AUDITORIUM",
+      "to": "BLOCK-1-FASHION-DESIGN",
+      "path_type": "footpath",
+      "distance_m": 90.7,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-013",
+      "from": "J-004",
+      "to": "J-005",
+      "path_type": "footpath",
+      "distance_m": 65.3,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-014",
+      "from": "BALDEV-RAJ-MITTAL-AUDITORIUM",
+      "to": "J-005",
+      "path_type": "footpath",
+      "distance_m": 27.8,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-015",
+      "from": "J-006",
+      "to": "J-007",
+      "path_type": "footpath",
+      "distance_m": 66.1,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-016",
+      "from": "J-006",
+      "to": "CC-FOOD-COURT",
+      "path_type": "footpath",
+      "distance_m": 51.4,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-017",
+      "from": "J-006",
+      "to": "BLOCK-2",
+      "path_type": "footpath",
+      "distance_m": 32.2,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-018",
+      "from": "J-007",
+      "to": "J-008",
+      "path_type": "footpath",
+      "distance_m": 45.1,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-019",
+      "from": "J-003",
+      "to": "J-009",
+      "path_type": "footpath",
+      "distance_m": 172.2,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-020",
+      "from": "J-007",
+      "to": "TRACER",
+      "path_type": "footpath",
+      "distance_m": 25.9,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-021",
+      "from": "J-008",
+      "to": "BLOCK-8",
+      "path_type": "footpath",
+      "distance_m": 22.1,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-022",
+      "from": "J-009",
+      "to": "J-010",
+      "path_type": "footpath",
+      "distance_m": 35.8,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-023",
+      "from": "J-010",
+      "to": "BLOCK-8C",
+      "path_type": "footpath",
+      "distance_m": 14.9,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-024",
+      "from": "J-010",
+      "to": "GH2-SECURITY-OFFICE",
+      "path_type": "footpath",
+      "distance_m": 37.5,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-025",
+      "from": "J-010",
+      "to": "GH-2",
+      "path_type": "footpath",
+      "distance_m": 42.3,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-026",
+      "from": "J-010",
+      "to": "J-011",
+      "path_type": "footpath",
+      "distance_m": 49.0,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-027",
+      "from": "J-011",
+      "to": "MB-FOOD-SQUARE",
+      "path_type": "footpath",
+      "distance_m": 219.5,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-028",
+      "from": "J-011",
+      "to": "J-012",
+      "path_type": "footpath",
+      "distance_m": 31.5,
+      "bidirectional": true,
+      "is_accessible": false
+    },
+    {
+      "survey_id": "P-029",
+      "from": "J-008",
+      "to": "J-009",
+      "path_type": "footpath",
+      "distance_m": 45.1,
+      "bidirectional": true,
+      "is_accessible": false
+    }
+  ],
+  "coordinate_order": "latitude_longitude_named_fields",
+  "mapbox_geojson_coordinate_order": "longitude_latitude",
+  "geometry_accuracy": "approximate_straight_line_between_surveyed_nodes",
+  "distance_accuracy": "straight_line_haversine_estimate_not_measured_walk_distance"
+}

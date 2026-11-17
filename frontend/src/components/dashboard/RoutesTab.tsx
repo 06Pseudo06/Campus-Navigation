@@ -12,44 +12,52 @@ interface RoutesTabProps {
 export function RoutesTab({ onSelectRoute }: RoutesTabProps) {
   const popularRoutes = [
     {
-      fromId: "loc-main-gate",
-      toId: "loc-block-34",
-      title: "Main Gate → Block 34 (Academic Quad)",
+      fromId: "gate-1",
+      toId: "block-1",
+      title: "Gate 1 (Main Gate) → Block 1 (Fashion Design)",
       minutes: 4,
-      distance: 280,
-      description: "Direct walkway via South Boulevard and Central Plaza.",
+      distance: 310,
+      description: "Walk via Junctions 1, 3, and 4 along East Central Promenade.",
     },
     {
-      fromId: "loc-main-gate",
-      toId: "loc-library",
-      title: "Main Gate → Central Library",
-      minutes: 7,
-      distance: 480,
-      description: "Northbound pedestrian route through the main garden promenade.",
+      fromId: "gate-1",
+      toId: "baldev-auditorium",
+      title: "Gate 1 → Shri Baldev Raj Mittal Auditorium",
+      minutes: 4,
+      distance: 336,
+      description: "Direct walkway via Junctions 1, 3, and 4.",
     },
     {
-      fromId: "loc-north-gate",
-      toId: "loc-engineering",
-      title: "North Gate → Engineering Block",
+      fromId: "gate-1",
+      toId: "uni-hospital",
+      title: "Gate 1 → University Hospital",
       minutes: 3,
-      distance: 210,
-      description: "Direct access path past the Science Courtyard.",
+      distance: 265,
+      description: "Quick emergency path via Junctions 1 and 3.",
     },
     {
-      fromId: "loc-admin",
-      toId: "loc-cafeteria",
-      title: "Admin Block → Cafeteria & Food Court",
-      minutes: 4,
-      distance: 270,
-      description: "Level paved connector walkway past the central fountain.",
+      fromId: "gate-1",
+      toId: "gh-2",
+      title: "Gate 1 → Girls Hostel 2 (GH-2)",
+      minutes: 6,
+      distance: 468,
+      description: "South central pathway via Junctions 1, 3, 9, and 10.",
     },
     {
-      fromId: "loc-sports",
-      toId: "loc-block-25",
-      title: "Sports Complex → Block 25 (Computer Science)",
-      minutes: 5,
-      distance: 330,
-      description: "West cross-campus pathway with shaded seating.",
+      fromId: "block-1",
+      toId: "mb-food-square",
+      title: "Block 1 → MB Food Square",
+      minutes: 7,
+      distance: 512,
+      description: "Cross-campus route past Baldev Auditorium and south junctions.",
+    },
+    {
+      fromId: "block-2",
+      toId: "cc-food-court",
+      title: "Block 2 → CC Food Court",
+      minutes: 2,
+      distance: 84,
+      description: "Direct walkway via Junction 6.",
     },
   ];
 
@@ -64,7 +72,7 @@ export function RoutesTab({ onSelectRoute }: RoutesTabProps) {
           Common Campus Navigation Routes
         </h2>
         <p className="text-sm text-zinc-400 mt-1">
-          Select a popular route to instantly visualize the step-by-step path on the campus map.
+          Select a verified survey route to immediately visualize the Dijkstra path on the interactive map.
         </p>
       </div>
 
@@ -103,9 +111,9 @@ export function RoutesTab({ onSelectRoute }: RoutesTabProps) {
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 text-xs text-zinc-500">
+      <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 text-xs text-zinc-400">
         <p>
-          <strong className="text-zinc-400">Notice:</strong> Automated route graph calculation is using pre-configured demonstration pathways. Dynamic multi-floor algorithmic pathfinding will be connected to the FastAPI Route Service in Phase 4.
+          <strong className="text-zinc-300">Dataset C Specification:</strong> Routes are calculated across the verified 27-node, 29-segment LPU pedestrian graph using Dijkstra and A* pathfinding.
         </p>
       </div>
     </div>

@@ -3,6 +3,9 @@ import {
   SignupFormData,
   ApiResponse,
   UserProfile,
+  ProfileUpdateData,
+  ChangePasswordData,
+  DeleteAccountData,
 } from "@/types/auth";
 
 /**
@@ -279,6 +282,132 @@ export const authService = {
       return user;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Update authenticated user profile name.
+   */
+  async updateProfile(data: ProfileUpdateData): Promise<ApiResponse<UserProfile>> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/profile`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ name: data.name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        return {
+          success: false,
+          message: errorData?.detail || `Profile update failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      const user: UserProfile = await response.json();
+      return {
+        success: true,
+        message: "Profile updated successfully.",
+        data: user,
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
+   * Change password for email-authenticated user.
+   */
+  async changePassword(data: ChangePasswordData): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/change-password`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          current_password: data.currentPassword,
+          new_password: data.newPassword,
+          confirm_password: data.confirmPassword || data.newPassword,
+        }),
+      });
+
+      const resData = await response.json().catch(() => null);
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData?.detail || `Password change failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      return {
+        success: true,
+        message: resData?.message || "Password changed successfully.",
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
+    }
+  },
+
+  /**
+   * Permanently delete user account.
+   */
+  async deleteAccount(data: DeleteAccountData): Promise<ApiResponse> {
+    const endpoint = `${API_BASE_URL}/api/v1/auth/account`;
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          confirm_text: data.confirmText,
+          password: data.password || null,
+        }),
+      });
+
+      const resData = await response.json().catch(() => null);
+      if (!response.ok) {
+        return {
+          success: false,
+          message: resData?.detail || `Account deletion failed (${response.status}).`,
+          isBackendConnected: true,
+        };
+      }
+
+      return {
+        success: true,
+        message: resData?.message || "Your account has been permanently deleted.",
+        isBackendConnected: true,
+      };
+    } catch {
+      return {
+        success: false,
+        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        isBackendConnected: false,
+      };
     }
   },
 

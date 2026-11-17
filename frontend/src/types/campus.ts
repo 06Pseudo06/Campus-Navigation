@@ -1,16 +1,25 @@
-export type LocationCategory = "all" | "building" | "room" | "landmark" | "gate" | "service";
+export type LocationCategory =
+  | "all"
+  | "building"
+  | "room"
+  | "landmark"
+  | "gate"
+  | "service"
+  | "hostel";
 
 export interface CampusCoordinates {
-  x: number; // Percentage 0-100 across map width
-  y: number; // Percentage 0-100 across map height
+  lat: number; // GPS latitude (WGS84)
+  lng: number; // GPS longitude (WGS84)
+  x?: number;  // Projected/Vector coordinate (0-1000)
+  y?: number;  // Projected/Vector coordinate (0-700)
 }
 
 export interface CampusLocation {
   id: string;
   name: string;
   code: string;
-  category: "building" | "room" | "landmark" | "gate" | "service";
-  parentBuildingId?: string; // For rooms
+  category: "building" | "room" | "landmark" | "gate" | "service" | "hostel";
+  parentBuildingId?: string;
   description: string;
   coordinates: CampusCoordinates;
   buildingShape?: {
@@ -25,13 +34,17 @@ export interface CampusLocation {
   operatingHours?: string;
   facilities?: string[];
   departments?: string[];
-  accessibility: string;
+  accessibility?: string;
   popular?: boolean;
+  slug?: string;
+  nodeId?: string;
 }
 
 export interface RouteWaypoint {
-  x: number;
-  y: number;
+  lat?: number;
+  lng?: number;
+  x?: number;
+  y?: number;
   label?: string;
 }
 
@@ -55,5 +68,5 @@ export interface CampusRoute {
   isDemonstrationData: boolean;
 }
 
-export type MapLayerMode = "standard" | "blueprint" | "satellite" | "accessibility";
+export type MapLayerMode = "standard" | "dark" | "satellite" | "streets" | "blueprint";
 export type SidebarTab = "explore" | "routes" | "saved" | "help";

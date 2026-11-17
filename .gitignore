@@ -19,7 +19,7 @@ frontend/.next/
 frontend/out/
 frontend/build/
 
-# Environment files (preserve examples)
+# Environment and Secret files (preserve examples)
 *.env
 *.env.*
 .env*.local
@@ -34,6 +34,10 @@ backend/.env
 **/.env
 **/.env.*
 !**/.env.example
+backend/secrets/
+secrets/
+*.pem
+*.key
 
 # Python virtual environments
 venv/
@@ -83,6 +87,9 @@ coverage/
 # Database data
 pgdata/
 *.sqlite3
+backups/
+*.dump
+*.sql
 
 # Editor & OS files
 .vscode/
@@ -108,3 +115,6 @@ yarn-error.log*
 pnpm-debug.log*
 .pnpm-debug.log*
 lerna-debug.log*
+
+# Scratch & temporary development files
+scratch/

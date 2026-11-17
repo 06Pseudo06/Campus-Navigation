@@ -12,7 +12,11 @@ from app.core.security import (
     verify_password,
 )
 from app.schemas.user import (
+    ActionMessageResponse,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
     LogoutResponse,
+    ProfileUpdateRequest,
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
@@ -21,6 +25,96 @@ from app.services.google_auth import GoogleOAuthService, get_google_oauth_servic
 from app.services.user_store import get_user_repository
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def _build_user_response(user: Any, session_record: Any = None) -> UserResponse:
+    """Helper to populate UserResponse with enriched auth and session metadata."""
+    auth_provider = "google" if getattr(user, "google_sub", None) else "email"
+    has_password = bool(getattr(user, "password_hash", None))
+    token_hash = getattr(session_record, "token_hash", "") if session_record else ""
+    session_id = f"sess_{token_hash[:10]}" if token_hash else None
+    expires_at = getattr(session_record, "expires_at", None) if session_record else None
+
+    return UserResponse(
+        id=str(user.id),
+        email=user.email,
+        name=user.name,
+        picture=user.picture,
+        email_verified=user.email_verified,
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+        auth_provider=auth_provider,
+        has_password=has_password,
+        role=getattr(user, "role", "student"),
+        session_id=session_id,
+        session_expires_at=expires_at,
+    )
+
+
+async def _get_authenticated_user_and_session(
+    request: Request,
+    settings: Settings,
+    security_manager: SecurityManager,
+    user_repo: Any,
+) -> tuple[Any, Any]:
+    """Helper to validate session cookie, token hash, revocation, expiry, and active status."""
+    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if not session_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    token_data = security_manager.extract_session_token_data(
+        session_token=session_token,
+        max_age_seconds=settings.SESSION_REMEMBER_ME_MAX_AGE_SECONDS,
+    )
+    if not token_data or "user_id" not in token_data or "token_hash" not in token_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or invalid",
+        )
+
+    session_record = await _resolve(
+        user_repo.get_session_by_token_hash(token_data["token_hash"])
+    )
+    if not session_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or invalid",
+        )
+
+    if getattr(session_record, "is_revoked", False):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session has been revoked",
+        )
+
+    now = datetime.now(timezone.utc)
+    expires_at = getattr(session_record, "expires_at", None)
+    if expires_at:
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= now:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session expired or invalid",
+            )
+
+    user = await _resolve(user_repo.get_by_id(token_data["user_id"]))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found in session store",
+        )
+
+    if not getattr(user, "is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive. Please contact support.",
+        )
+
+    return user, session_record
 
 
 async def _resolve(val: Any) -> Any:
@@ -288,15 +382,11 @@ async def register(
         path="/",
     )
 
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        name=user.name,
-        picture=user.picture,
-        email_verified=user.email_verified,
-        created_at=user.created_at,
-        last_login_at=user.last_login_at,
-    )
+    session_record = type("TempSession", (), {
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+    })()
+    return _build_user_response(user, session_record)
 
 
 @router.post(
@@ -384,15 +474,11 @@ async def login(
         path="/",
     )
 
-    return UserResponse(
-        id=updated_user.id,
-        email=updated_user.email,
-        name=updated_user.name,
-        picture=updated_user.picture,
-        email_verified=updated_user.email_verified,
-        created_at=updated_user.created_at,
-        last_login_at=updated_user.last_login_at,
-    )
+    session_record = type("TempSession", (), {
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+    })()
+    return _build_user_response(updated_user, session_record)
 
 
 @router.get("/me", response_model=UserResponse, summary="Get Current Authenticated User")
@@ -406,74 +492,159 @@ async def get_current_user(
     Returns the currently authenticated user's profile from the session cookie.
     Rejects unauthenticated, revoked, or expired sessions with 401.
     """
-    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    if not session_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    # 1. Cryptographic signature and envelope extraction (up to max remember_me window)
-    token_data = security_manager.extract_session_token_data(
-        session_token=session_token,
-        max_age_seconds=settings.SESSION_REMEMBER_ME_MAX_AGE_SECONDS,
+    user, session_record = await _get_authenticated_user_and_session(
+        request, settings, security_manager, user_repo
     )
-    if not token_data or "user_id" not in token_data or "token_hash" not in token_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or invalid",
-        )
+    return _build_user_response(user, session_record)
 
-    # 2. Server-side session validation
-    session_record = await _resolve(
-        user_repo.get_session_by_token_hash(token_data["token_hash"])
+
+@router.patch("/profile", response_model=UserResponse, summary="Update User Profile Information")
+async def update_profile(
+    payload: ProfileUpdateRequest,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    security_manager: SecurityManager = Depends(get_security_manager),
+    user_repo: Any = Depends(get_user_repository),
+):
+    """
+    Updates editable profile details (e.g. display name) for the authenticated user.
+    """
+    user, session_record = await _get_authenticated_user_and_session(
+        request, settings, security_manager, user_repo
     )
-    if not session_record:
+
+    clean_name = (payload.name or payload.full_name or "").strip()
+    if not clean_name:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or invalid",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name cannot be empty.",
         )
 
-    # 3. Server-side revocation check
-    if getattr(session_record, "is_revoked", False):
+    updated_user = await _resolve(user_repo.update_profile(user.id, clean_name))
+    if not updated_user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session has been revoked",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update profile.",
         )
 
-    # 4. Server-side expiration check
-    now = datetime.now(timezone.utc)
-    expires_at = getattr(session_record, "expires_at", None)
-    if expires_at:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if expires_at <= now:
+    return _build_user_response(updated_user, session_record)
+
+
+@router.post("/change-password", response_model=ActionMessageResponse, summary="Change Password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    security_manager: SecurityManager = Depends(get_security_manager),
+    user_repo: Any = Depends(get_user_repository),
+):
+    """
+    Changes the password for an email/password account after verifying the current password.
+    Rejects requests from Google-only accounts that have no password credentials.
+    """
+    user, _ = await _get_authenticated_user_and_session(
+        request, settings, security_manager, user_repo
+    )
+
+    # 1. Reject Google-only accounts lacking password credentials
+    if not getattr(user, "password_hash", None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account signs in with Google and does not use a password.",
+        )
+
+    # 2. Verify current password
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect current password.",
+        )
+
+    # 3. Reject identical new password
+    if payload.current_password == payload.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password cannot be the same as your current password.",
+        )
+
+    # 4. Hash with Argon2id and update credentials
+    new_hash = hash_password(payload.new_password)
+    success = await _resolve(user_repo.update_password(user.id, new_hash))
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password.",
+        )
+
+    return ActionMessageResponse(
+        success=True,
+        message="Password changed successfully.",
+    )
+
+
+@router.delete("/account", response_model=ActionMessageResponse, summary="Permanently Delete Account")
+async def delete_account(
+    payload: DeleteAccountRequest,
+    request: Request,
+    response: Response,
+    settings: Settings = Depends(get_settings),
+    security_manager: SecurityManager = Depends(get_security_manager),
+    user_repo: Any = Depends(get_user_repository),
+):
+    """
+    Permanently deletes the authenticated user's account and personal data.
+    Requires 'DELETE' confirmation word and current password verification (for email accounts).
+    Revokes the active session and clears the session cookie.
+    """
+    user, session_record = await _get_authenticated_user_and_session(
+        request, settings, security_manager, user_repo
+    )
+
+    # 1. Validate confirmation word
+    if payload.confirm_text.strip().upper() != "DELETE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation text must be 'DELETE' to confirm permanent account deletion.",
+        )
+
+    # 2. If account has password credentials, verify password
+    if getattr(user, "password_hash", None):
+        if not payload.password:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Session expired or invalid",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is required to confirm account deletion.",
+            )
+        if not verify_password(payload.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Incorrect password. Account deletion aborted.",
             )
 
-    user = await _resolve(user_repo.get_by_id(token_data["user_id"]))
-    if not user:
+    # 3. Revoke active session server-side
+    token_hash = getattr(session_record, "token_hash", None)
+    if token_hash:
+        await _resolve(user_repo.revoke_session(token_hash))
+
+    # 4. Delete user record (cascades to credentials, identities, sessions)
+    deleted = await _resolve(user_repo.delete_user(user.id))
+    if not deleted:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found in session store",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete account.",
         )
 
-    if not getattr(user, "is_active", True):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive. Please contact support.",
-        )
+    # 5. Clear session cookie
+    response.delete_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.is_production,
+    )
 
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        name=user.name,
-        picture=user.picture,
-        email_verified=user.email_verified,
-        created_at=user.created_at,
-        last_login_at=user.last_login_at,
+    return ActionMessageResponse(
+        success=True,
+        message="Your account and personal data have been permanently deleted.",
     )
 
 
