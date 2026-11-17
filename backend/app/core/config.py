@@ -57,6 +57,10 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT.lower() == "production"
 
     @property
+    def is_database_configured(self) -> bool:
+        return bool(self.DATABASE_URL and self.DATABASE_URL.strip() and not self.DATABASE_URL.startswith("sqlite:///:memory:"))
+
+    @property
     def is_google_configured(self) -> bool:
         return bool(
             self.GOOGLE_CLIENT_ID

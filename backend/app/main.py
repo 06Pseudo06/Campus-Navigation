@@ -30,10 +30,11 @@ app.add_middleware(
 # Attach Complete Core API Router (Locations, Routing, Assistance, Favorites, Reports, Import, Auth)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Direct alias for browser cookie auth routes (/auth/...)
+# Direct alias for browser cookie auth routes (/auth/... and /api/v1/auth/...)
 try:
     from app.api.v1.auth import router as auth_session_router
     app.include_router(auth_session_router, prefix="")
+    app.include_router(auth_session_router, prefix="/api/v1")
 except Exception:
     pass
 

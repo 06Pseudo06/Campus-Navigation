@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
   UniversityIcon,
@@ -11,6 +12,7 @@ import {
   CloseIcon,
   CheckCircleIcon,
 } from "./DashboardIcons";
+import { ThemeDropdownSection } from "@/components/theme/ThemeToggle";
 
 interface TopbarProps {
   searchQuery: string;
@@ -18,6 +20,7 @@ interface TopbarProps {
   onOpenMobileSidebar: () => void;
   onToggleMobileDrawer?: () => void;
   isMobileDrawerOpen?: boolean;
+  locationsStatus?: "loading" | "available" | "unavailable";
 }
 
 export function Topbar({
@@ -26,6 +29,7 @@ export function Topbar({
   onOpenMobileSidebar,
   onToggleMobileDrawer,
   isMobileDrawerOpen,
+  locationsStatus,
 }: TopbarProps) {
   const { user, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -75,7 +79,7 @@ export function Topbar({
           </svg>
         </button>
 
-        {/* University Selector (clearly labelled demonstration placeholder) */}
+        {/* University Selector (LPU Campus Branding) */}
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-800/80 border border-zinc-700/70 text-zinc-200">
           <div className="w-6 h-6 rounded-lg bg-zinc-700/80 flex items-center justify-center text-[#DE4B31] shrink-0">
             <UniversityIcon className="w-3.5 h-3.5" />
@@ -83,14 +87,14 @@ export function Topbar({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-white truncate max-w-[140px] sm:max-w-[200px]">
-                Demo Campus
+                LPU Campus
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-700/70 text-zinc-400 font-mono">
-                Sample
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 font-mono">
+                Dataset C
               </span>
             </div>
             <span className="text-[10px] text-zinc-400 hidden sm:inline">
-              Central University Quad
+              Lovely Professional University &bull; Phagwara
             </span>
           </div>
         </div>
@@ -194,11 +198,16 @@ export function Topbar({
                 )}
               </div>
 
+              {/* Theme Dropdown Section */}
+              <ThemeDropdownSection />
+
               {/* Status information */}
               <div className="px-4 py-2.5 text-[11px] text-zinc-400 border-b border-zinc-800/80">
                 <div className="flex items-center justify-between">
                   <span>Authentication</span>
-                  <span className="text-zinc-200 font-mono">Google OAuth 2.0</span>
+                  <span className="text-zinc-200 font-mono">
+                    {user?.auth_provider === "google" ? "Google OAuth 2.0" : "Email & Password"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span>Session Storage</span>
@@ -207,7 +216,17 @@ export function Topbar({
               </div>
 
               {/* Actions */}
-              <div className="p-1.5">
+              <div className="p-1.5 space-y-1">
+                <Link
+                  href="/profile"
+                  onClick={() => setProfileDropdownOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                >
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Profile & Settings</span>
+                </Link>
                 <button
                   type="button"
                   onClick={handleSignOut}

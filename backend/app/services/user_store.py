@@ -168,6 +168,44 @@ class InMemoryUserRepository:
         data["revoked_at"] = datetime.now(timezone.utc)
         return True
 
+    def update_profile(self, user_id: str, name: str) -> Optional[UserProfile]:
+        """Update editable profile information (name)."""
+        user = self.get_by_id(str(user_id))
+        if not user:
+            return None
+        updated = user.model_copy(update={"name": name.strip(), "last_login_at": datetime.now(timezone.utc)})
+        self._users_by_id[str(user_id)] = updated
+        return updated
+
+    def update_password(self, user_id: str, new_password_hash: str) -> bool:
+        """Update password_hash for user in memory."""
+        user = self.get_by_id(str(user_id))
+        if not user:
+            return False
+        updated = user.model_copy(update={"password_hash": new_password_hash, "last_login_at": datetime.now(timezone.utc)})
+        self._users_by_id[str(user_id)] = updated
+        return True
+
+    def delete_user(self, user_id: str) -> bool:
+        """Permanently delete user and revoke all active sessions in memory."""
+        str_id = str(user_id)
+        user = self._users_by_id.pop(str_id, None)
+        if not user:
+            return False
+
+        if user.email:
+            self._users_by_email.pop(user.email.strip().lower(), None)
+        if user.google_sub:
+            self._users_by_sub.pop(user.google_sub, None)
+
+        # Invalidate all sessions belonging to this user
+        for sess in list(self._sessions_by_hash.values()):
+            if sess.get("user_id") == str_id:
+                sess["is_revoked"] = True
+                sess["revoked_at"] = datetime.now(timezone.utc)
+
+        return True
+
     def clear(self) -> None:
         """Utility for automated test resets."""
         self._users_by_id.clear()
@@ -197,11 +235,15 @@ async def get_db_optional(
     settings: Settings = Depends(get_settings),
 ) -> AsyncGenerator[Optional[AsyncSession], None]:
     """Yields an active database session when DATABASE_URL is configured, or None for in-memory mode."""
-    if not settings.is_database_configured:
+    if getattr(settings, "ENVIRONMENT", "").lower() == "test" or not getattr(settings, "is_database_configured", False):
         yield None
         return
-    async for session in get_db():
-        yield session
+    try:
+        from app.core.database import get_async_db
+        async for session in get_async_db():
+            yield session
+    except Exception:
+        yield None
 
 
 def get_user_repository(
