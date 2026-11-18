@@ -8,7 +8,7 @@ High-performance, accessible campus navigation web client built with **Next.js 1
 
 The CampusWay frontend provides an architectural-grade user experience for campus navigation:
 - **Authentication Portal**: Email/password registration & login (Argon2id, session cookies), Google OAuth 2.0, and phone OTP interfaces.
-- **Interactive Campus Explorer (`/explore`)**: Searchable campus building directory, Block 34 navigation, popular routes, step-by-step directions, and saved destinations.
+- **Interactive Campus Explorer (`/explore`)**: Searchable Dataset C destination directory and route planning over the surveyed campus graph. It does not fall back to sample campus coordinates or hard-coded sample routes.
 - **Dynamic Session State**: Real-time user session persistence via `AuthContext`, reactive navbar, and authenticated dashboard CTAs.
 
 ---
@@ -33,7 +33,8 @@ npm install
 ### 2. Configure Environment Variables
 Create `.env.local` inside `frontend/`:
 ```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_public_token
 ```
 
 ### 3. Start Development Server

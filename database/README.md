@@ -10,7 +10,8 @@ This directory contains version-controlled database schema migrations and data s
   - `env.py`: Migration runtime context, dynamically loading SQLAlchemy metadata from `app.models.Base`.
   - `script.py.mako`: Template for newly generated migration revisions.
   - `versions/001_initial_schema_v1.py`: Baseline migration establishing the 8 approved schema v1 tables.
-- `seeds/`: Placeholder directory for planned official campus survey coordinates, waypoints, and landmark seeds.
+- `surveys/lpu_verified_survey.json`: Canonical Dataset C campus survey source (15 named places, 12 junctions, 29 bidirectional connections).
+- `seeds/`: Dataset C loader only; no approximate geographic seed data is active.
 
 ---
 
