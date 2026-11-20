@@ -99,6 +99,7 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
         ctx.verify_mode = ssl.CERT_REQUIRED
         connect_args["ssl"] = ctx
         connect_args["server_settings"] = {"options": f"endpoint={endpoint_id}"}
+        connect_args["timeout"] = 5
     elif ssl_mode in ("require", "verify-ca", "verify-full"):
         connect_args["ssl"] = "require"
     elif ssl_mode == "disable":

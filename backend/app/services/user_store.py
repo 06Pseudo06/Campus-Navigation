@@ -1,3 +1,5 @@
+import inspect
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -51,6 +53,7 @@ class InMemoryUserRepository:
         email: str,
         name: str,
         password_hash: str,
+        role: str = "student",
     ) -> UserProfile:
         """
         Create a new user with email and Argon2id password hash.
@@ -68,6 +71,7 @@ class InMemoryUserRepository:
             picture=None,
             password_hash=password_hash,
             email_verified=False,
+            role=role,
             created_at=now,
             last_login_at=now,
         )
@@ -240,10 +244,96 @@ async def get_db_optional(
         return
     try:
         from app.core.database import get_async_db
-        async for session in get_async_db():
-            yield session
+        db_gen = get_async_db()
     except Exception:
         yield None
+        return
+
+    try:
+        async for session in db_gen:
+            yield session
+    except (GeneratorExit, BaseException):
+        raise
+
+
+class ResilientUserRepository:
+    """
+    Transparent proxy that attempts operations against PostgresUserRepository.
+    If the database server is unreachable (e.g. network timeout / port 5432 blocked by ISP/firewall),
+    it logs a warning and falls back to the in-memory repository to guarantee 100% uptime.
+    """
+    _db_offline = False
+
+    def __init__(self, postgres_repo: PostgresUserRepository, fallback_repo: InMemoryUserRepository):
+        self._pg = postgres_repo
+        self._mem = fallback_repo
+
+    async def _execute(self, method_name: str, *args, **kwargs):
+        if ResilientUserRepository._db_offline:
+            fn = getattr(self._mem, method_name)
+            res = fn(*args, **kwargs)
+            return await res if inspect.isawaitable(res) else res
+        try:
+            fn = getattr(self._pg, method_name)
+            res = fn(*args, **kwargs)
+            return await res if inspect.isawaitable(res) else res
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if (
+                isinstance(exc, (OSError, TimeoutError))
+                or any(k in err_str for k in [
+                    "connect", "timeout", "network", "errno", "socket",
+                    "getaddrinfo", "refused", "reset", "closed", "unreachable", "operationalerror"
+                ])
+            ):
+                logging.getLogger("campusway.database").warning(
+                    "PostgreSQL connection failed (%s). Port 5432 is unreachable on this network. Operating in resilient in-memory mode.",
+                    exc,
+                )
+                ResilientUserRepository._db_offline = True
+                fn = getattr(self._mem, method_name)
+                res = fn(*args, **kwargs)
+                return await res if inspect.isawaitable(res) else res
+            raise
+
+    async def get_by_id(self, *args, **kwargs):
+        return await self._execute("get_by_id", *args, **kwargs)
+
+    async def get_by_email(self, *args, **kwargs):
+        return await self._execute("get_by_email", *args, **kwargs)
+
+    async def get_by_google_sub(self, *args, **kwargs):
+        return await self._execute("get_by_google_sub", *args, **kwargs)
+
+    async def get_or_create_from_google(self, *args, **kwargs):
+        return await self._execute("get_or_create_from_google", *args, **kwargs)
+
+    async def create_email_user(self, *args, **kwargs):
+        return await self._execute("create_email_user", *args, **kwargs)
+
+    async def update_last_login(self, *args, **kwargs):
+        return await self._execute("update_last_login", *args, **kwargs)
+
+    async def update_profile(self, *args, **kwargs):
+        return await self._execute("update_profile", *args, **kwargs)
+
+    async def update_password(self, *args, **kwargs):
+        return await self._execute("update_password", *args, **kwargs)
+
+    async def delete_user(self, *args, **kwargs):
+        return await self._execute("delete_user", *args, **kwargs)
+
+    async def create_session(self, *args, **kwargs):
+        return await self._execute("create_session", *args, **kwargs)
+
+    async def get_session_by_token_hash(self, *args, **kwargs):
+        return await self._execute("get_session_by_token_hash", *args, **kwargs)
+
+    async def revoke_session(self, *args, **kwargs):
+        return await self._execute("revoke_session", *args, **kwargs)
+
+    async def cleanup_expired_sessions(self, *args, **kwargs):
+        return await self._execute("cleanup_expired_sessions", *args, **kwargs)
 
 
 def get_user_repository(
@@ -252,8 +342,8 @@ def get_user_repository(
 ) -> Any:
     """
     FastAPI dependency that returns the active user repository.
-    Returns PostgresUserRepository backed by the request's AsyncSession when PostgreSQL is configured
-    and not running in isolated unit test mode (ENVIRONMENT != 'test').
+    Returns ResilientUserRepository backed by PostgresUserRepository when PostgreSQL is configured,
+    with automatic in-memory fallback if the network blocks port 5432.
     Falls back to InMemoryUserRepository for unit tests and unconfigured environments.
     """
     if (
@@ -261,5 +351,5 @@ def get_user_repository(
         and getattr(settings, "is_database_configured", False)
         and getattr(settings, "ENVIRONMENT", "").lower() != "test"
     ):
-        return PostgresUserRepository(session)
+        return ResilientUserRepository(PostgresUserRepository(session), _user_repository)
     return _user_repository

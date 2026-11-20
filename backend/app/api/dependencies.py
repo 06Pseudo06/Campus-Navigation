@@ -6,7 +6,7 @@ and user identity resolution supporting both JWT bearer tokens and developer API
 
 import uuid
 from typing import Optional
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -51,6 +51,10 @@ def require_admin_role(
         payload = decode_access_token(token)
         if payload.get("role") == "admin":
             return "admin"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Insufficient administrative privileges.",
+        )
     except ValueError:
         pass
 

@@ -47,6 +47,7 @@ def user_to_profile(
         password_hash=password_hash,
         email_verified=email_verified or bool(google_sub),
         is_active=getattr(user, "is_active", True),
+        role=getattr(user, "role", "student"),
         created_at=user.created_at,
         last_login_at=user.updated_at,
     )
@@ -198,6 +199,7 @@ class PostgresUserRepository:
         email: str,
         name: str,
         password_hash: str,
+        role: str = "student",
     ) -> UserProfile:
         """
         Create a new user with email and password hash in one transaction.
@@ -215,7 +217,7 @@ class PostgresUserRepository:
                 id=uuid.uuid4(),
                 email=normalized_email,
                 full_name=name.strip() if name else None,
-                role="student",
+                role=role,
                 is_active=True,
                 created_at=now,
                 updated_at=now,

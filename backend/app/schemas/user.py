@@ -7,8 +7,8 @@ without external email-validator dependencies.
 import re
 import uuid
 from datetime import datetime
-from typing import List, Literal, Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any, Dict, List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 UserRole = Literal["student", "admin", "moderator"]
@@ -45,19 +45,35 @@ class UserProfile(BaseModel):
     google_sub: Optional[str] = Field(default=None, description="Associated Google sub identifier if signed in via Google")
     email: str = Field(..., description="Email address")
     name: Optional[str] = None
+    phone: Optional[str] = None
     picture: Optional[str] = None
     password_hash: Optional[str] = Field(default=None, description="Password hash for email/password users")
     email_verified: bool = False
     is_active: bool = True
+    role: str = "student"
     created_at: datetime
     last_login_at: datetime
 
 
 class UserRegisterRequest(BaseModel):
     """Payload for POST /api/v1/auth/register (session-based)."""
-    full_name: str = Field(..., min_length=1, max_length=100, description="User's full name")
+    full_name: Optional[str] = Field(default=None, max_length=100, description="User's full name")
+    name: Optional[str] = Field(default=None, max_length=100, description="User's full name alias")
     email: str = Field(..., description="User's email address")
     password: str = Field(..., min_length=8, max_length=128, description="Password (min 8 characters)")
+    role: Optional[str] = Field(default="student", description="Role: student, admin, moderator")
+
+    @model_validator(mode="before")
+    @classmethod
+    def populate_names(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            fn = data.get("full_name") or data.get("name")
+            if fn:
+                data["full_name"] = fn.strip()
+                data["name"] = fn.strip()
+            else:
+                raise ValueError("Full name is required.")
+        return data
 
     @field_validator("email")
     @classmethod
@@ -82,6 +98,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: Optional[str] = None
+    phone: Optional[str] = None
     picture: Optional[str] = None
     email_verified: bool = False
     created_at: datetime
@@ -91,6 +108,9 @@ class UserResponse(BaseModel):
     role: str = "student"
     session_id: Optional[str] = None
     session_expires_at: Optional[datetime] = None
+    access_token: Optional[str] = None
+    token_type: Optional[str] = "bearer"
+    user: Optional[Dict[str, Any]] = None
 
 
 class ProfileUpdateRequest(BaseModel):

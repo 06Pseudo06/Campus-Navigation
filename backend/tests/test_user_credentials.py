@@ -51,7 +51,11 @@ async def pg_engine():
 @pytest_asyncio.fixture(loop_scope="module")
 async def db_session(pg_engine):
     """Savepoint-isolated session: rolled back at teardown."""
-    async with pg_engine.connect() as conn:
+    try:
+        conn = await pg_engine.connect()
+    except Exception as exc:
+        pytest.skip(f"Live database not reachable: {exc}")
+    try:
         await conn.begin()
         session = AsyncSession(
             bind=conn,
@@ -63,6 +67,8 @@ async def db_session(pg_engine):
         finally:
             await session.close()
             await conn.rollback()
+    finally:
+        await conn.close()
 
 
 # ---------------------------------------------------------------------------

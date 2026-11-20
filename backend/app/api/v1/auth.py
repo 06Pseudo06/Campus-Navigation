@@ -1,20 +1,32 @@
 from datetime import datetime, timezone, timedelta
 import inspect
+import logging
+import secrets
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
+
+logger = logging.getLogger("campusway.auth")
 
 from app.config import Settings, get_settings
 from app.core.security import (
     SecurityManager,
+    create_access_token,
+    decode_access_token,
     get_security_manager,
     hash_password,
     verify_password,
+)
+from app.schemas.auth import (
+    GoogleLoginRequest,
+    PhoneSendOTPRequest,
+    PhoneVerifyOTPRequest,
 )
 from app.schemas.user import (
     ActionMessageResponse,
     ChangePasswordRequest,
     DeleteAccountRequest,
+    GoogleUserInfo,
     LogoutResponse,
     ProfileUpdateRequest,
     UserLoginRequest,
@@ -27,27 +39,47 @@ from app.services.user_store import get_user_repository
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def _build_user_response(user: Any, session_record: Any = None) -> UserResponse:
+def _build_user_response(
+    user: Any,
+    session_record: Any = None,
+    access_token: Optional[str] = None,
+) -> UserResponse:
     """Helper to populate UserResponse with enriched auth and session metadata."""
     auth_provider = "google" if getattr(user, "google_sub", None) else "email"
     has_password = bool(getattr(user, "password_hash", None))
     token_hash = getattr(session_record, "token_hash", "") if session_record else ""
     session_id = f"sess_{token_hash[:10]}" if token_hash else None
     expires_at = getattr(session_record, "expires_at", None) if session_record else None
+    role = getattr(user, "role", "student")
+    user_name = getattr(user, "name", None) or getattr(user, "full_name", None)
+
+    user_dict = {
+        "id": str(user.id),
+        "email": user.email,
+        "full_name": user_name,
+        "name": user_name,
+        "phone": getattr(user, "phone", None),
+        "role": role,
+        "is_active": getattr(user, "is_active", True),
+    }
 
     return UserResponse(
         id=str(user.id),
         email=user.email,
-        name=user.name,
-        picture=user.picture,
-        email_verified=user.email_verified,
+        name=user_name,
+        phone=getattr(user, "phone", None),
+        picture=getattr(user, "picture", None),
+        email_verified=getattr(user, "email_verified", False),
         created_at=user.created_at,
-        last_login_at=user.last_login_at,
+        last_login_at=getattr(user, "last_login_at", None),
         auth_provider=auth_provider,
         has_password=has_password,
-        role=getattr(user, "role", "student"),
+        role=role,
         session_id=session_id,
         session_expires_at=expires_at,
+        access_token=access_token,
+        token_type="bearer" if access_token else None,
+        user=user_dict,
     )
 
 
@@ -209,7 +241,8 @@ async def google_callback(
     # 3. Exchange authorization code for Google tokens
     try:
         tokens = await google_service.exchange_code_for_tokens(code)
-    except Exception:
+    except Exception as exc:
+        logger.error("Google OAuth token exchange failed: %s", exc)
         redirect = RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=token_exchange_failed",
             status_code=status.HTTP_302_FOUND,
@@ -219,6 +252,7 @@ async def google_callback(
 
     id_token_str = tokens.get("id_token")
     if not id_token_str:
+        logger.error("Google token response missing id_token")
         redirect = RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=missing_id_token",
             status_code=status.HTTP_302_FOUND,
@@ -229,7 +263,8 @@ async def google_callback(
     # 4. Verify ID Token signature, issuer, audience, and claims
     try:
         google_user = google_service.verify_id_token(id_token_str)
-    except Exception:
+    except Exception as exc:
+        logger.error("Google ID token verification failed: %s", exc)
         redirect = RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=invalid_token",
             status_code=status.HTTP_302_FOUND,
@@ -240,8 +275,9 @@ async def google_callback(
     # 5. Get or create user keyed by Google `sub`
     try:
         user = await _resolve(user_repo.get_or_create_from_google(google_user))
-    except ValueError:
+    except ValueError as exc:
         # Security rule: account linking conflict when email exists without Google identity
+        logger.warning("Account linking conflict: %s", exc)
         redirect = RedirectResponse(
             url=f"{settings.FRONTEND_URL}/login?error=account_linking_conflict",
             status_code=status.HTTP_302_FOUND,
@@ -336,12 +372,15 @@ async def register(
     hashed_password = hash_password(payload.password)
 
     # 3. Create user and credential records in one transaction
+    assigned_role = getattr(payload, "role", None) or "student"
+    full_name = payload.full_name or payload.name or ""
     try:
         user = await _resolve(
             user_repo.create_email_user(
                 email=normalized_email,
-                name=payload.full_name,
+                name=full_name,
                 password_hash=hashed_password,
+                role=assigned_role,
             )
         )
     except ValueError:
@@ -382,11 +421,17 @@ async def register(
         path="/",
     )
 
+    jwt_token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "role": getattr(user, "role", assigned_role),
+    })
+
     session_record = type("TempSession", (), {
         "token_hash": token_hash,
         "expires_at": expires_at,
     })()
-    return _build_user_response(user, session_record)
+    return _build_user_response(user, session_record, access_token=jwt_token)
 
 
 @router.post(
@@ -474,28 +519,238 @@ async def login(
         path="/",
     )
 
+    jwt_token = create_access_token({
+        "sub": str(updated_user.id),
+        "email": updated_user.email,
+        "role": getattr(updated_user, "role", "student"),
+    })
+
     session_record = type("TempSession", (), {
         "token_hash": token_hash,
         "expires_at": expires_at,
     })()
-    return _build_user_response(updated_user, session_record)
+    return _build_user_response(updated_user, session_record, access_token=jwt_token)
 
 
 @router.get("/me", response_model=UserResponse, summary="Get Current Authenticated User")
 async def get_current_user(
+    request: Request,
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    settings: Settings = Depends(get_settings),
+    security_manager: SecurityManager = Depends(get_security_manager),
+    user_repo: Any = Depends(get_user_repository),
+):
+    """
+    Returns the currently authenticated user's profile from the session cookie or Bearer token.
+    Rejects unauthenticated, revoked, or expired sessions with 401.
+    """
+    # 1. Try session cookie first
+    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if session_token:
+        try:
+            user, session_record = await _get_authenticated_user_and_session(
+                request, settings, security_manager, user_repo
+            )
+            return _build_user_response(user, session_record)
+        except HTTPException:
+            if not authorization:
+                raise
+
+    # 2. Try Bearer token
+    if authorization:
+        parts = authorization.strip().split()
+        raw_token = parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+        try:
+            payload = decode_access_token(raw_token)
+            sub = payload.get("sub")
+            if sub:
+                user = await _resolve(user_repo.get_by_id(sub))
+                if user:
+                    if not getattr(user, "is_active", True):
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Account is inactive. Please contact support.",
+                        )
+                    return _build_user_response(user)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired authentication token.",
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+    )
+
+
+@router.post("/google", response_model=UserResponse, summary="Google OAuth ID Token Sign-In")
+async def google_id_token_sign_in(
+    google_in: GoogleLoginRequest,
+    response: Response,
     request: Request,
     settings: Settings = Depends(get_settings),
     security_manager: SecurityManager = Depends(get_security_manager),
     user_repo: Any = Depends(get_user_repository),
 ):
     """
-    Returns the currently authenticated user's profile from the session cookie.
-    Rejects unauthenticated, revoked, or expired sessions with 401.
+    Authenticate or register user using a Google OAuth ID Token (e.g. Google One Tap or client SDK).
     """
-    user, session_record = await _get_authenticated_user_and_session(
-        request, settings, security_manager, user_repo
+    from app.services.auth_providers import google_auth_provider
+    claims = google_auth_provider.verify_id_token(google_in.id_token)
+    google_user = GoogleUserInfo(
+        sub=claims["sub"],
+        email=claims["email"],
+        name=claims.get("name"),
+        picture=claims.get("picture"),
+        email_verified=claims.get("email_verified", True),
     )
-    return _build_user_response(user, session_record)
+
+    try:
+        user = await _resolve(user_repo.get_or_create_from_google(google_user))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    if not getattr(user, "is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive. Please contact support.",
+        )
+
+    session_max_age = settings.SESSION_DEFAULT_MAX_AGE_SECONDS
+    raw_token, token_hash = security_manager.generate_token_pair()
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(seconds=session_max_age)
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    await _resolve(
+        user_repo.create_session(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+    )
+
+    session_token = security_manager.create_session_token(
+        user_id=user.id,
+        google_sub=user.google_sub,
+        raw_token=raw_token,
+    )
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=session_max_age,
+        httponly=True,
+        samesite="lax",
+        secure=settings.is_production,
+        path="/",
+    )
+
+    jwt_token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "role": getattr(user, "role", "student"),
+    })
+
+    session_record = type("TempSession", (), {
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+    })()
+    return _build_user_response(user, session_record, access_token=jwt_token)
+
+
+@router.post("/phone/send-otp", response_model=ActionMessageResponse, summary="Send Phone OTP")
+async def send_phone_otp(
+    payload: PhoneSendOTPRequest,
+    settings: Settings = Depends(get_settings),
+):
+    from app.services.auth_providers import phone_otp_provider
+    phone_otp_provider.send_otp(payload.phone)
+    return ActionMessageResponse(
+        success=True,
+        message=f"Verification passcode dispatched to {payload.phone}.",
+    )
+
+
+@router.post("/phone/verify-otp", response_model=UserResponse, summary="Verify Phone OTP")
+async def verify_phone_otp(
+    payload: PhoneVerifyOTPRequest,
+    response: Response,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    security_manager: SecurityManager = Depends(get_security_manager),
+    user_repo: Any = Depends(get_user_repository),
+):
+    from app.services.auth_providers import phone_otp_provider
+    otp_val = getattr(payload, "otp_code", None) or getattr(payload, "otp", None) or ""
+    is_valid = phone_otp_provider.verify_otp(payload.phone, otp_val)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification passcode.",
+        )
+
+    normalized_email = f"{payload.phone.replace('+', '')}@phone.campusway.local"
+    user = await _resolve(user_repo.get_by_email(normalized_email))
+    if not user:
+        user = await _resolve(
+            user_repo.create_email_user(
+                email=normalized_email,
+                name=payload.full_name or f"User {payload.phone[-4:]}",
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                role="student",
+            )
+        )
+    setattr(user, "phone", payload.phone)
+
+    session_max_age = settings.SESSION_DEFAULT_MAX_AGE_SECONDS
+    raw_token, token_hash = security_manager.generate_token_pair()
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(seconds=session_max_age)
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
+    await _resolve(
+        user_repo.create_session(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            ip_address=client_ip,
+            user_agent=user_agent,
+        )
+    )
+
+    session_token = security_manager.create_session_token(
+        user_id=user.id,
+        raw_token=raw_token,
+    )
+    response.set_cookie(
+        key=settings.SESSION_COOKIE_NAME,
+        value=session_token,
+        max_age=session_max_age,
+        httponly=True,
+        samesite="lax",
+        secure=settings.is_production,
+        path="/",
+    )
+
+    jwt_token = create_access_token({
+        "sub": str(user.id),
+        "email": user.email,
+        "role": getattr(user, "role", "student"),
+    })
+
+    session_record = type("TempSession", (), {
+        "token_hash": token_hash,
+        "expires_at": expires_at,
+    })()
+    return _build_user_response(user, session_record, access_token=jwt_token)
 
 
 @router.patch("/profile", response_model=UserResponse, summary="Update User Profile Information")

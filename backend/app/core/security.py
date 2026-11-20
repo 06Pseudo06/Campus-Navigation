@@ -122,10 +122,12 @@ except ImportError:
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> str:
-    """Hash password using PBKDF2-HMAC-SHA256 (default) or Argon2id if installed.
+    """Hash password using Argon2id (default when installed) or PBKDF2-HMAC-SHA256 fallback.
     
-    Default Format: pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>
+    Default Format: $argon2id$... or pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>
     """
+    if _argon2_hasher is not None and not salt:
+        return _argon2_hasher.hash(password)
     if not salt:
         salt = secrets.token_hex(16)
     iterations = 100_000
@@ -139,7 +141,7 @@ def hash_password(password: str, salt: Optional[str] = None) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against either PBKDF2-HMAC-SHA256 or Argon2id hash."""
+    """Verify password against either PBKDF2-HMAC-SHA256, bcrypt, or Argon2id hash."""
     if not hashed_password or not plain_password:
         return False
 
@@ -151,6 +153,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
             except Exception:
                 return False
         return False
+
+    # Check bcrypt format ($2a$, $2b$, $2y$)
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+        except Exception:
+            return False
 
     # Check PBKDF2 format
     try:

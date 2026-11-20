@@ -64,16 +64,12 @@ async def pg_engine():
 async def db_session(pg_engine):
     """
     Yields an AsyncSession whose writes are rolled back after each test.
-
-    How it works:
-      1. Opens a raw connection and starts a real transaction (BEGIN).
-      2. Binds the AsyncSession to that connection with
-         join_transaction_mode='create_savepoint': the session's commit()
-         calls translate to SAVEPOINT / RELEASE SAVEPOINT, not real commits.
-      3. After the test, conn.rollback() on the outer transaction erases all
-         writes — nothing reaches the real database.
     """
-    async with pg_engine.connect() as conn:
+    try:
+        conn = await pg_engine.connect()
+    except Exception as exc:
+        pytest.skip(f"Live database not reachable: {exc}")
+    try:
         await conn.begin()
         session = AsyncSession(
             bind=conn,
@@ -85,6 +81,8 @@ async def db_session(pg_engine):
         finally:
             await session.close()
             await conn.rollback()
+    finally:
+        await conn.close()
 
 
 @pytest_asyncio.fixture(loop_scope="module")

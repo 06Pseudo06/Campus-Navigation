@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import List, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -83,6 +83,18 @@ class Settings(BaseSettings):
         elif isinstance(v, list):
             return v
         return ["http://localhost:3000"]
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        if self.is_production:
+            secret = (self.SESSION_SECRET or "").strip()
+            if not secret:
+                raise ValueError("SESSION_SECRET must not be empty in production.")
+            if secret == self.DEFAULT_DEV_SESSION_SECRET:
+                raise ValueError("Default development SESSION_SECRET is not permitted in production.")
+            if len(secret) < 32:
+                raise ValueError("SESSION_SECRET is too short (minimum 32 characters required in production).")
+        return self
 
     model_config = SettingsConfigDict(
         env_file=(_ROOT_DIR / ".env", _BACKEND_DIR / ".env", ".env"),
