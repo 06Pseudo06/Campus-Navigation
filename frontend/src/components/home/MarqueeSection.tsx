@@ -68,10 +68,13 @@ export function MarqueeSection() {
     >
       <HairlineDivider markerCount={2} className="mb-6 sm:mb-8" />
 
-      {/* 1. INFINITE RUNNING MARQUEE */}
-      <div className="relative w-full overflow-hidden py-[clamp(14px,2vw,28px)] border-y border-[#E1DDD3] dark:border-white/10">
+      {/* 1. INFINITE RUNNING MARQUEE WITH HOVER PAUSE & CURSOR */}
+      <div
+        data-cursor="PAUSE"
+        className="group/marquee relative w-full overflow-hidden py-[clamp(14px,2vw,28px)] border-y border-[#E1DDD3] dark:border-white/10 cursor-pointer"
+      >
         <div
-          className="flex items-center whitespace-nowrap will-change-transform font-black uppercase tracking-tight text-[#0E1118] dark:text-white animate-marquee"
+          className="flex items-center whitespace-nowrap will-change-transform font-black uppercase tracking-tight text-[#0E1118] dark:text-white animate-marquee group-hover/marquee:[animation-play-state:paused] transition-all"
           style={{ fontSize: "clamp(1.75rem, 3.4vw, 3.25rem)", lineHeight: 1 }}
         >
           <span className="mr-6">{marqueeText}</span>

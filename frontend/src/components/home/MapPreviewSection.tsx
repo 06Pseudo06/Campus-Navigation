@@ -167,6 +167,7 @@ export function MapPreviewSection() {
                 <button
                   key={r.id}
                   type="button"
+                  data-cursor="ROUTE"
                   onClick={() => setSelectedRouteIndex(idx)}
                   className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     selectedRouteIndex === idx
@@ -182,6 +183,7 @@ export function MapPreviewSection() {
             {/* Accessibility Filter Toggle */}
             <button
               type="button"
+              data-cursor="ui"
               onClick={() => setAccessibleOnly(!accessibleOnly)}
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF8F5] dark:bg-zinc-800 border border-[#E1DDD3] dark:border-zinc-700 text-xs font-mono font-semibold text-slate-700 dark:text-zinc-300 cursor-pointer self-start sm:self-auto"
             >
@@ -197,7 +199,10 @@ export function MapPreviewSection() {
           {/* Card Body: Map Viewport (Left) + Route Details (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pt-8">
             {/* Left: SVG Topological Campus Map Viewport */}
-            <div className="lg:col-span-7 relative min-h-[300px] sm:min-h-[360px] rounded-2xl bg-[#F4F1EA] dark:bg-[#070B14] border border-[#E1DDD3] dark:border-zinc-800/80 overflow-hidden p-6 flex flex-col justify-between">
+            <div
+              data-cursor="map"
+              className="lg:col-span-7 relative min-h-[300px] sm:min-h-[360px] rounded-2xl bg-[#F4F1EA] dark:bg-[#070B14] border border-[#E1DDD3] dark:border-zinc-800/80 overflow-hidden p-6 flex flex-col justify-between cursor-crosshair"
+            >
               {/* Map Background Grid */}
               <div className="absolute inset-0 blueprint-grid opacity-60" aria-hidden="true" />
 
@@ -342,6 +347,7 @@ export function MapPreviewSection() {
               {/* Action Button */}
               <Link
                 href="/explore?tab=routes"
+                data-cursor="EXPLORE"
                 className="w-full py-4 rounded-2xl bg-[#0E1118] dark:bg-white hover:bg-[#DE4B31] dark:hover:bg-[#DE4B31] text-white dark:text-[#0E1118] dark:hover:text-white font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-md flex items-center justify-center gap-2"
               >
                 <span>OPEN LIVE ROUTE IN EXPLORER</span>

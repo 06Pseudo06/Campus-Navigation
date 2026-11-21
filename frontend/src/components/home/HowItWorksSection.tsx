@@ -61,8 +61,18 @@ export function HowItWorksSection() {
             return (
               <div
                 key={idx}
+                data-cursor="STEP"
                 onMouseEnter={() => setActiveStep(idx)}
-                className={`relative p-6 sm:p-7 rounded-3xl border transition-all duration-300 flex flex-col justify-between ${
+                onClick={() => setActiveStep(idx)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setActiveStep(idx);
+                  }
+                }}
+                className={`relative p-6 sm:p-7 rounded-3xl border transition-all duration-300 flex flex-col justify-between cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DE4B31] ${
                   isActive
                     ? "bg-white dark:bg-[#0E1422] border-[#0E1118] dark:border-[#DE4B31] shadow-xl scale-[1.02]"
                     : "bg-[#FAF8F5] dark:bg-[#0E1422]/70 border-[#E1DDD3] dark:border-zinc-800 opacity-90 hover:opacity-100"

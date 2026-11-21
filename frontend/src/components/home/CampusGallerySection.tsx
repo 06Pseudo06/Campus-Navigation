@@ -85,6 +85,7 @@ export function CampusGallerySection() {
                 {/* Main Card Surface */}
                 <div
                   onClick={() => setSelectedIndex(idx)}
+                  data-cursor="EXPAND"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {

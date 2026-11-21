@@ -105,6 +105,7 @@ export function InteractiveFeaturesSection() {
             <Link
               key={feature.id}
               href={feature.href}
+              data-cursor="EXPLORE"
               className="group relative p-8 sm:p-10 lg:p-12 flex flex-col justify-between hover:bg-[#F2ECE1]/60 dark:hover:bg-zinc-800/40 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DE4B31]"
             >
               {/* Corner Accent on Hover */}

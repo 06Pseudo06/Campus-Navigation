@@ -168,6 +168,7 @@ export function ArchitecturalHero() {
             {/* Circular Play Button + WATCH OVERVIEW */}
             <button
               type="button"
+              data-cursor="PLAY"
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
               aria-label="View system overview"
