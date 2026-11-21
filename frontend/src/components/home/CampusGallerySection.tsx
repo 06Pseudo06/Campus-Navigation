@@ -1,10 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { isReducedMotion } from "@/lib/motion";
 import { GALLERY_ITEMS, GalleryItem } from "@/data/gallery";
 
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
+
 export function CampusGallerySection() {
+  const sectionRef = useRef<HTMLElement>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const selectedItem: GalleryItem | null =
@@ -41,10 +49,40 @@ export function CampusGallerySection() {
     };
   }, [selectedIndex, handlePrev, handleNext]);
 
+  // Genuine Scroll-Driven Progressive Shelf Overlap (Section 4 -> Section 5 Choreography)
+  useEffect(() => {
+    if (!sectionRef.current || isReducedMotion()) return;
+
+    const ctx = gsap.context(() => {
+      const isDesktop = window.innerWidth >= 1024;
+      gsap.fromTo(
+        sectionRef.current,
+        {
+          y: isDesktop ? 90 : 40,
+        },
+        {
+          y: isDesktop ? -80 : -30,
+          ease: "power1.out",
+          scrollTrigger: {
+            trigger: sectionRef.current,
+            start: "top bottom",
+            end: "top 30%",
+            scrub: 0.8,
+            invalidateOnRefresh: true,
+          },
+        }
+      );
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <section
       id="section-05"
-      className="relative z-[10] w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 -mt-16 sm:-mt-20 lg:-mt-28 rounded-t-[32px] sm:rounded-t-[48px] lg:rounded-t-[56px] border-t border-[#E1DDD3] dark:border-white/10 shadow-[0_-24px_48px_rgba(0,0,0,0.06)] dark:shadow-[0_-24px_48px_rgba(0,0,0,0.45)] pt-16 sm:pt-20 lg:pt-24 pb-20 lg:pb-28 overflow-hidden select-none border-b border-[#E1DDD3] dark:border-white/10 transition-colors duration-200"
+      ref={sectionRef}
+      className="relative z-[20] w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 rounded-t-[36px] sm:rounded-t-[48px] lg:rounded-t-[56px] border-t border-[#E1DDD3] dark:border-white/10 shadow-[0_-30px_70px_rgba(0,0,0,0.14)] dark:shadow-[0_-30px_70px_rgba(0,0,0,0.65)] pt-16 sm:pt-20 lg:pt-24 pb-20 lg:pb-28 overflow-hidden select-none border-b border-[#E1DDD3] dark:border-white/10 transition-colors duration-200 will-change-transform"
+      style={{ marginBottom: "-80px" }}
       aria-label="Campus Architectural Photography Gallery"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10">
