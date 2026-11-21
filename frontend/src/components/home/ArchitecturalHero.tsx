@@ -1,17 +1,23 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { isReducedMotion } from "@/lib/motion";
+import { isReducedMotion, getLenis } from "@/lib/motion";
 import { MagneticButton } from "@/components/motion/MagneticButton";
 import { RotatingTextBadge } from "@/components/motion/RotatingTextBadge";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
 }
+
+// Module-level persistence: resets on full page load / reload, persists during client-side navigation
+let introPlayed = false;
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
 /**
  * ArchitecturalHero
@@ -20,11 +26,11 @@ if (typeof window !== "undefined") {
  * Controlled by a single unified GSAP timeline:
  * - STAGE 0: Full-screen #070B14 Preloader with SVG logo stroke draw, counter 000 -> 100, and split-curtain exit.
  * - STAGE 1: Orange sun disc scale/blur reveal, orbit ring stroke draw, sparkle pop, and building clip-path wipe.
- * - STAGE 2: Line-by-line masked headline reveal, kinetic italic accent slide, and typed eyebrow.
+ * - STAGE 2: Line-by-line masked headline reveal, per-character italic kinetic slide, and typed eyebrow.
  * - STAGE 3: Supporting UI fade-up, play button pulse, meta row reveal, navbar drop, and rotating badge entrance.
  * - AFTER INTRO: Idle mouse parallax (quickTo), slow breathing scale, and scroll-out scrub.
  * 
- * Includes sessionStorage persistence (plays once per session) and full skippability on click/keypress.
+ * Timeline duration: ~3.3 seconds.
  */
 export function ArchitecturalHero() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,27 +65,30 @@ export function ArchitecturalHero() {
   const calloutRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
 
-  // State: preloader defaults to true on first load to prevent any content flash
-  const [isIntroActive, setIsIntroActive] = useState(true);
+  // State: preloader active on first load; client-side navigation skips it immediately
+  const [isIntroActive, setIsIntroActive] = useState(() => !introPlayed);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Quick skip function
-  const skipIntro = useCallback(() => {
-    console.log("[INTRO] skipIntro triggered");
-    if (timelineRef.current) {
-      timelineRef.current.progress(1);
-      timelineRef.current.kill();
-    }
-    try {
-      sessionStorage.setItem("campusway_intro_played", "true");
-    } catch {}
-    setIsIntroActive(false);
+  // Scroll locking utilities
+  const lockScroll = useCallback(() => {
+    const lenis = getLenis();
+    if (lenis) lenis.stop();
     if (typeof document !== "undefined") {
-      document.getElementById("hero-preloader-anti-flash")?.remove();
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
     }
   }, []);
 
-  // Idle effects: mouse parallax, breathing scale, and scroll-out
+  const unlockScroll = useCallback(() => {
+    const lenis = getLenis();
+    if (lenis) lenis.start();
+    if (typeof document !== "undefined") {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+  }, []);
+
+  // Idle effects: mouse parallax, breathing scale, and scroll-out scrub
   const initIdleEffects = useCallback(() => {
     if (isReducedMotion() || !containerRef.current) return;
 
@@ -161,27 +170,56 @@ export function ArchitecturalHero() {
     };
   }, []);
 
-  // Main cinematic entrance sequence
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  // Quick skip function
+  const skipIntro = useCallback(() => {
+    console.log("[INTRO] skipIntro triggered");
+    if (timelineRef.current) {
+      timelineRef.current.progress(1);
+      timelineRef.current.kill();
+    }
+    introPlayed = true;
+    setIsIntroActive(false);
+    unlockScroll();
+    initIdleEffects();
+  }, [unlockScroll, initIdleEffects]);
 
-    // Check if intro has already run in this session or if reduced motion is requested
-    let alreadyPlayed = false;
-    try {
-      alreadyPlayed = sessionStorage.getItem("campusway_intro_played") === "true";
-    } catch {}
+  // Master Cinematic entrance sequence built in useIsomorphicLayoutEffect inside gsap.context
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === "undefined" || !containerRef.current) return;
+
+    // Check ?intro=1 override
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("intro") === "1") {
+      introPlayed = false;
+    }
+
+    // 1. SCROLL AND HASH RESET
+    // Manual scroll restoration ensures hero stays in view on reload
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    if (window.location.hash) {
+      try {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {}
+    }
+    window.scrollTo(0, 0);
+    const activeLenis = getLenis();
+    if (activeLenis) {
+      activeLenis.scrollTo(0, { immediate: true });
+    }
 
     const reduced = isReducedMotion();
 
-    if (alreadyPlayed || reduced) {
+    if (introPlayed || reduced) {
       setIsIntroActive(false);
-      if (typeof document !== "undefined") {
-        document.getElementById("hero-preloader-anti-flash")?.remove();
-      }
+      unlockScroll();
       initIdleEffects();
       return;
     }
 
+    // Lock scroll during intro
+    lockScroll();
     setIsIntroActive(true);
 
     // Keyboard listener to skip intro (Escape, Space, Enter)
@@ -193,270 +231,266 @@ export function ArchitecturalHero() {
     };
     window.addEventListener("keydown", onKeyDown);
 
-    // Single unified GSAP master timeline
-    const tl = gsap.timeline({
-      defaults: { ease: "expo.out" },
-      onComplete: () => {
-        setIsIntroActive(false);
-        try {
-          sessionStorage.setItem("campusway_intro_played", "true");
-        } catch {}
-        if (typeof document !== "undefined") {
-          document.getElementById("hero-preloader-anti-flash")?.remove();
-        }
-        initIdleEffects();
-      },
-    });
+    // Master GSAP Context for StrictMode double-invocation safety
+    const ctx = gsap.context(() => {
+      // SET INITIAL STATES BEFORE FIRST PAINT (prevents flash of resting text)
+      gsap.set(".hero-headline-line", { yPercent: 110, rotate: 3 });
+      gsap.set(".hero-headline-accent", { x: -40, skewX: -12 });
+      gsap.set(".hero-headline-accent .hero-char", { yPercent: 100 });
+      gsap.set(".hero-p-line", { opacity: 0, y: 20 });
+      if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 0, y: 20, scale: 0.95 });
+      if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 0, clipPath: "inset(0 100% 0 0)" });
+      gsap.set("#main-navbar", { yPercent: -100 });
+      if (badgeRef.current) gsap.set(badgeRef.current, { scale: 0, rotation: 0 });
+      gsap.set(["#scroll-progress-rail", calloutRef.current], { opacity: 0, y: -10 });
 
-    timelineRef.current = tl;
+      // Single unified GSAP master timeline
+      const tl = gsap.timeline({
+        defaults: { ease: "expo.out" },
+        onComplete: () => {
+          introPlayed = true;
+          setIsIntroActive(false);
+          unlockScroll();
+          initIdleEffects();
+        },
+      });
 
-    // =========================================================================
-    // STAGE 0: PRELOADER (0 – 1.2s)
-    // =========================================================================
-    // SVG stroke-dashoffset draw for CampusWay "∩" logo (0.8s)
-    if (logoOuterRef.current && logoInnerRef.current) {
-      const outerLen = logoOuterRef.current.getTotalLength() || 68;
-      const innerLen = logoInnerRef.current.getTotalLength() || 47;
-      gsap.set(logoOuterRef.current, { strokeDasharray: outerLen, strokeDashoffset: outerLen });
-      gsap.set(logoInnerRef.current, { strokeDasharray: innerLen, strokeDashoffset: innerLen });
+      timelineRef.current = tl;
 
-      tl.to([logoOuterRef.current, logoInnerRef.current], {
-        strokeDashoffset: 0,
+      // =========================================================================
+      // STAGE 0: PRELOADER (0.0s – 1.2s)
+      // =========================================================================
+      // SVG stroke-dashoffset draw for CampusWay "∩" logo (0.8s)
+      if (logoOuterRef.current && logoInnerRef.current) {
+        const outerLen = logoOuterRef.current.getTotalLength() || 68;
+        const innerLen = logoInnerRef.current.getTotalLength() || 47;
+        gsap.set(logoOuterRef.current, { strokeDasharray: outerLen, strokeDashoffset: outerLen });
+        gsap.set(logoInnerRef.current, { strokeDasharray: innerLen, strokeDashoffset: innerLen });
+
+        tl.to([logoOuterRef.current, logoInnerRef.current], {
+          strokeDashoffset: 0,
+          duration: 0.8,
+          ease: "power2.out",
+          stagger: 0.08,
+        }, 0.1);
+      }
+
+      // Monospace numeric counter "000 -> 100"
+      const counterObj = { val: 0 };
+      tl.to(counterObj, {
+        val: 100,
         duration: 0.8,
-        ease: "power2.out",
-        stagger: 0.08,
-      }, 0.1);
-    }
-
-    // Monospace numeric counter "000 -> 100"
-    const counterObj = { val: 0 };
-    tl.to(counterObj, {
-      val: 100,
-      duration: 0.8,
-      ease: "power2.inOut",
-      onUpdate: () => {
-        if (counterRef.current) {
-          counterRef.current.textContent = String(Math.round(counterObj.val)).padStart(3, "0");
-        }
-      },
-    }, 0.1);
-
-    // Exit: overlay content fades out and curtains split up/down (yPercent ±100, 0.9s, power4.inOut)
-    tl.to(preloaderContentRef.current, {
-      opacity: 0,
-      duration: 0.3,
-      ease: "power2.out",
-    }, 0.8);
-
-    tl.to(topCurtainRef.current, {
-      yPercent: -100,
-      duration: 0.9,
-      ease: "power4.inOut",
-    }, 0.9);
-
-    tl.to(bottomCurtainRef.current, {
-      yPercent: 100,
-      duration: 0.9,
-      ease: "power4.inOut",
-    }, 0.9);
-
-    // =========================================================================
-    // STAGE 1: BACKGROUND (starts at 0.9s)
-    // =========================================================================
-    // Orange sphere: scales from 0.6 -> 1 and fades in with soft blur 20px -> 0 (1.4s)
-    if (sunDiscRef.current) {
-      tl.fromTo(sunDiscRef.current, {
-        scale: 0.6,
-        opacity: 0,
-        filter: "blur(20px)",
-      }, {
-        scale: 1,
-        opacity: 0.95,
-        filter: "blur(0px)",
-        duration: 1.4,
-        ease: "expo.out",
-      }, 0.9);
-    }
-
-    // Thin orbit ring: draws itself with stroke-dashoffset (1.6s)
-    if (orbitRingRef.current) {
-      const ringLen = 2 * Math.PI * 285; // ~1791px
-      gsap.set(orbitRingRef.current, { strokeDasharray: ringLen, strokeDashoffset: ringLen });
-      tl.to(orbitRingRef.current, {
-        strokeDashoffset: 0,
-        duration: 1.6,
-        ease: "expo.out",
-      }, 0.9);
-    }
-
-    // Sparkle/crosshair marker pops in last with back.out(2)
-    if (sparkleRef.current) {
-      tl.fromTo(sparkleRef.current, {
-        scale: 0,
-        opacity: 0,
-        transformOrigin: "300px 300px",
-      }, {
-        scale: 1,
-        opacity: 1,
-        duration: 0.6,
-        ease: "back.out(2)",
-      }, 1.7);
-    }
-
-    // Monumental building image: clip-path wipe from bottom-left (1.2s) & subtle scale 1.15 -> 1
-    if (buildingImgRef.current) {
-      tl.fromTo(buildingImgRef.current, {
-        clipPath: "polygon(0 100%, 0 100%, 0 100%)",
-        scale: 1.15,
-      }, {
-        clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
-        scale: 1,
-        duration: 1.2,
-        ease: "expo.out",
-      }, 0.9);
-    }
-
-    // =========================================================================
-    // STAGE 2: HEADLINE (starts at 1.1s)
-    // =========================================================================
-    // Split lines animate yPercent: 110 -> 0, rotate: 3 -> 0 (1.0s, stagger 0.12)
-    tl.fromTo(".hero-headline-line", {
-      yPercent: 110,
-      rotate: 3,
-    }, {
-      yPercent: 0,
-      rotate: 0,
-      duration: 1.0,
-      stagger: 0.12,
-      ease: "expo.out",
-    }, 1.1);
-
-    // Italic accent words ("NAVIGATE FURTHER.") slide in from x: -40 with skewX: -12 -> 0
-    tl.fromTo(".hero-headline-accent", {
-      x: -40,
-      skewX: -12,
-    }, {
-      x: 0,
-      skewX: 0,
-      duration: 1.0,
-      ease: "expo.out",
-    }, 1.2);
-
-    // Eyebrow "01 / CAMPUS WAYFINDING, REIMAGINED" types in via width clip, line draws 0 -> 96px
-    if (eyebrowTextRef.current) {
-      tl.fromTo(eyebrowTextRef.current, {
-        clipPath: "inset(0 100% 0 0)",
-      }, {
-        clipPath: "inset(0 0% 0 0)",
-        duration: 0.8,
-        ease: "expo.out",
-      }, 1.1);
-    }
-
-    if (eyebrowLineRef.current) {
-      tl.fromTo(eyebrowLineRef.current, {
-        width: 0,
-      }, {
-        width: "6rem", // 96px
-        duration: 0.8,
-        ease: "expo.out",
-      }, 1.1);
-    }
-
-    // =========================================================================
-    // STAGE 3: SUPPORTING UI (starts at 1.8s, stagger 0.1)
-    // =========================================================================
-    // Paragraph fades up
-    if (paragraphRef.current) {
-      tl.fromTo(paragraphRef.current, {
-        y: 20,
-        opacity: 0,
-      }, {
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: "expo.out",
-      }, 1.8);
-    }
-
-    // CTA buttons slide up with slight scale
-    if (ctaRef.current) {
-      tl.fromTo(ctaRef.current, {
-        y: 20,
-        scale: 0.95,
-        opacity: 0,
-      }, {
-        y: 0,
-        scale: 1,
-        opacity: 1,
-        duration: 0.8,
-        ease: "expo.out",
-      }, 1.9);
-    }
-
-    // "SYSTEM OVERVIEW" Play Button pulses once
-    if (playBtnRef.current) {
-      tl.to(playBtnRef.current, {
-        scale: 1.18,
-        duration: 0.25,
-        yoyo: true,
-        repeat: 1,
         ease: "power2.inOut",
-      }, 2.3);
-    }
+        onUpdate: () => {
+          if (counterRef.current) {
+            counterRef.current.textContent = String(Math.round(counterObj.val)).padStart(3, "0");
+          }
+        },
+      }, 0.1);
 
-    // Bottom meta row fades in left to right
-    if (metaRowRef.current) {
-      tl.fromTo(metaRowRef.current, {
-        clipPath: "inset(0 100% 0 0)",
+      // Exit: overlay content fades out and curtains split up/down (yPercent ±100, 0.9s, power4.inOut)
+      tl.to(preloaderContentRef.current, {
         opacity: 0,
-      }, {
-        clipPath: "inset(0 0% 0 0)",
+        duration: 0.3,
+        ease: "power2.out",
+      }, 0.8);
+
+      tl.to(topCurtainRef.current, {
+        yPercent: -100,
+        duration: 0.9,
+        ease: "power4.inOut",
+      }, 0.9);
+
+      tl.to(bottomCurtainRef.current, {
+        yPercent: 100,
+        duration: 0.9,
+        ease: "power4.inOut",
+      }, 0.9);
+
+      // =========================================================================
+      // STAGE 1: BACKGROUND (starts at 0.9s)
+      // =========================================================================
+      // Orange sphere: scales from 0.6 -> 1 and fades in with soft blur 20px -> 0 (1.4s)
+      if (sunDiscRef.current) {
+        tl.fromTo(sunDiscRef.current, {
+          scale: 0.6,
+          opacity: 0,
+          filter: "blur(20px)",
+        }, {
+          scale: 1,
+          opacity: 0.95,
+          filter: "blur(0px)",
+          duration: 1.4,
+          ease: "expo.out",
+        }, 0.9);
+      }
+
+      // Thin orbit ring: draws itself with stroke-dashoffset (1.6s)
+      if (orbitRingRef.current) {
+        const ringLen = 2 * Math.PI * 285; // ~1791px
+        gsap.set(orbitRingRef.current, { strokeDasharray: ringLen, strokeDashoffset: ringLen });
+        tl.to(orbitRingRef.current, {
+          strokeDashoffset: 0,
+          duration: 1.6,
+          ease: "expo.out",
+        }, 0.9);
+      }
+
+      // Sparkle/crosshair marker pops in with back.out(2)
+      if (sparkleRef.current) {
+        tl.fromTo(sparkleRef.current, {
+          scale: 0,
+          opacity: 0,
+          transformOrigin: "300px 300px",
+        }, {
+          scale: 1,
+          opacity: 1,
+          duration: 0.6,
+          ease: "back.out(2)",
+        }, 1.7);
+      }
+
+      // Monumental building image: clip-path wipe from bottom-left (1.2s) & scale 1.15 -> 1
+      if (buildingImgRef.current) {
+        tl.fromTo(buildingImgRef.current, {
+          clipPath: "polygon(0 100%, 0 100%, 0 100%)",
+          scale: 1.15,
+        }, {
+          clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
+          scale: 1,
+          duration: 1.2,
+          ease: "expo.out",
+        }, 0.9);
+      }
+
+      // =========================================================================
+      // STAGE 2: HEADLINE (starts at position "-=0.3" from curtain end, i.e. 1.5s)
+      // =========================================================================
+      const headlineStartTime = 1.5;
+
+      // Eyebrow clip reveal & line draw
+      if (eyebrowTextRef.current) {
+        tl.fromTo(eyebrowTextRef.current, {
+          clipPath: "inset(0 100% 0 0)",
+        }, {
+          clipPath: "inset(0 0% 0 0)",
+          duration: 0.8,
+          ease: "expo.out",
+        }, headlineStartTime);
+      }
+
+      if (eyebrowLineRef.current) {
+        tl.fromTo(eyebrowLineRef.current, {
+          width: 0,
+        }, {
+          width: "6rem", // 96px
+          duration: 0.8,
+          ease: "expo.out",
+        }, headlineStartTime);
+      }
+
+      // Headline lines animate yPercent: 110 -> 0, rotate: 3 -> 0, duration 1.1, stagger 0.14
+      tl.to(".hero-headline-line", {
+        yPercent: 0,
+        rotate: 0,
+        duration: 1.1,
+        stagger: 0.14,
+        ease: "expo.out",
+      }, headlineStartTime);
+
+      // Italic accent words slide in from x: -40 with skewX: -12 -> 0 settle
+      tl.to(".hero-headline-accent", {
+        x: 0,
+        skewX: 0,
+        duration: 1.1,
+        ease: "expo.out",
+      }, headlineStartTime);
+
+      // Per-character animation on italic words (yPercent: 100 -> 0, stagger 0.025)
+      tl.to(".hero-headline-accent .hero-char", {
+        yPercent: 0,
+        duration: 0.8,
+        stagger: 0.025,
+        ease: "expo.out",
+      }, headlineStartTime + 0.12);
+
+      // =========================================================================
+      // STAGE 3: SUPPORTING UI (starts at 2.1s)
+      // =========================================================================
+      // Subtitle paragraph by lines (opacity 0 -> 1, y 20 -> 0, stagger 0.08)
+      tl.to(".hero-p-line", {
         opacity: 1,
+        y: 0,
+        duration: 0.8,
+        stagger: 0.08,
+        ease: "expo.out",
+      }, 2.1);
+
+      // CTA buttons slide up with slight scale
+      if (ctaRef.current) {
+        tl.to(ctaRef.current, {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.8,
+          ease: "expo.out",
+        }, 2.2);
+      }
+
+      // "SYSTEM OVERVIEW" Play Button pulses once
+      if (playBtnRef.current) {
+        tl.to(playBtnRef.current, {
+          scale: 1.18,
+          duration: 0.25,
+          yoyo: true,
+          repeat: 1,
+          ease: "power2.inOut",
+        }, 2.5);
+      }
+
+      // Bottom meta row reveals left-to-right
+      if (metaRowRef.current) {
+        tl.to(metaRowRef.current, {
+          clipPath: "inset(0 0% 0 0)",
+          opacity: 1,
+          duration: 0.8,
+          ease: "expo.out",
+        }, 2.3);
+      }
+
+      // Main Navbar drops down
+      tl.to("#main-navbar", {
+        yPercent: 0,
         duration: 0.8,
         ease: "expo.out",
-      }, 2.0);
-    }
+      }, 2.2);
 
-    // Main Navbar drops from y: -100% to 0
-    tl.fromTo("#main-navbar", {
-      yPercent: -100,
-    }, {
-      yPercent: 0,
-      duration: 0.8,
-      ease: "expo.out",
-    }, 1.8);
+      // Side progress rail and top-right callout fade in
+      tl.to(["#scroll-progress-rail", calloutRef.current], {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: "expo.out",
+        stagger: 0.1,
+      }, 2.3);
 
-    // Side step indicator (01-06) and "CAMPUS / MAP / ROUTES / SPACES" label fade in last
-    tl.fromTo(["#scroll-progress-rail", calloutRef.current], {
-      opacity: 0,
-      y: -10,
-    }, {
-      opacity: 1,
-      y: 0,
-      duration: 0.8,
-      ease: "expo.out",
-      stagger: 0.1,
-    }, 2.0);
-
-    // Rotating circular badge scales in with 360 spin
-    if (badgeRef.current) {
-      tl.fromTo(badgeRef.current, {
-        scale: 0,
-        rotation: 0,
-      }, {
-        scale: 1,
-        rotation: 360,
-        duration: 1.0,
-        ease: "back.out(1.5)",
-      }, 2.0);
-    }
+      // Rotating circular badge scales in with 360 spin
+      if (badgeRef.current) {
+        tl.to(badgeRef.current, {
+          scale: 1,
+          rotation: 360,
+          duration: 1.0,
+          ease: "back.out(1.5)",
+        }, 2.3);
+      }
+    }, containerRef);
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      tl.kill();
+      unlockScroll();
+      ctx.revert();
     };
-  }, [skipIntro, initIdleEffects]);
+  }, [skipIntro, lockScroll, unlockScroll, initIdleEffects]);
 
   return (
     <section
@@ -477,12 +511,6 @@ export function ArchitecturalHero() {
           aria-label="CampusWay Loading Screen — Click or press any key to skip"
           role="presentation"
         >
-          {/* Immediate anti-flash style injection for subsequent visits (avoids direct attribute mutation during hydration) */}
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `try{if(sessionStorage.getItem('campusway_intro_played')==='true'||window.matchMedia('(prefers-reduced-motion: reduce)').matches){var s=document.createElement('style');s.id='hero-preloader-anti-flash';s.textContent='#hero-preloader{display:none!important;}';document.head.appendChild(s);}}catch(e){}`,
-            }}
-          />
           {/* Split Curtains (Top & Bottom halves slide yPercent ±100, 0.9s, power4.inOut) */}
           <div
             ref={topCurtainRef}
@@ -541,7 +569,7 @@ export function ArchitecturalHero() {
               <div className="flex items-baseline gap-1">
                 <span
                   ref={counterRef}
-                  className="font-mono text-2xl sm:text-3xl font-bold text-[#E8452C] tracking-widest"
+                  className="font-mono text-2xl sm:text-3xl font-bold text-[#E8452C] tracking-widest tabular-nums"
                 >
                   000
                 </span>
@@ -670,7 +698,7 @@ export function ArchitecturalHero() {
         <div className="max-w-xl lg:max-w-2xl flex flex-col space-y-5 lg:space-y-6">
           {/* Section Kicker */}
           <div className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200">
-            <span className="text-[#DE4B31]">01 /</span>
+            <span className="text-[#E8452C]">01 /</span>
             <div ref={eyebrowTextRef} className="overflow-hidden inline-block">
               <span className="tracking-wider">CAMPUS WAYFINDING, REIMAGINED</span>
             </div>
@@ -687,33 +715,49 @@ export function ArchitecturalHero() {
             className="fluid-hero-headline font-black tracking-tight uppercase text-[#0E1118] dark:text-white"
           >
             <div className="overflow-hidden">
-              <span className="hero-headline-line block">FIND YOUR</span>
+              <span className="hero-headline-line block will-change-transform">FIND YOUR</span>
             </div>
             <div className="overflow-hidden">
-              <span className="hero-headline-line block">PLACE.</span>
+              <span className="hero-headline-line block will-change-transform">PLACE.</span>
             </div>
             <div className="overflow-hidden">
-              <span className="hero-headline-line hero-headline-accent block text-[#DE4B31] italic tracking-tight">
-                NAVIGATE
+              <span className="hero-headline-line hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
+                {"NAVIGATE".split("").map((char, i) => (
+                  <span key={i} className="hero-char inline-block will-change-transform">
+                    {char}
+                  </span>
+                ))}
               </span>
             </div>
             <div className="overflow-hidden">
-              <span className="hero-headline-line hero-headline-accent block text-[#DE4B31] italic tracking-tight">
-                FURTHER.
+              <span className="hero-headline-line hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
+                {"FURTHER.".split("").map((char, i) => (
+                  <span key={i} className="hero-char inline-block will-change-transform">
+                    {char}
+                  </span>
+                ))}
               </span>
             </div>
           </h1>
 
-          {/* Subheading */}
+          {/* Subheading with per-line reveal */}
           <p
             ref={paragraphRef}
             className="text-base sm:text-lg text-[#5B5750] dark:text-zinc-300 font-normal leading-relaxed max-w-lg"
           >
-            Discover destinations, plan smarter routes, and experience Lovely Professional University with architectural clarity and step-by-step guidance.
+            <span className="hero-p-line block will-change-transform">
+              Discover destinations, plan smarter routes, and experience
+            </span>
+            <span className="hero-p-line block will-change-transform">
+              Lovely Professional University with architectural clarity
+            </span>
+            <span className="hero-p-line block will-change-transform">
+              and step-by-step guidance.
+            </span>
           </p>
 
           {/* CTAs */}
-          <div ref={ctaRef} className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6">
+          <div ref={ctaRef} className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6 will-change-transform">
             <MagneticButton
               href="/explore"
               variant="primary"
@@ -721,7 +765,7 @@ export function ArchitecturalHero() {
               className="px-8 py-4 text-xs sm:text-sm shadow-md hover:shadow-xl"
             >
               <span>EXPLORE CAMPUS</span>
-              <span className="text-[#DE4B31] font-bold text-sm">↗</span>
+              <span className="text-[#E8452C] font-bold text-sm">↗</span>
             </MagneticButton>
 
             {/* Circular Play Button + WATCH OVERVIEW */}
@@ -730,19 +774,19 @@ export function ArchitecturalHero() {
               type="button"
               data-cursor="PLAY"
               onClick={() => setModalOpen(true)}
-              className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
+              className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none will-change-transform"
               aria-label="View system overview"
             >
-              <div className="w-12 h-12 rounded-full border border-[#0E1118]/30 dark:border-white/20 group-hover:border-[#DE4B31] bg-white/70 dark:bg-zinc-800/80 flex items-center justify-center transition-all group-hover:scale-105 shadow-sm">
+              <div className="w-12 h-12 rounded-full border border-[#0E1118]/30 dark:border-white/20 group-hover:border-[#E8452C] bg-white/70 dark:bg-zinc-800/80 flex items-center justify-center transition-all group-hover:scale-105 shadow-sm">
                 <svg
-                  className="w-4 h-4 text-[#0E1118] dark:text-white group-hover:text-[#DE4B31] ml-0.5 transition-colors"
+                  className="w-4 h-4 text-[#0E1118] dark:text-white group-hover:text-[#E8452C] ml-0.5 transition-colors"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
-              <div className="flex flex-col text-[11px] font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200 leading-tight group-hover:text-[#DE4B31] transition-colors">
+              <div className="flex flex-col text-[11px] font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200 leading-tight group-hover:text-[#E8452C] transition-colors">
                 <span>SYSTEM</span>
                 <span>OVERVIEW</span>
               </div>
@@ -754,25 +798,25 @@ export function ArchitecturalHero() {
       {/* 6. BOTTOM BAR: SCROLL INDICATOR & STATS ROW */}
       <div
         ref={metaRowRef}
-        className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono text-[#5B5750] dark:text-zinc-400 pt-6"
+        className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono text-[#5B5750] dark:text-zinc-400 pt-6 will-change-transform"
       >
         <div className="flex flex-wrap items-center gap-4 sm:gap-8">
           <div className="flex items-center gap-3">
             <div className="w-4 h-7 rounded-full border border-[#0E1118]/40 dark:border-white/30 flex items-start justify-center p-1">
-              <span className="w-1 h-1.5 bg-[#DE4B31] rounded-full animate-bounce" />
+              <div className="w-1 h-2 bg-[#E8452C] rounded-full animate-scroll-bounce" />
             </div>
-            <span className="tracking-widest uppercase text-[11px] font-semibold text-[#5B5750] dark:text-zinc-400">
-              SCROLL TO EXPLORE &mdash;
-            </span>
+            <span className="tracking-wider">SCROLL TO EXPLORE</span>
           </div>
+          <span className="hidden sm:inline opacity-30">&bull;</span>
+          <span className="hidden sm:inline tracking-wider">31.2536&deg; N, 75.7037&deg; E</span>
+        </div>
 
-          <div className="flex items-center gap-3 text-[10px] font-mono tracking-wider uppercase text-[#5B5750] dark:text-zinc-400">
-            <span>38+ ACADEMIC BLOCKS</span>
-            <span className="opacity-40">&bull;</span>
-            <span>27 SURVEYED NODES</span>
-            <span className="opacity-40">&bull;</span>
-            <span className="text-[#DE4B31] font-semibold">DATASET C VERIFIED</span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#E8452C] animate-pulse" />
+            <span className="tracking-wider text-[#0E1118] dark:text-zinc-200">LIVE SATELLITE SYNC</span>
           </div>
+          <span className="tracking-wider text-[#5B5750] dark:text-zinc-400">DATASET 2026.04</span>
         </div>
       </div>
 
@@ -780,65 +824,52 @@ export function ArchitecturalHero() {
       <div
         ref={badgeRef}
         id="hero-rotating-badge"
-        className="hidden md:block fixed lg:absolute right-[clamp(24px,4vw,64px)] bottom-[clamp(88px,12svh,140px)] z-20 pointer-events-auto"
+        className="hidden md:block fixed lg:absolute right-[clamp(24px,4vw,64px)] bottom-[clamp(88px,12svh,140px)] z-20 pointer-events-auto will-change-transform"
       >
         <RotatingTextBadge
           size={92}
           onClick={() => {
-            const el = document.getElementById("section-02");
-            if (el) el.scrollIntoView({ behavior: "smooth" });
+            const nextSec = document.getElementById("section-02");
+            if (nextSec) {
+              nextSec.scrollIntoView({ behavior: isReducedMotion() ? "auto" : "smooth" });
+            }
           }}
         />
       </div>
 
-      {/* System Overview Modal */}
+      {/* OVERVIEW VIDEO MODAL DIALOG */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setModalOpen(false)}
           role="dialog"
           aria-modal="true"
+          aria-label="CampusWay System Overview Video"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          onClick={() => setModalOpen(false)}
         >
           <div
-            className="bg-white dark:bg-[#0E1422] rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-[#E1DDD3] dark:border-zinc-800 shadow-2xl space-y-4"
+            className="relative w-full max-w-4xl bg-[#FAF8F5] dark:bg-[#0E1422] rounded-3xl p-6 sm:p-8 border border-[#E1DDD3] dark:border-zinc-800 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#E1DDD3] dark:border-zinc-800">
-              <span className="font-mono text-xs font-bold text-[#DE4B31] uppercase tracking-wider">
-                CAMPUSWAY // ARCHITECTURAL SPECIFICATION
-              </span>
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E1DDD3] dark:border-zinc-800 font-mono text-xs text-[#0E1118] dark:text-zinc-300">
+              <span className="font-bold text-[#E8452C]">✦ CAMPUSWAY SYSTEM OVERVIEW</span>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-black dark:hover:text-white flex items-center justify-center text-sm font-bold"
+                className="hover:text-[#E8452C] transition-colors cursor-pointer text-sm font-bold"
+                aria-label="Close dialog"
               >
-                &times;
+                ✕ CLOSE
               </button>
             </div>
-            <h3 className="text-xl font-bold text-[#0E1118] dark:text-white">
-              CampusWay for Lovely Professional University
-            </h3>
-            <p className="text-sm text-[#5B5750] dark:text-zinc-300 leading-relaxed">
-              CampusWay is an intelligent wayfinding system powered by verified ground-truth topological graphs (Dataset C), featuring 3D building visualization, step-free accessible route planning, and real-time navigation across LPU&apos;s 600+ acre campus.
-            </p>
-            <div className="grid grid-cols-2 gap-3 pt-2 text-xs font-mono">
-              <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-zinc-900 border border-[#E1DDD3] dark:border-zinc-800">
-                <span className="text-[10px] text-slate-400 block">TOPOLOGY</span>
-                <span className="font-bold text-[#0E1118] dark:text-white">Dataset C Verified</span>
-              </div>
-              <div className="p-3 rounded-xl bg-[#FAF8F5] dark:bg-zinc-900 border border-[#E1DDD3] dark:border-zinc-800">
-                <span className="text-[10px] text-slate-400 block">MAP ENGINE</span>
-                <span className="font-bold text-[#0E1118] dark:text-white">Mapbox GL 3D</span>
-              </div>
-            </div>
-            <div className="pt-2 flex justify-end">
-              <Link
-                href="/explore"
-                onClick={() => setModalOpen(false)}
-                className="px-5 py-2.5 rounded-full bg-[#0E1118] dark:bg-white text-white dark:text-[#0E1118] font-mono text-xs font-bold uppercase tracking-wider hover:bg-[#DE4B31] dark:hover:bg-[#DE4B31] dark:hover:text-white transition"
-              >
-                Launch Map &rarr;
-              </Link>
+
+            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative flex items-center justify-center">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
+                title="System Overview"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
           </div>
         </div>
