@@ -133,7 +133,7 @@ export function AtlasSection() {
       id="section-05"
       ref={sectionRef}
       aria-label="Campus Architectural Photography Atlas"
-      className="relative z-[20] w-full bg-[#070B14] text-[#F4F6FA] rounded-t-[36px] sm:rounded-t-[48px] lg:rounded-t-[56px] border-t border-white/[0.08] shadow-[0_-30px_70px_rgba(0,0,0,0.65)] py-24 md:py-32 overflow-hidden select-none border-b border-white/[0.08] transition-colors duration-200 will-change-transform"
+      className="relative z-[20] -mt-12 sm:-mt-16 lg:-mt-20 w-full bg-[#070B14] text-[#F4F6FA] rounded-t-[48px] border-t border-white/[0.08] shadow-[0_-30px_70px_rgba(0,0,0,0.65)] py-24 md:py-32 overflow-hidden select-none border-b border-white/[0.08] transition-colors duration-200 will-change-transform"
       style={{
         marginBottom: "-80px",
         // Theme token: Deep navy #070B14 with subtle radial glow
