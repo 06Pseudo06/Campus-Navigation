@@ -12,15 +12,15 @@ export function ClosingCtaSection() {
       className="relative w-full min-h-[540px] lg:min-h-[620px] bg-[#0E1118] text-white flex items-center justify-center overflow-hidden py-24 sm:py-32 select-none"
       aria-label="Start Exploring CampusWay"
     >
-      {/* Background Architectural Photo */}
+      {/* Background Architectural Photo: Authentic LPU Campus Overview */}
       <div className="absolute inset-0 pointer-events-none z-0 scale-105">
         <Image
-          src="/images/closing-architecture.jpg"
-          alt="Illuminated university campus architecture at dusk"
+          src="/images/lpu/lpu-closing-architecture.webp"
+          alt="Illuminated Lovely Professional University campus architecture and boulevard at dusk"
           fill
           unoptimized
           sizes="100vw"
-          className="object-cover object-center opacity-25"
+          className="object-cover object-center opacity-30"
         />
         {/* Deep Vignette Gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0E1118] via-[#0E1118]/85 to-[#0E1118]/90" />

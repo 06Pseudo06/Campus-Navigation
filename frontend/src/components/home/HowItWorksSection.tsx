@@ -16,28 +16,32 @@ const STEPS = [
     title: "SEARCH",
     description: "Look up any academic block, lecture hall, entrance gate, or campus dining facility by name or code.",
     chips: ["+ 38+ BLOCKS", "+ GPS SURVEYED"],
-    image: "/images/274ded96b5ab24b17eba47db4e7c69dd.jpg",
+    image: "/images/lpu/lpu-step1-block35.webp",
+    alt: "LPU Academic Block 35 School of Computer Science & Engineering",
   },
   {
     num: "02",
     title: "ROUTE",
     description: "Sub-second graph traversal analyzes verified pedestrian walking edges to generate optimal paths.",
     chips: ["+ DIJKSTRA SOLVER", "+ A* HEURISTIC"],
-    image: "/images/arch-navigate.jpg",
+    image: "/images/lpu/lpu-step2-route.webp",
+    alt: "LPU modern academic complex with pedestrian routing pathways",
   },
   {
     num: "03",
     title: "WALK",
     description: "Follow turn-by-turn guidance with ramp accessibility tags, grade markers, and real-time distance updates.",
     chips: ["+ ACCESSIBLE", "+ STEP-FREE"],
-    image: "/images/arch-real_campus.jpg",
+    image: "/images/lpu/lpu-step3-walk.webp",
+    alt: "LPU accessible pedestrian concourse with level walking paths and ramps",
   },
   {
     num: "04",
     title: "SAVE",
     description: "Bookmark your frequent classrooms, auditoriums, and labs to your personal atlas for instant recall.",
     chips: ["+ POSTGRESQL SYNC", "+ INSTANT BOOKMARK"],
-    image: "/images/arch-save.jpg",
+    image: "/images/lpu/lpu-step4-unimall.webp",
+    alt: "LPU UniMall student center, dining, and lifestyle bookmark destination",
   },
 ];
 
@@ -184,7 +188,7 @@ export function HowItWorksSection() {
                     <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-slate-200 dark:bg-zinc-800 mb-5 border border-[#E1DDD3] dark:border-zinc-800">
                       <Image
                         src={step.image}
-                        alt={step.title}
+                        alt={step.alt}
                         fill
                         unoptimized
                         loading="eager"

@@ -102,10 +102,10 @@ export function ArchitecturalHero() {
         className="absolute right-[-3vw] bottom-0 w-[clamp(500px,60vw,1080px)] h-[clamp(420px,82svh,880px)] pointer-events-none z-[2] select-none flex items-end justify-end overflow-visible transition-transform duration-300 animate-hero-building"
       >
         <Image
-          src="/images/hero-curved-fullbleed.webp"
-          alt="Monumental curved campus architecture with sunset disc"
-          width={1671}
-          height={941}
+          src="/images/lpu/lpu-gateway-cutout.webp"
+          alt="Monumental entrance gateway and campus architecture of Lovely Professional University"
+          width={1592}
+          height={912}
           priority
           unoptimized
           className="w-full h-full object-contain object-bottom-right drop-shadow-[0_24px_48px_rgba(17,17,17,0.14)] dark:drop-shadow-[0_24px_48px_rgba(0,0,0,0.6)]"
