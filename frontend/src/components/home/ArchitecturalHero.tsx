@@ -177,6 +177,12 @@ export function ArchitecturalHero() {
       timelineRef.current.progress(1);
       timelineRef.current.kill();
     }
+    // Explicitly guarantee all elements are visible and clean of lingering transforms
+    gsap.set(".hero-headline-line", { yPercent: 0, rotate: 0, clearProps: "transform" });
+    gsap.set(".hero-headline-accent", { x: 0, skewX: 0, clearProps: "transform" });
+    gsap.set(".hero-p-line", { opacity: 1, y: 0, clearProps: "all" });
+    if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 1, y: 0, scale: 1, clearProps: "all" });
+    if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 1, clipPath: "inset(0 0% 0 0)", clearProps: "all" });
     introPlayed = true;
     setIsIntroActive(false);
     unlockScroll();
@@ -203,17 +209,28 @@ export function ArchitecturalHero() {
         history.replaceState(null, "", window.location.pathname + window.location.search);
       } catch {}
     }
-    window.scrollTo(0, 0);
-    const activeLenis = getLenis();
-    if (activeLenis) {
-      activeLenis.scrollTo(0, { immediate: true });
-    }
+    const resetScrollToTop = () => {
+      window.scrollTo(0, 0);
+      const activeLenis = getLenis();
+      if (activeLenis) {
+        activeLenis.scrollTo(0, { immediate: true });
+      }
+    };
+    resetScrollToTop();
+    requestAnimationFrame(resetScrollToTop);
+    setTimeout(resetScrollToTop, 50);
+    setTimeout(resetScrollToTop, 150);
 
     const reduced = isReducedMotion();
 
     if (introPlayed || reduced) {
       setIsIntroActive(false);
       unlockScroll();
+      gsap.set(".hero-headline-line", { yPercent: 0, rotate: 0, clearProps: "transform" });
+      gsap.set(".hero-headline-accent", { x: 0, skewX: 0, clearProps: "transform" });
+      gsap.set(".hero-p-line", { opacity: 1, y: 0, clearProps: "all" });
+      if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 1, y: 0, scale: 1, clearProps: "all" });
+      if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 1, clipPath: "inset(0 0% 0 0)", clearProps: "all" });
       initIdleEffects();
       return;
     }
@@ -235,12 +252,12 @@ export function ArchitecturalHero() {
     const ctx = gsap.context(() => {
       // SET INITIAL STATES BEFORE FIRST PAINT (prevents flash of resting text)
       gsap.set(".hero-headline-line", { yPercent: 110, rotate: 3 });
-      gsap.set(".hero-headline-accent", { x: -40, skewX: -12 });
-      gsap.set(".hero-headline-accent .hero-char", { yPercent: 100 });
+      gsap.set(".hero-headline-accent", { x: -35, skewX: -8 });
       gsap.set(".hero-p-line", { opacity: 0, y: 20 });
       if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 0, y: 20, scale: 0.95 });
       if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 0, clipPath: "inset(0 100% 0 0)" });
-      gsap.set("#main-navbar", { yPercent: -100 });
+      const navEl = document.getElementById("main-navbar");
+      if (navEl) gsap.set(navEl, { yPercent: -100 });
       if (badgeRef.current) gsap.set(badgeRef.current, { scale: 0, rotation: 0 });
       gsap.set(["#scroll-progress-rail", calloutRef.current], { opacity: 0, y: -10 });
 
@@ -248,6 +265,8 @@ export function ArchitecturalHero() {
       const tl = gsap.timeline({
         defaults: { ease: "expo.out" },
         onComplete: () => {
+          gsap.set(".hero-headline-line", { clearProps: "transform" });
+          gsap.set(".hero-headline-accent", { clearProps: "transform" });
           introPlayed = true;
           setIsIntroActive(false);
           unlockScroll();
@@ -288,27 +307,27 @@ export function ArchitecturalHero() {
         },
       }, 0.1);
 
-      // Exit: overlay content fades out and curtains split up/down (yPercent ±100, 0.9s, power4.inOut)
+      // Exit: overlay content fades out and curtains split up/down (yPercent ±100, 0.8s, power4.inOut)
       tl.to(preloaderContentRef.current, {
         opacity: 0,
-        duration: 0.3,
+        duration: 0.25,
         ease: "power2.out",
       }, 0.8);
 
       tl.to(topCurtainRef.current, {
         yPercent: -100,
-        duration: 0.9,
+        duration: 0.8,
         ease: "power4.inOut",
-      }, 0.9);
+      }, 0.85);
 
       tl.to(bottomCurtainRef.current, {
         yPercent: 100,
-        duration: 0.9,
+        duration: 0.8,
         ease: "power4.inOut",
-      }, 0.9);
+      }, 0.85);
 
       // =========================================================================
-      // STAGE 1: BACKGROUND (starts at 0.9s)
+      // STAGE 1: BACKGROUND (starts at 0.85s)
       // =========================================================================
       // Orange sphere: scales from 0.6 -> 1 and fades in with soft blur 20px -> 0 (1.4s)
       if (sunDiscRef.current) {
@@ -320,9 +339,9 @@ export function ArchitecturalHero() {
           scale: 1,
           opacity: 0.95,
           filter: "blur(0px)",
-          duration: 1.4,
+          duration: 1.3,
           ease: "expo.out",
-        }, 0.9);
+        }, 0.85);
       }
 
       // Thin orbit ring: draws itself with stroke-dashoffset (1.6s)
@@ -331,9 +350,9 @@ export function ArchitecturalHero() {
         gsap.set(orbitRingRef.current, { strokeDasharray: ringLen, strokeDashoffset: ringLen });
         tl.to(orbitRingRef.current, {
           strokeDashoffset: 0,
-          duration: 1.6,
+          duration: 1.5,
           ease: "expo.out",
-        }, 0.9);
+        }, 0.85);
       }
 
       // Sparkle/crosshair marker pops in with back.out(2)
@@ -347,7 +366,7 @@ export function ArchitecturalHero() {
           opacity: 1,
           duration: 0.6,
           ease: "back.out(2)",
-        }, 1.7);
+        }, 1.6);
       }
 
       // Monumental building image: clip-path wipe from bottom-left (1.2s) & scale 1.15 -> 1
@@ -360,13 +379,13 @@ export function ArchitecturalHero() {
           scale: 1,
           duration: 1.2,
           ease: "expo.out",
-        }, 0.9);
+        }, 0.85);
       }
 
       // =========================================================================
-      // STAGE 2: HEADLINE (starts at position "-=0.3" from curtain end, i.e. 1.5s)
+      // STAGE 2: HEADLINE (starts at 1.1s so it's fully emerging as curtains part)
       // =========================================================================
-      const headlineStartTime = 1.5;
+      const headlineStartTime = 1.1;
 
       // Eyebrow clip reveal & line draw
       if (eyebrowTextRef.current) {
@@ -389,42 +408,37 @@ export function ArchitecturalHero() {
         }, headlineStartTime);
       }
 
-      // Headline lines animate yPercent: 110 -> 0, rotate: 3 -> 0, duration 1.1, stagger 0.14
+      // Headline lines animate yPercent: 110 -> 0, rotate: 3 -> 0, duration 1.0, stagger 0.08
       tl.to(".hero-headline-line", {
         yPercent: 0,
         rotate: 0,
-        duration: 1.1,
-        stagger: 0.14,
+        duration: 1.0,
+        stagger: 0.08,
         ease: "expo.out",
+        clearProps: "transform",
       }, headlineStartTime);
 
-      // Italic accent words slide in from x: -40 with skewX: -12 -> 0 settle
+      // Italic accent words slide in from x: -35 with skewX: -8 -> 0 settle
       tl.to(".hero-headline-accent", {
         x: 0,
         skewX: 0,
-        duration: 1.1,
+        duration: 1.0,
+        stagger: 0.08,
         ease: "expo.out",
-      }, headlineStartTime);
-
-      // Per-character animation on italic words (yPercent: 100 -> 0, stagger 0.025)
-      tl.to(".hero-headline-accent .hero-char", {
-        yPercent: 0,
-        duration: 0.8,
-        stagger: 0.025,
-        ease: "expo.out",
-      }, headlineStartTime + 0.12);
+        clearProps: "transform",
+      }, headlineStartTime + 0.16);
 
       // =========================================================================
-      // STAGE 3: SUPPORTING UI (starts at 2.1s)
+      // STAGE 3: SUPPORTING UI (starts at 1.8s)
       // =========================================================================
-      // Subtitle paragraph by lines (opacity 0 -> 1, y 20 -> 0, stagger 0.08)
+      // Subtitle paragraph by lines (opacity 0 -> 1, y 20 -> 0, stagger 0.06)
       tl.to(".hero-p-line", {
         opacity: 1,
         y: 0,
         duration: 0.8,
-        stagger: 0.08,
+        stagger: 0.06,
         ease: "expo.out",
-      }, 2.1);
+      }, 1.8);
 
       // CTA buttons slide up with slight scale
       if (ctaRef.current) {
@@ -434,7 +448,7 @@ export function ArchitecturalHero() {
           opacity: 1,
           duration: 0.8,
           ease: "expo.out",
-        }, 2.2);
+        }, 1.9);
       }
 
       // "SYSTEM OVERVIEW" Play Button pulses once
@@ -445,7 +459,7 @@ export function ArchitecturalHero() {
           yoyo: true,
           repeat: 1,
           ease: "power2.inOut",
-        }, 2.5);
+        }, 2.2);
       }
 
       // Bottom meta row reveals left-to-right
@@ -455,15 +469,17 @@ export function ArchitecturalHero() {
           opacity: 1,
           duration: 0.8,
           ease: "expo.out",
-        }, 2.3);
+        }, 2.0);
       }
 
       // Main Navbar drops down
-      tl.to("#main-navbar", {
-        yPercent: 0,
-        duration: 0.8,
-        ease: "expo.out",
-      }, 2.2);
+      if (navEl) {
+        tl.to(navEl, {
+          yPercent: 0,
+          duration: 0.8,
+          ease: "expo.out",
+        }, 1.9);
+      }
 
       // Side progress rail and top-right callout fade in
       tl.to(["#scroll-progress-rail", calloutRef.current], {
@@ -472,7 +488,7 @@ export function ArchitecturalHero() {
         duration: 0.8,
         ease: "expo.out",
         stagger: 0.1,
-      }, 2.3);
+      }, 2.0);
 
       // Rotating circular badge scales in with 360 spin
       if (badgeRef.current) {
@@ -481,7 +497,7 @@ export function ArchitecturalHero() {
           rotation: 360,
           duration: 1.0,
           ease: "back.out(1.5)",
-        }, 2.3);
+        }, 2.0);
       }
     }, containerRef);
 
@@ -714,29 +730,29 @@ export function ArchitecturalHero() {
             ref={headlineRef}
             className="fluid-hero-headline font-black tracking-tight uppercase text-[#0E1118] dark:text-white"
           >
-            <div className="overflow-hidden">
-              <span className="hero-headline-line block will-change-transform">FIND YOUR</span>
+            <div className="overflow-hidden pb-1 -mb-1">
+              <div className="hero-headline-line will-change-transform">
+                <span className="block">FIND YOUR</span>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <span className="hero-headline-line block will-change-transform">PLACE.</span>
+            <div className="overflow-hidden pb-1 -mb-1">
+              <div className="hero-headline-line will-change-transform">
+                <span className="block">PLACE.</span>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <span className="hero-headline-line hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
-                {"NAVIGATE".split("").map((char, i) => (
-                  <span key={i} className="hero-char inline-block will-change-transform">
-                    {char}
-                  </span>
-                ))}
-              </span>
+            <div className="overflow-hidden pb-1 -mb-1">
+              <div className="hero-headline-line will-change-transform">
+                <span className="hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
+                  NAVIGATE
+                </span>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <span className="hero-headline-line hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
-                {"FURTHER.".split("").map((char, i) => (
-                  <span key={i} className="hero-char inline-block will-change-transform">
-                    {char}
-                  </span>
-                ))}
-              </span>
+            <div className="overflow-hidden pb-1 -mb-1">
+              <div className="hero-headline-line will-change-transform">
+                <span className="hero-headline-accent block text-[#E8452C] italic tracking-tight will-change-transform">
+                  FURTHER.
+                </span>
+              </div>
             </div>
           </h1>
 
