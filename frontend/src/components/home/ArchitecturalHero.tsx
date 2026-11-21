@@ -74,9 +74,8 @@ export function ArchitecturalHero() {
       sessionStorage.setItem("campusway_intro_played", "true");
     } catch {}
     setIsIntroActive(false);
-    const preloaderEl = document.getElementById("hero-preloader");
-    if (preloaderEl) {
-      preloaderEl.style.display = "none";
+    if (typeof document !== "undefined") {
+      document.getElementById("hero-preloader-anti-flash")?.remove();
     }
   }, []);
 
@@ -176,6 +175,9 @@ export function ArchitecturalHero() {
 
     if (alreadyPlayed || reduced) {
       setIsIntroActive(false);
+      if (typeof document !== "undefined") {
+        document.getElementById("hero-preloader-anti-flash")?.remove();
+      }
       initIdleEffects();
       return;
     }
@@ -199,6 +201,9 @@ export function ArchitecturalHero() {
         try {
           sessionStorage.setItem("campusway_intro_played", "true");
         } catch {}
+        if (typeof document !== "undefined") {
+          document.getElementById("hero-preloader-anti-flash")?.remove();
+        }
         initIdleEffects();
       },
     });
@@ -466,15 +471,16 @@ export function ArchitecturalHero() {
       {isIntroActive && (
         <div
           id="hero-preloader"
+          suppressHydrationWarning
           onClick={skipIntro}
           className="fixed inset-0 z-[100] pointer-events-auto select-none cursor-pointer"
           aria-label="CampusWay Loading Screen — Click or press any key to skip"
           role="presentation"
         >
-          {/* Immediate anti-flash script for subsequent visits */}
+          {/* Immediate anti-flash style injection for subsequent visits (avoids direct attribute mutation during hydration) */}
           <script
             dangerouslySetInnerHTML={{
-              __html: `try{if(sessionStorage.getItem('campusway_intro_played')==='true'||window.matchMedia('(prefers-reduced-motion: reduce)').matches){var el=document.getElementById('hero-preloader');if(el)el.style.display='none';}}catch(e){}`,
+              __html: `try{if(sessionStorage.getItem('campusway_intro_played')==='true'||window.matchMedia('(prefers-reduced-motion: reduce)').matches){var s=document.createElement('style');s.id='hero-preloader-anti-flash';s.textContent='#hero-preloader{display:none!important;}';document.head.appendChild(s);}}catch(e){}`,
             }}
           />
           {/* Split Curtains (Top & Bottom halves slide yPercent ±100, 0.9s, power4.inOut) */}
