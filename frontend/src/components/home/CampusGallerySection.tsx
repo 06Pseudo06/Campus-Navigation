@@ -248,7 +248,7 @@ export function CampusGallerySection() {
                   {selectedItem.title}
                 </h3>
                 <p className="text-xs text-white/60 font-mono">
-                  {selectedItem.location} &bull; {selectedItem.tag}
+                  {selectedItem.location} • {selectedItem.tag}
                 </p>
               </div>
               <div className="text-right">
