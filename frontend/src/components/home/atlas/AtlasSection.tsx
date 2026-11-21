@@ -2,10 +2,18 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { motion, useScroll, useReducedMotion, AnimatePresence } from "framer-motion";
+import { motion, useScroll, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { isReducedMotion as checkReducedMotion } from "@/lib/motion";
+import {
+  EASE_OUT_EXPO,
+  GSAP_EASE_EXPO,
+  DURATIONS,
+  STAGGER,
+  MOTION_THEME,
+  useReducedMotionGuard,
+  isReducedMotion,
+} from "@/lib/motion";
 import { ATLAS_PLATES, AtlasPlate } from "@/data/gallery";
 import { AtlasCard } from "./AtlasCard";
 import { StepIndicator } from "./StepIndicator";
@@ -19,23 +27,12 @@ if (typeof window !== "undefined") {
  * AtlasSection
  * 
  * "Monuments & Quadrangles – Campus Architectural Atlas"
- * 
- * Features:
- * - Deep navy #070B14 background with subtle radial glow & 3% film grain noise
- * - Framer Motion line-by-line title reveal with clip-path mask
- * - 12-column Bento layout with 20px gaps and pixel-exact height matching:
- *     Row 1: Plate 01 (7 cols, 540px) + Plates 02 & 03 (5 cols stacked, 260px each + 20px gap = 540px)
- *     Row 2: Plates 04, 05, 06 (4 cols each, 340px)
- * - Sticky side step indicator in left gutter (desktop >= 1280px)
- * - 72px glassy "VIEW" custom cursor with spring physics
- * - Full WCAG AA contrast on cards with layered lighting
- * - Accessible lightbox modal with keyboard navigation
- * - Smooth scroll-driven shelf overlap with Section 4
+ * Powered by shared motion configuration from @/lib/motion.
  */
 export function AtlasSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
+  const motionGuard = useReducedMotionGuard();
 
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
@@ -105,7 +102,7 @@ export function AtlasSection() {
 
   // Section 4 -> Section 5 Scroll Choreography (Preserved from Stage 2.3)
   useEffect(() => {
-    if (!sectionRef.current || checkReducedMotion()) return;
+    if (!sectionRef.current || isReducedMotion()) return;
 
     const ctx = gsap.context(() => {
       const isDesktop = window.innerWidth >= 1024;
@@ -192,14 +189,14 @@ export function AtlasSection() {
             <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em] text-[#F4F6FA]/60">
               <span className="text-[#E8452C] font-bold">05 /</span> CAMPUS ARCHITECTURAL ATLAS
             </span>
-            {/* Animated rule draws from 0 to full width (0.8s) */}
+            {/* Animated rule draws from 0 to full width using shared base duration */}
             <motion.span
               initial={{ scaleX: 0 }}
               whileInView={{ scaleX: 1 }}
               viewport={{ once: true }}
               transition={{
-                duration: 0.8,
-                ease: [0.22, 1, 0.36, 1],
+                duration: motionGuard.duration(DURATIONS.base),
+                ease: EASE_OUT_EXPO,
               }}
               className="h-[1px] bg-[#E8452C]/50 w-16 sm:w-24 origin-left inline-block"
               aria-hidden="true"
@@ -208,37 +205,43 @@ export function AtlasSection() {
 
           {/* Title & Desktop Subtitle */}
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-            {/* Title reveals line by line with clip/translate mask (y: 100% -> 0, 0.7s, ease [0.22, 1, 0.36, 1]) */}
+            {/* Title reveals line by line with clip/translate mask using shared EASE_OUT_EXPO */}
             <h2 className="font-display font-black uppercase text-[#F4F6FA] tracking-[-0.02em] leading-[0.95] text-[clamp(2.5rem,5vw,4.5rem)]">
-              <span className="block overflow-hidden">
-                <motion.span
-                  initial={{ y: "100%" }}
-                  whileInView={{ y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.7,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="block"
-                >
-                  Monuments &amp;
-                </motion.span>
-              </span>
-              <span className="block overflow-hidden">
-                <motion.span
-                  initial={{ y: "100%" }}
-                  whileInView={{ y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{
-                    duration: 0.7,
-                    delay: shouldReduceMotion ? 0 : 0.1,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  className="block"
-                >
-                  Quadrangles
-                </motion.span>
-              </span>
+              {motionGuard.skipTextSplitting ? (
+                <span>Monuments &amp; Quadrangles</span>
+              ) : (
+                <>
+                  <span className="block overflow-hidden">
+                    <motion.span
+                      initial={{ y: "100%" }}
+                      whileInView={{ y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{
+                        duration: motionGuard.duration(0.7),
+                        ease: EASE_OUT_EXPO,
+                      }}
+                      className="block"
+                    >
+                      Monuments &amp;
+                    </motion.span>
+                  </span>
+                  <span className="block overflow-hidden">
+                    <motion.span
+                      initial={{ y: "100%" }}
+                      whileInView={{ y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{
+                        duration: motionGuard.duration(0.7),
+                        delay: motionGuard.delay(STAGGER.text),
+                        ease: EASE_OUT_EXPO,
+                      }}
+                      className="block"
+                    >
+                      Quadrangles
+                    </motion.span>
+                  </span>
+                </>
+              )}
             </h2>
 
             {/* Desktop Right Muted Subheader */}

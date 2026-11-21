@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { HairlineDivider } from "@/components/motion/HairlineDivider";
-import { isReducedMotion } from "@/lib/motion";
+import { isReducedMotion, useReducedMotionGuard } from "@/lib/motion";
 
 const STATS = [
   { value: 38, suffix: "+", label: "BLOCKS INDEXED", sub: "Academic, Hostel & Lab Zones" },
@@ -14,11 +14,14 @@ const STATS = [
 export function MarqueeSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const statsGridRef = useRef<HTMLDivElement>(null);
-  const [counts, setCounts] = useState([0, 0, 0, 0]);
+  const guard = useReducedMotionGuard();
+  const [counts, setCounts] = useState(() =>
+    guard.skipCounters ? STATS.map((s) => s.value) : [0, 0, 0, 0]
+  );
 
   useEffect(() => {
-    if (!statsGridRef.current || isReducedMotion()) {
-      if (isReducedMotion()) {
+    if (!statsGridRef.current || guard.skipCounters) {
+      if (guard.skipCounters) {
         setCounts(STATS.map((s) => s.value));
       }
       return;

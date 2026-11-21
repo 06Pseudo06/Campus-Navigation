@@ -2,8 +2,14 @@
 
 import React, { useRef } from "react";
 import Image from "next/image";
-import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { AtlasPlate } from "@/data/gallery";
+import {
+  EASE_OUT_EXPO,
+  DURATIONS,
+  STAGGER,
+  useReducedMotionGuard,
+} from "@/lib/motion";
 
 interface AtlasCardProps {
   plate: AtlasPlate;
@@ -16,10 +22,10 @@ interface AtlasCardProps {
 /**
  * AtlasCard
  * 
- * Bento architectural plate card.
+ * Bento architectural plate card using shared motion config.
  * Integrates:
- * - Parallax scroll (±20px Y-axis)
- * - Inset clip-path card entrance animation
+ * - Parallax scroll (±20px Y-axis via shared motion guard)
+ * - Inset clip-path card entrance animation with EASE_OUT_EXPO
  * - Smooth desktop hover lift (-6px) & soft accent glow
  * - 0.9s ease-out image zoom to 1.06
  * - 2px growing accent underline under title
@@ -34,9 +40,9 @@ export function AtlasCard({
   onSelect,
 }: AtlasCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const shouldReduceMotion = useReducedMotion();
+  const guard = useReducedMotionGuard();
 
-  // Subtle scroll parallax: image moves ±20px on Y axis
+  // Subtle scroll parallax: image moves ±20px on Y axis (skipped when reduced motion is requested)
   const { scrollYProgress } = useScroll({
     target: cardRef,
     offset: ["start end", "end start"],
@@ -45,7 +51,7 @@ export function AtlasCard({
   const parallaxY = useTransform(
     scrollYProgress,
     [0, 1],
-    shouldReduceMotion ? [0, 0] : [-20, 20]
+    guard.skipParallax ? [0, 0] : [-20, 20]
   );
 
   return (
@@ -64,12 +70,12 @@ export function AtlasCard({
           onSelect(index);
         }
       }}
-      // Entrance animation: staggered fade-up (0.8s, stagger 0.12s, amount 0.2)
+      // Entrance animation: staggered fade-up using shared DURATIONS & STAGGER
       // with clip-path inset reveal from inset(8% round 24px) to inset(0 round 24px)
       initial={{
         opacity: 0,
-        y: shouldReduceMotion ? 0 : 40,
-        clipPath: shouldReduceMotion
+        y: guard.renderInstant ? 0 : 40,
+        clipPath: guard.renderInstant
           ? "inset(0% round 24px)"
           : "inset(8% round 24px)",
       }}
@@ -80,12 +86,12 @@ export function AtlasCard({
       }}
       viewport={{ once: true, amount: 0.2 }}
       transition={{
-        duration: 0.8,
-        delay: shouldReduceMotion ? 0 : index * 0.12,
-        ease: [0.22, 1, 0.36, 1],
+        duration: guard.duration(DURATIONS.base),
+        delay: guard.delay(index * STAGGER.cards),
+        ease: EASE_OUT_EXPO,
       }}
       // Desktop hover lift: lifts -6px with soft accent glow and 1px accent border
-      whileHover={shouldReduceMotion ? undefined : { y: -6 }}
+      whileHover={guard.renderInstant ? undefined : { y: -6 }}
       className={`group relative ${heightClass} w-full rounded-3xl overflow-hidden bg-[#0D1322] border border-white/[0.08] hover:border-[#E8452C]/60 hover:shadow-[0_20px_60px_-20px_rgba(232,69,44,0.35)] transition-all duration-400 cursor-pointer select-none flex flex-col justify-between p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8452C] focus-visible:ring-offset-2 focus-visible:ring-offset-[#070B14]`}
     >
       {/* Parallax Image Viewport with Overflow Hidden and 1.12 scale margin */}

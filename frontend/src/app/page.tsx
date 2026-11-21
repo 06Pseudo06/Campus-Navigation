@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { SectionProvider } from "@/context/SectionContext";
+import { SmoothScroll } from "@/lib/motion";
 import { CustomCursor } from "@/components/motion/CustomCursor";
 import { ScrollProgress } from "@/components/motion/ScrollProgress";
 import { ArchitecturalHero } from "@/components/home/ArchitecturalHero";
@@ -22,6 +23,9 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <SectionProvider>
+      {/* Unified Lenis Smooth-Scroll instance wired to GSAP ScrollTrigger */}
+      <SmoothScroll />
+
       <div className="relative w-full min-h-screen flex flex-col bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 overflow-x-hidden selection:bg-[#DE4B31] selection:text-white transition-colors duration-200">
         {/* Custom Terracotta Interactive Cursor */}
         <CustomCursor />
