@@ -61,8 +61,8 @@ export function CustomCursor() {
         return;
       }
 
-      // 2. Text input / selectable editable elements -> Hide cursor completely
-      if (el.closest("input, textarea, select, [contenteditable='true']")) {
+      // 2. Text input / selectable editable elements / Atlas cards with dedicated cursor -> Hide cursor completely
+      if (el.closest("input, textarea, select, [contenteditable='true'], [data-atlas-card], [data-cursor='none']")) {
         updateCursorState("hidden", "");
         return;
       }
