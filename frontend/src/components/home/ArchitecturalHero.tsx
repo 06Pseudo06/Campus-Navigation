@@ -45,7 +45,7 @@ export function ArchitecturalHero() {
       {/* 1. TOP-LEFT SOFT FOLIAGE OVERLAY */}
       <div
         ref={leavesTopLeftRef}
-        className="absolute -top-[3vw] -left-[3vw] w-[clamp(240px,28vw,440px)] pointer-events-none z-[2] select-none transition-transform duration-300"
+        className="absolute -top-[3vw] -left-[3vw] w-[clamp(240px,28vw,440px)] pointer-events-none z-[2] select-none transition-transform duration-300 animate-hero-foliage"
         style={{
           mixBlendMode: "multiply",
           opacity: 0.55,
@@ -71,7 +71,7 @@ export function ArchitecturalHero() {
       {/* 3. SUN DISC & CONCENTRIC OUTLINE ARC (Behind Building) */}
       <div
         ref={sunDiscRef}
-        className="hidden lg:block absolute right-[4vw] top-[14%] w-[clamp(440px,50vw,720px)] aspect-square pointer-events-none z-[1] transition-transform duration-300"
+        className="hidden lg:block absolute right-[4vw] top-[14%] w-[clamp(440px,50vw,720px)] aspect-square pointer-events-none z-[1] transition-transform duration-300 animate-hero-sun"
         aria-hidden="true"
       >
         <svg className="w-full h-full" viewBox="0 0 600 600" fill="none">
@@ -99,7 +99,7 @@ export function ArchitecturalHero() {
       {/* 4. MONUMENTAL FULL-BLEED CURVED UNIVERSITY BUILDING */}
       <div
         ref={buildingLayerRef}
-        className="absolute right-[-3vw] bottom-0 w-[clamp(500px,60vw,1080px)] h-[clamp(420px,82svh,880px)] pointer-events-none z-[2] select-none flex items-end justify-end overflow-visible transition-transform duration-300"
+        className="absolute right-[-3vw] bottom-0 w-[clamp(500px,60vw,1080px)] h-[clamp(420px,82svh,880px)] pointer-events-none z-[2] select-none flex items-end justify-end overflow-visible transition-transform duration-300 animate-hero-building"
       >
         <Image
           src="/images/hero-curved-fullbleed.webp"
@@ -134,27 +134,35 @@ export function ArchitecturalHero() {
       <div className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex flex-col justify-center my-auto pt-6 lg:pt-0">
         <div className="max-w-xl lg:max-w-2xl flex flex-col space-y-5 lg:space-y-6">
           {/* Section Kicker */}
-          <div className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200">
+          <div className="flex items-center gap-2.5 text-xs font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200 animate-hero-tag">
             <span className="text-[#DE4B31]">01 /</span>
             <span className="tracking-wider">CAMPUS WAYFINDING, REIMAGINED</span>
             <span className="w-12 sm:w-24 h-px bg-[#0E1118]/25 dark:bg-white/20" aria-hidden="true" />
           </div>
 
-          {/* EXACT HEADLINE */}
+          {/* EXACT HEADLINE WITH STAGGERED MASK REVEAL */}
           <h1 className="fluid-hero-headline font-black tracking-tight uppercase text-[#0E1118] dark:text-white">
-            <span className="block">FIND YOUR</span>
-            <span className="block">PLACE.</span>
-            <span className="block text-[#DE4B31] italic tracking-tight">NAVIGATE</span>
-            <span className="block text-[#DE4B31] italic tracking-tight">FURTHER.</span>
+            <div className="overflow-hidden">
+              <span className="block animate-hero-line-1">FIND YOUR</span>
+            </div>
+            <div className="overflow-hidden">
+              <span className="block animate-hero-line-2">PLACE.</span>
+            </div>
+            <div className="overflow-hidden">
+              <span className="block text-[#DE4B31] italic tracking-tight animate-hero-line-3">NAVIGATE</span>
+            </div>
+            <div className="overflow-hidden">
+              <span className="block text-[#DE4B31] italic tracking-tight animate-hero-line-4">FURTHER.</span>
+            </div>
           </h1>
 
           {/* Subheading */}
-          <p className="text-base sm:text-lg text-[#5B5750] dark:text-zinc-300 font-normal leading-relaxed max-w-lg">
+          <p className="text-base sm:text-lg text-[#5B5750] dark:text-zinc-300 font-normal leading-relaxed max-w-lg animate-hero-subtitle">
             Discover destinations, plan smarter routes, and experience Lovely Professional University with architectural clarity and step-by-step guidance.
           </p>
 
           {/* CTAs */}
-          <div className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6">
+          <div className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6 animate-hero-cta">
             <MagneticButton
               href="/explore"
               variant="primary"

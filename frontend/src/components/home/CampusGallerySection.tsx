@@ -44,7 +44,7 @@ export function CampusGallerySection() {
   return (
     <section
       id="section-05"
-      className="relative w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 py-20 lg:py-28 overflow-hidden select-none border-b border-[#E1DDD3] dark:border-white/10 transition-colors duration-200"
+      className="relative z-[10] w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 -mt-16 sm:-mt-20 lg:-mt-28 rounded-t-[32px] sm:rounded-t-[48px] lg:rounded-t-[56px] border-t border-[#E1DDD3] dark:border-white/10 shadow-[0_-24px_48px_rgba(0,0,0,0.06)] dark:shadow-[0_-24px_48px_rgba(0,0,0,0.45)] pt-16 sm:pt-20 lg:pt-24 pb-20 lg:pb-28 overflow-hidden select-none border-b border-[#E1DDD3] dark:border-white/10 transition-colors duration-200"
       aria-label="Campus Architectural Photography Gallery"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10">

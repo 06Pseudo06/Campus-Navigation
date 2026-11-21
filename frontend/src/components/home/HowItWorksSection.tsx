@@ -40,7 +40,7 @@ export function HowItWorksSection() {
   return (
     <section
       id="section-04"
-      className="relative w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 py-20 lg:py-28 overflow-hidden select-none border-b border-[#E1DDD3] dark:border-white/10 transition-colors duration-200"
+      className="relative z-[1] w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 pt-20 lg:pt-28 pb-28 sm:pb-36 lg:pb-44 overflow-hidden select-none transition-colors duration-200"
       aria-label="How CampusWay Works"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10">

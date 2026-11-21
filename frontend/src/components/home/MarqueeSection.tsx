@@ -13,50 +13,73 @@ const STATS = [
 
 export function MarqueeSection() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const statsGridRef = useRef<HTMLDivElement>(null);
   const [counts, setCounts] = useState([0, 0, 0, 0]);
-  const [hasAnimated, setHasAnimated] = useState(false);
 
   useEffect(() => {
-    if (!containerRef.current || hasAnimated || isReducedMotion()) {
+    if (!statsGridRef.current || isReducedMotion()) {
       if (isReducedMotion()) {
         setCounts(STATS.map((s) => s.value));
       }
       return;
     }
 
+    let isCounting = false;
+    let animRafId: number;
+
+    const startCounting = () => {
+      if (isCounting) return;
+      isCounting = true;
+
+      const startTime = performance.now();
+      const duration = 1600;
+
+      const animate = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        setCounts(
+          STATS.map((stat, idx) => {
+            // Apply slight stagger per stat
+            const statDelay = idx * 0.08;
+            const statProgress = Math.max(0, Math.min(1, (progress - statDelay) / (1 - statDelay)));
+            const ease = 1 - Math.pow(1 - statProgress, 3);
+            return Math.round(stat.value * ease);
+          })
+        );
+
+        if (progress < 1) {
+          animRafId = requestAnimationFrame(animate);
+        } else {
+          isCounting = false;
+        }
+      };
+
+      animRafId = requestAnimationFrame(animate);
+    };
+
+    // Observe statsGridRef directly so the counter begins precisely when the numbers enter the viewport
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setHasAnimated(true);
-
-          const startTime = performance.now();
-          const duration = 1600;
-
-          const animate = (now: number) => {
-            const elapsed = now - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Ease out cubic
-            const ease = 1 - Math.pow(1 - progress, 3);
-
-            setCounts(
-              STATS.map((stat) => Math.round(stat.value * ease))
-            );
-
-            if (progress < 1) {
-              requestAnimationFrame(animate);
-            }
-          };
-
-          requestAnimationFrame(animate);
-          observer.disconnect();
-        }
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            startCounting();
+          }
+        });
       },
-      { threshold: 0.25 }
+      {
+        rootMargin: "0px 0px -40px 0px",
+        threshold: 0.15,
+      }
     );
 
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [hasAnimated]);
+    observer.observe(statsGridRef.current);
+
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(animRafId);
+    };
+  }, []);
 
   const marqueeText = "DISCOVER ✦ NAVIGATE ✦ SAVE ✦ ARRIVE ✦ WAYFINDING ✦ CAMPUS ✦ ";
 
@@ -101,10 +124,13 @@ export function MarqueeSection() {
         </div>
       </div>
 
-      <HairlineDivider markerCount={1} className="my-6 sm:my-8" />
+      <HairlineDivider markerCount={1} className="my-6 sm:mb-8 sm:mt-6" />
 
       {/* 2. CENTERED 4-COLUMN STATS GRID */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12">
+      <div
+        ref={statsGridRef}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12"
+      >
         <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E1DDD3] dark:divide-zinc-800 border-y md:border border-[#E1DDD3] dark:border-zinc-800 bg-[#FAF8F5] dark:bg-[#0E1422] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs">
           {STATS.map((stat, idx) => (
             <div
