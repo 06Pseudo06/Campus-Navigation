@@ -2,85 +2,132 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { HairlineDivider } from "@/components/motion/HairlineDivider";
-import { isReducedMotion, useReducedMotionGuard } from "@/lib/motion";
-
-const STATS = [
-  { value: 38, suffix: "+", label: "BLOCKS INDEXED", sub: "Academic, Hostel & Lab Zones" },
-  { value: 27, suffix: "", label: "SURVEYED NODES", sub: "Ground-Truth Graph Network" },
-  { value: 29, suffix: "", label: "PEDESTRIAN EDGES", sub: "Walkways & Concourse Paths" },
-  { value: 100, suffix: "%", label: "ACCESSIBLE", sub: "Step-Free Ramp Planning" },
-];
+import { isReducedMotion, getLenis } from "@/lib/motion";
+import { gsap } from "gsap";
 
 export function MarqueeSection() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const statsGridRef = useRef<HTMLDivElement>(null);
-  const guard = useReducedMotionGuard();
-  const [counts, setCounts] = useState(() =>
-    guard.skipCounters ? STATS.map((s) => s.value) : [0, 0, 0, 0]
-  );
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
-    if (!statsGridRef.current || guard.skipCounters) {
-      if (guard.skipCounters) {
-        setCounts(STATS.map((s) => s.value));
-      }
+    if (typeof window === "undefined" || !trackRef.current) return;
+
+    if (isReducedMotion()) {
       return;
     }
 
-    let isCounting = false;
-    let animRafId: number;
+    const track = trackRef.current;
+    let currentX = 0;
+    let baseSpeed = 1.2; // default forward movement speed
+    let targetSpeed = 1.2;
+    let currentSpeed = 1.2;
+    let lastScrollY = window.scrollY;
+    let lastTime = performance.now();
+    let isPaused = false;
 
-    const startCounting = () => {
-      if (isCounting) return;
-      isCounting = true;
+    // Track total single repetition width for seamless modular wrap
+    let wrapWidth = track.scrollWidth / 2 || 2000;
 
-      const startTime = performance.now();
-      const duration = 1600;
+    const updateWrapWidth = () => {
+      if (track) {
+        wrapWidth = track.scrollWidth / 2 || 2000;
+      }
+    };
+    updateWrapWidth();
+    window.addEventListener("resize", updateWrapWidth, { passive: true });
 
-      const animate = (now: number) => {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+    // Scroll listener to compute scroll velocity and flip direction
+    const onScroll = () => {
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTime);
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollY;
+      lastScrollY = currentScrollY;
+      lastTime = now;
 
-        setCounts(
-          STATS.map((stat, idx) => {
-            // Apply slight stagger per stat
-            const statDelay = idx * 0.08;
-            const statProgress = Math.max(0, Math.min(1, (progress - statDelay) / (1 - statDelay)));
-            const ease = 1 - Math.pow(1 - statProgress, 3);
-            return Math.round(stat.value * ease);
-          })
-        );
+      // Calculate instantaneous scroll velocity
+      const velocity = (delta / dt) * 60; // normalized to ~60fps frame delta
 
-        if (progress < 1) {
-          animRafId = requestAnimationFrame(animate);
-        } else {
-          isCounting = false;
-        }
-      };
-
-      animRafId = requestAnimationFrame(animate);
+      if (Math.abs(velocity) > 0.5) {
+        // Direction flips with scroll direction (down = positive, up = negative)
+        const direction = velocity > 0 ? 1 : -1;
+        const boost = Math.min(Math.abs(velocity) * 0.75, 12);
+        targetSpeed = direction * (baseSpeed + boost);
+      }
     };
 
-    // Observe statsGridRef directly so the counter begins precisely when the numbers enter the viewport
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            startCounting();
-          }
-        });
-      },
-      {
-        rootMargin: "0px 0px -40px 0px",
-        threshold: 0.15,
-      }
-    );
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-    observer.observe(statsGridRef.current);
+    // Also sync with Lenis scroll velocity if available
+    const lenis = getLenis();
+    const lenisUnsub = lenis
+      ? lenis.on("scroll", (e) => {
+          if (Math.abs(e.velocity) > 0.2) {
+            const direction = e.velocity > 0 ? 1 : -1;
+            const boost = Math.min(Math.abs(e.velocity) * 0.8, 12);
+            targetSpeed = direction * (baseSpeed + boost);
+          }
+        })
+      : null;
+
+    // Smooth ticker loop
+    const tickerCallback = () => {
+      if (isPaused) {
+        // Decelerate to 0 when hovered
+        currentSpeed += (0 - currentSpeed) * 0.15;
+      } else {
+        // Interpolate toward targetSpeed
+        currentSpeed += (targetSpeed - currentSpeed) * 0.08;
+        // Gradually decay targetSpeed back toward baseSpeed (preserving direction)
+        const sign = targetSpeed >= 0 ? 1 : -1;
+        targetSpeed += (sign * baseSpeed - targetSpeed) * 0.03;
+      }
+
+      currentX -= currentSpeed;
+
+      // Wrap around seamlessly
+      if (currentX <= -wrapWidth) {
+        currentX += wrapWidth;
+      } else if (currentX >= 0) {
+        currentX -= wrapWidth;
+      }
+
+      if (track) {
+        track.style.transform = `translate3d(${currentX}px, 0, 0)`;
+      }
+    };
+
+    gsap.ticker.add(tickerCallback);
+
+    // Hover event handlers on track container
+    const onMouseEnter = () => {
+      isPaused = true;
+      setIsHovered(true);
+    };
+
+    const onMouseLeave = () => {
+      isPaused = false;
+      setIsHovered(false);
+    };
+
+    const containerEl = containerRef.current;
+    if (containerEl) {
+      containerEl.addEventListener("mouseenter", onMouseEnter);
+      containerEl.addEventListener("mouseleave", onMouseLeave);
+    }
 
     return () => {
-      observer.disconnect();
-      cancelAnimationFrame(animRafId);
+      window.removeEventListener("resize", updateWrapWidth);
+      window.removeEventListener("scroll", onScroll);
+      if (lenis && lenisUnsub) {
+        // unbind lenis
+      }
+      gsap.ticker.remove(tickerCallback);
+      if (containerEl) {
+        containerEl.removeEventListener("mouseenter", onMouseEnter);
+        containerEl.removeEventListener("mouseleave", onMouseLeave);
+      }
     };
   }, []);
 
@@ -89,83 +136,66 @@ export function MarqueeSection() {
   return (
     <section
       ref={containerRef}
-      className="relative w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 py-8 sm:py-12 overflow-hidden select-none transition-colors duration-200"
-      aria-label="Campus Statistics & Wayfinding Capabilities"
+      className="relative w-full bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-[#F4F6FA] py-6 sm:py-8 overflow-hidden select-none transition-colors duration-200"
+      aria-label="Campus Wayfinding Running Marquee"
     >
-      <HairlineDivider markerCount={2} className="mb-6 sm:mb-8" />
+      <HairlineDivider markerCount={2} className="mb-4 sm:mb-6" />
 
-      {/* 1. INFINITE RUNNING MARQUEE WITH HOVER PAUSE & CURSOR */}
+      {/* INFINITE RUNNING MARQUEE WITH EDGE FADE MASKS & HOVER PAUSE */}
       <div
         data-cursor="PAUSE"
-        className="group/marquee relative w-full overflow-hidden py-[clamp(14px,2vw,28px)] border-y border-[#E1DDD3] dark:border-white/10 cursor-pointer"
+        className="relative w-full overflow-hidden py-3 sm:py-4 cursor-pointer"
+        style={{
+          maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+        }}
       >
         <div
-          className="flex items-center whitespace-nowrap will-change-transform font-black uppercase tracking-tight text-[#0E1118] dark:text-white animate-marquee group-hover/marquee:[animation-play-state:paused] transition-all"
+          ref={trackRef}
+          className="flex items-center whitespace-nowrap will-change-transform font-black uppercase tracking-tight text-[#0E1118] dark:text-[#F4F6FA]"
           style={{ fontSize: "clamp(1.75rem, 3.4vw, 3.25rem)", lineHeight: 1 }}
         >
-          <span className="mr-6">{marqueeText}</span>
+          {/* Repeated segments to ensure infinite seamless scrolling */}
+          <span className="mr-6 shrink-0">{marqueeText}</span>
           <span
-            className="mr-6 text-transparent"
-            style={{ WebkitTextStroke: "1.2px #DE4B31" }}
+            className="mr-6 shrink-0 text-transparent"
+            style={{ WebkitTextStroke: "1.2px #E8452C" }}
           >
             {marqueeText}
           </span>
-          <span className="mr-6">{marqueeText}</span>
+          <span className="mr-6 shrink-0">{marqueeText}</span>
           <span
-            className="mr-6 text-transparent"
+            className="mr-6 shrink-0 text-transparent"
             style={{ WebkitTextStroke: "1.2px currentColor" }}
           >
             {marqueeText}
           </span>
-          <span className="mr-6">{marqueeText}</span>
+          <span className="mr-6 shrink-0">{marqueeText}</span>
           <span
-            className="mr-6 text-transparent"
-            style={{ WebkitTextStroke: "1.2px #DE4B31" }}
+            className="mr-6 shrink-0 text-transparent"
+            style={{ WebkitTextStroke: "1.2px #E8452C" }}
+          >
+            {marqueeText}
+          </span>
+          {/* Duplicate set for wrap continuity */}
+          <span className="mr-6 shrink-0">{marqueeText}</span>
+          <span
+            className="mr-6 shrink-0 text-transparent"
+            style={{ WebkitTextStroke: "1.2px #E8452C" }}
+          >
+            {marqueeText}
+          </span>
+          <span className="mr-6 shrink-0">{marqueeText}</span>
+          <span
+            className="mr-6 shrink-0 text-transparent"
+            style={{ WebkitTextStroke: "1.2px currentColor" }}
           >
             {marqueeText}
           </span>
         </div>
       </div>
 
-      <HairlineDivider markerCount={1} className="my-6 sm:mb-8 sm:mt-6" />
-
-      {/* 2. CENTERED 4-COLUMN STATS GRID */}
-      <div
-        ref={statsGridRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12"
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-[#E1DDD3] dark:divide-zinc-800 border-y md:border border-[#E1DDD3] dark:border-zinc-800 bg-[#FAF8F5] dark:bg-[#0E1422] rounded-2xl md:rounded-3xl overflow-hidden shadow-xs">
-          {STATS.map((stat, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col items-center justify-center text-center p-6 sm:p-8 space-y-2 hover:bg-[#F2ECE1]/50 dark:hover:bg-zinc-800/40 transition-colors"
-            >
-              <div className="flex items-baseline justify-center gap-1 min-w-[120px]">
-                <span
-                  className="font-mono font-black tracking-tight text-[#0E1118] dark:text-white tabular-nums"
-                  style={{
-                    fontSize: "clamp(2rem, 3.8vw, 3.6rem)",
-                    lineHeight: 1,
-                  }}
-                >
-                  {counts[idx]}
-                </span>
-                {stat.suffix && (
-                  <span className="text-lg sm:text-xl font-mono font-bold text-[#DE4B31]">
-                    {stat.suffix}
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#0E1118] dark:text-zinc-200 block">
-                {stat.label}
-              </span>
-              <span className="text-[11px] text-[#6B665C] dark:text-zinc-400 leading-snug block max-w-[180px]">
-                {stat.sub}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <HairlineDivider markerCount={1} className="mt-4 sm:mt-6" />
     </section>
   );
 }

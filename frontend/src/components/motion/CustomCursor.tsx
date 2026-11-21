@@ -199,6 +199,7 @@ export function CustomCursor() {
       {/* Central Terracotta Dot */}
       <div
         ref={dotRef}
+        style={{ transform: "translate3d(-9999px, -9999px, 0)" }}
         className={`fixed top-0 left-0 rounded-full transition-[width,height,background-color,opacity] duration-150 pointer-events-none will-change-transform ${
           mode === "button"
             ? "w-3 h-3 bg-[#DE4B31] opacity-100 shadow-sm"
@@ -213,6 +214,7 @@ export function CustomCursor() {
       {/* Outer Lerping Ring / State Badge */}
       <div
         ref={ringRef}
+        style={{ transform: "translate3d(-9999px, -9999px, 0)" }}
         className={`fixed top-0 left-0 rounded-full flex items-center justify-center transition-[width,height,border-color,background-color,opacity] duration-150 pointer-events-none will-change-transform ${
           mode === "button" || mode === "disabled"
             ? "w-0 h-0 border-none bg-transparent opacity-0"
