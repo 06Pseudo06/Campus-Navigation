@@ -77,6 +77,96 @@ export function CampusGallerySection() {
     return () => ctx.revert();
   }, []);
 
+  const renderCard = (
+    item: GalleryItem,
+    index: number,
+    heightClass: string,
+    isFeatured: boolean = false
+  ) => {
+    const hasAccent = !!item.hasOrangeAccent;
+
+    return (
+      <div key={item.id} className={`relative group ${heightClass}`}>
+        {/* Subtle Terracotta Offset Block Behind Featured Cards */}
+        {hasAccent && (
+          <div
+            aria-hidden="true"
+            className="absolute -inset-1 sm:-inset-1.5 bg-[#DE4B31] rounded-[26px] -z-10 translate-x-1.5 translate-y-1.5 sm:translate-x-2 sm:translate-y-2 opacity-85 group-hover:translate-x-2.5 group-hover:translate-y-2.5 transition-transform duration-300"
+          />
+        )}
+
+        {/* Main Card Surface */}
+        <div
+          onClick={() => setSelectedIndex(index)}
+          data-cursor="EXPAND"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setSelectedIndex(index);
+            }
+          }}
+          className="w-full h-full relative overflow-hidden bg-[#0E1118] rounded-[22px] border border-[#0E1118]/12 dark:border-white/10 shadow-sm hover:shadow-2xl transition-all duration-500 cursor-pointer flex flex-col justify-between p-4 sm:p-6"
+        >
+          {/* Photographic Background */}
+          <Image
+            src={item.src}
+            alt={item.alt}
+            fill
+            unoptimized
+            loading={index < 2 ? "eager" : "lazy"}
+            sizes={
+              isFeatured
+                ? "(max-width: 1024px) 100vw, 720px"
+                : "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 420px"
+            }
+            className="object-cover object-center transition-all duration-700 group-hover:scale-105 filter grayscale-[18%] group-hover:grayscale-0"
+          />
+
+          {/* Calibrated Architectural Scrim (Legibility without obscuring photo) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10 opacity-70 group-hover:opacity-85 transition-opacity duration-500" />
+
+          {/* Top Category Badge */}
+          <div className="relative z-10 flex items-center justify-between">
+            <span className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white/90 font-mono text-[9px] sm:text-[10px] font-medium tracking-widest uppercase border border-white/15">
+              {item.tag}
+            </span>
+            <span className="text-[10px] font-mono text-white/60 tracking-wider font-semibold">
+              PLATE {item.num}
+            </span>
+          </div>
+
+          {/* Bottom Editorial Caption */}
+          <div className="relative z-10 flex flex-col justify-end text-white pt-6">
+            {/* Metadata Line */}
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-mono tracking-wider text-white/70 uppercase mb-1.5">
+              <span>{item.location}</span>
+              <span className="text-[#DE4B31] font-semibold">ERA {item.year}</span>
+            </div>
+
+            {/* Main Location Title with Natural Multi-line Wrapping & Indicator */}
+            <div className="flex items-end justify-between gap-3">
+              <h3
+                className={`font-bold uppercase tracking-tight text-white group-hover:text-[#DE4B31] transition-colors leading-snug ${
+                  isFeatured
+                    ? "text-base sm:text-xl lg:text-2xl line-clamp-2"
+                    : "text-sm sm:text-base lg:text-lg line-clamp-2"
+                }`}
+              >
+                {item.title}
+              </h3>
+
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10 group-hover:bg-[#DE4B31] border border-white/15 group-hover:border-[#DE4B31] text-white text-xs transition-all duration-300 shrink-0">
+                ↗
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section
       id="section-05"
@@ -85,101 +175,81 @@ export function CampusGallerySection() {
       style={{ marginBottom: "-80px" }}
       aria-label="Campus Architectural Photography Gallery"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-10">
-        {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#E1DDD3] dark:border-zinc-800">
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 text-xs font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200">
-              <span className="text-[#DE4B31]">05 /</span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-8 sm:space-y-10">
+        {/* Editorial Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-[#E1DDD3] dark:border-white/10">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5 text-xs font-mono font-semibold tracking-widest uppercase text-[#6B665C] dark:text-zinc-400">
+              <span className="text-[#DE4B31] font-bold">05 /</span>
               <span>CAMPUS ARCHITECTURAL ATLAS</span>
+              <span className="inline-block w-8 h-px bg-[#DE4B31]/40" aria-hidden="true" />
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-[#0E1118] dark:text-white">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold uppercase tracking-tight text-[#0E1118] dark:text-white leading-[1.05]">
               Monuments &amp; Quadrangles
             </h2>
           </div>
-          <span className="text-[11px] font-mono tracking-widest text-[#6B665C] dark:text-zinc-400 uppercase">
-            06 ARCHITECTURAL PLATES &bull; LPU CAMPUS
-          </span>
+
+          <div className="flex items-center gap-3 text-xs font-mono tracking-wider text-[#6B665C] dark:text-zinc-400 uppercase">
+            <span className="hidden sm:inline">SERIES 2026</span>
+            <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
+            <span>06 ARCHITECTURAL PLATES &bull; LPU CAMPUS</span>
+          </div>
         </div>
 
-        {/* Justified 12-Column Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 lg:gap-6">
-          {GALLERY_ITEMS.map((item, idx) => {
-            const hasAccent = !!item.hasOrangeAccent;
+        {/* Editorial Magazine Asymmetric Layout */}
+        <div className="space-y-5 lg:space-y-6">
+          {/* Row 1: Featured Anchor (7 Cols) + Stacked Duo (5 Cols) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
+            {/* Left: Featured Masterwork (Plate 01 - Block 30 Admissions) */}
+            <div className="lg:col-span-7">
+              {renderCard(
+                GALLERY_ITEMS[0],
+                0,
+                "h-[340px] sm:h-[420px] lg:h-[516px]",
+                true
+              )}
+            </div>
 
-            return (
-              <div
-                key={item.id}
-                className={`relative group ${item.colSpanTablet} ${item.colSpanDesktop} h-[280px] sm:h-[340px] lg:h-[380px]`}
-              >
-                {/* Terracotta Offset Block Behind Selected Tiles */}
-                {hasAccent && (
-                  <div
-                    aria-hidden="true"
-                    className="absolute -inset-1.5 sm:-inset-2 bg-[#DE4B31] rounded-[24px] -z-10 translate-x-2 translate-y-2 opacity-85 group-hover:translate-x-3 group-hover:translate-y-3 transition-transform duration-300"
-                  />
-                )}
+            {/* Right: Stacked Supporting Duo (Plate 02 & Plate 03) */}
+            <div className="lg:col-span-5 flex flex-col gap-5 lg:gap-6 justify-between">
+              {renderCard(
+                GALLERY_ITEMS[1],
+                1,
+                "h-[220px] sm:h-[240px] lg:h-[246px]"
+              )}
+              {renderCard(
+                GALLERY_ITEMS[2],
+                2,
+                "h-[220px] sm:h-[240px] lg:h-[246px]"
+              )}
+            </div>
+          </div>
 
-                {/* Main Card Surface */}
-                <div
-                  onClick={() => setSelectedIndex(idx)}
-                  data-cursor="EXPAND"
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setSelectedIndex(idx);
-                    }
-                  }}
-                  className="w-full h-full relative overflow-hidden bg-[#0E1118] rounded-[20px] border border-[#0E1118]/15 dark:border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 cursor-pointer"
-                >
-                  <Image
-                    src={item.src}
-                    alt={item.alt}
-                    fill
-                    unoptimized
-                    loading={idx < 3 ? "eager" : "lazy"}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 420px"
-                    className="object-cover object-center transition-all duration-700 group-hover:scale-105 filter grayscale-[20%] group-hover:grayscale-0"
-                  />
-
-                  {/* Gradient Scrim */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent opacity-75 group-hover:opacity-90 transition-opacity" />
-
-                  {/* Top Badge */}
-                  <div className="absolute top-4 left-4 z-10">
-                    <span className="px-2.5 py-1 rounded-md bg-black/60 backdrop-blur-md text-white font-mono text-[10px] font-bold tracking-wider uppercase border border-white/10">
-                      {item.tag}
-                    </span>
-                  </div>
-
-                  {/* Bottom Hover Caption */}
-                  <div className="absolute bottom-0 inset-x-0 p-4 sm:p-5 flex flex-col justify-end text-white z-10">
-                    <span className="text-[10px] font-mono tracking-wider uppercase text-white/70 truncate">
-                      {item.location}
-                    </span>
-
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <h3 className="text-sm sm:text-base font-bold uppercase tracking-tight text-white group-hover:text-[#DE4B31] transition-colors truncate">
-                        {item.title}
-                      </h3>
-                      <div className="w-6 h-6 rounded-full bg-white/15 group-hover:bg-[#DE4B31] text-white flex items-center justify-center text-xs shrink-0 transition-colors">
-                        ↗
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {/* Row 2: Harmonic Architectural Trio (Plates 04, 05, 06) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6">
+            {renderCard(
+              GALLERY_ITEMS[3],
+              3,
+              "h-[260px] sm:h-[300px] lg:h-[340px]"
+            )}
+            {renderCard(
+              GALLERY_ITEMS[4],
+              4,
+              "h-[260px] sm:h-[300px] lg:h-[340px]"
+            )}
+            {renderCard(
+              GALLERY_ITEMS[5],
+              5,
+              "h-[260px] sm:h-[300px] lg:h-[340px]"
+            )}
+          </div>
         </div>
       </div>
 
       {/* Lightbox Modal with Next / Prev and Escape */}
       {selectedItem && selectedIndex !== null && (
         <div
-          className="fixed inset-0 z-[200] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 lg:p-8 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 lg:p-8 animate-in fade-in duration-200"
           onClick={() => setSelectedIndex(null)}
           role="dialog"
           aria-modal="true"
@@ -195,7 +265,7 @@ export function CampusGallerySection() {
                 <span className="text-[#DE4B31] font-bold tracking-wider">
                   [{selectedItem.num} / 06]
                 </span>
-                <span className="hidden sm:inline text-white/60 uppercase">
+                <span className="hidden sm:inline text-white/70 uppercase">
                   {selectedItem.location}
                 </span>
               </div>
