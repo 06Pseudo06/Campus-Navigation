@@ -236,14 +236,18 @@ export function ThemeSegmentedControl({ className = "" }: { className?: string }
 }
 
 /**
- * Inline Dropdown Options (for Topbar user menu)
+ * Inline Dropdown Options (for Topbar user menu and mobile navigation)
  */
-export function ThemeDropdownSection() {
+export function ThemeDropdownSection({
+  className = "border-b border-slate-200 dark:border-zinc-800/80",
+}: {
+  className?: string;
+} = {}) {
   const { theme, setTheme } = useTheme();
   const mounted = useIsMounted();
 
   return (
-    <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-800/80">
+    <div className={`px-3 py-2 ${className}`}>
       <div className="text-[10px] uppercase font-semibold text-slate-400 dark:text-zinc-500 mb-1.5 flex items-center justify-between">
         <span>Appearance</span>
         <span className="capitalize font-mono text-[10px] text-slate-600 dark:text-zinc-300">
