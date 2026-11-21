@@ -20,7 +20,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="w-full z-30 px-4 sm:px-8 lg:px-12 py-3.5 sm:py-4.5 bg-[#F7F3EC]/92 dark:bg-[#070B14]/88 backdrop-blur-md border-b border-[#E1DDD3]/80 dark:border-white/10 transition-colors duration-200 sticky top-0">
+    <header id="main-navbar" className="w-full z-30 px-4 sm:px-8 lg:px-12 py-3.5 sm:py-4.5 bg-[#F7F3EC]/92 dark:bg-[#070B14]/88 backdrop-blur-md border-b border-[#E1DDD3]/80 dark:border-white/10 transition-colors duration-200 sticky top-0">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Brand: Arch Logo + CampusWay™ + vertical divider + 2-line descriptor */}
         <div className="flex items-center gap-3.5 sm:gap-4">

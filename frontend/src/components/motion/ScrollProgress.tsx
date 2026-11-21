@@ -102,6 +102,7 @@ export function ScrollProgress() {
 
       {/* 2. Single Global Left Vertical Progress Index (>= 1024px) */}
       <nav
+        id="scroll-progress-rail"
         className="hidden lg:flex fixed left-[clamp(16px,2.2vw,40px)] top-1/2 -translate-y-1/2 z-40 flex-col items-start select-none pointer-events-auto"
         aria-label="Section navigation"
       >
