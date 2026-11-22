@@ -191,3 +191,48 @@ def test_get_graph_and_cache_headers(client):
     assert "edges" in data
     assert isinstance(data["nodes"], list)
     assert isinstance(data["edges"], list)
+
+
+def test_route_calculation_lru_cache_and_invalidation(client):
+    """Verify route calculation LRU caching accelerates repeat queries and cache invalidation clears it."""
+    from app.services.graph_service import _ROUTE_CACHE, invalidate_graph_cache
+
+    # 1. Create two connected test nodes
+    nA = client.post(
+        "/api/v1/routing/nodes",
+        json={"node_type": "junction", "latitude": 31.25, "longitude": 75.70},
+        headers=ADMIN_HEADERS,
+    ).json()
+    nB = client.post(
+        "/api/v1/routing/nodes",
+        json={"node_type": "junction", "latitude": 31.26, "longitude": 75.71},
+        headers=ADMIN_HEADERS,
+    ).json()
+    client.post(
+        "/api/v1/routing/edges",
+        json={"source_node_id": nA["id"], "target_node_id": nB["id"], "distance_m": 120.0, "is_bidirectional": True},
+        headers=ADMIN_HEADERS,
+    )
+
+    invalidate_graph_cache()
+    initial_cache_size = len(_ROUTE_CACHE)
+
+    # 2. First calculation should populate cache
+    res1 = client.post(
+        "/api/v1/routing/calculate",
+        json={"origin_node_id": nA["id"], "destination_node_id": nB["id"]},
+    )
+    assert res1.status_code == 200
+    assert len(_ROUTE_CACHE) > initial_cache_size
+
+    # 3. Repeat calculation returns identical route payload from LRU cache
+    res2 = client.post(
+        "/api/v1/routing/calculate",
+        json={"origin_node_id": nA["id"], "destination_node_id": nB["id"]},
+    )
+    assert res2.status_code == 200
+    assert res1.json() == res2.json()
+
+    # 4. Invalidation empties cache
+    invalidate_graph_cache()
+    assert len(_ROUTE_CACHE) == 0

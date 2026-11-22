@@ -62,6 +62,7 @@ interface CacheEntry<T> {
 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 const inflightPromises = new Map<string, Promise<unknown>>();
+let _locationsAbortController: AbortController | null = null;
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes max age
 const STALE_THRESHOLD_MS = 60 * 1000; // 1 minute fresh window
@@ -127,9 +128,19 @@ export const locationService = {
     params.set("is_verified", "true");
     params.set("limit", "100");
 
+    // Cancel prior query search to avoid race conditions and stale response overwrite
+    if (query) {
+      if (_locationsAbortController) {
+        _locationsAbortController.abort();
+      }
+      _locationsAbortController = new AbortController();
+    }
+    const signal = query ? _locationsAbortController?.signal : undefined;
+
     try {
       const res = await fetch(`${API_BASE}/api/v1/locations/?${params.toString()}`, {
         credentials: "include",
+        signal,
       });
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -140,7 +151,10 @@ export const locationService = {
         return data;
       }
       return VERIFIED_DATASET_C_LOCATIONS;
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return (cacheKey && getCached<BackendLocation[]>(cacheKey)?.data) || VERIFIED_DATASET_C_LOCATIONS;
+      }
       console.warn("[locationService] API unavailable, using verified Dataset C survey fallback:", err);
       return VERIFIED_DATASET_C_LOCATIONS;
     }

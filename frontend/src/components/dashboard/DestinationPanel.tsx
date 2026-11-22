@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { CampusLocation, CampusRoute, LocationCategory } from "@/types/campus";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   SearchIcon,
   AccessibilityIcon,
@@ -47,6 +48,7 @@ export function DestinationPanel({
   onToggleSaveLocation,
 }: DestinationPanelProps) {
   const [panelSearch, setPanelSearch] = useState<string>("");
+  const debouncedPanelSearch = useDebounce(panelSearch, 250);
   const [selectedCategory, setSelectedCategory] = useState<LocationCategory>("all");
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [selectingField, setSelectingField] = useState<"origin" | "destination" | null>(null);
@@ -62,13 +64,13 @@ export function DestinationPanel({
     { id: "landmark", label: "Landmarks" },
   ];
 
-  // Filtered locations for search / list
+  // Filtered locations for search / list (debounced)
   const filteredLocations = useMemo(() => {
     return locations.filter((loc) => {
       const matchesCategory =
         selectedCategory === "all" || loc.category === selectedCategory;
 
-      const q = panelSearch.trim().toLowerCase();
+      const q = debouncedPanelSearch.trim().toLowerCase();
       if (!q) return matchesCategory;
 
       const matchesQuery =
@@ -80,7 +82,7 @@ export function DestinationPanel({
 
       return matchesCategory && matchesQuery;
     });
-  }, [locations, selectedCategory, panelSearch]);
+  }, [locations, selectedCategory, debouncedPanelSearch]);
 
   const isSaved = selectedLocation
     ? savedLocationIds.includes(selectedLocation.id)
@@ -109,7 +111,7 @@ export function DestinationPanel({
     }
   };
 
-  const isQueryingBlock34 = panelSearch.toLowerCase().includes("34");
+  const isQueryingBlock34 = debouncedPanelSearch.toLowerCase().includes("34");
 
   return (
     <aside className="w-full lg:w-96 shrink-0 h-full bg-[#0d131f] border-l border-zinc-800 flex flex-col justify-between overflow-y-auto z-10">

@@ -1,13 +1,29 @@
 """Navigation graph and pathway connection service."""
 
+import time
 import uuid
-from typing import Any, Dict, List, Optional
+from collections import OrderedDict
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.models.node import Node
 from app.models.edge import Edge
 from app.schemas.graph import NodeCreate, NodeUpdate, EdgeCreate, EdgeUpdate, RouteResponse, PathSegment
 from app.services.routing.graph import CampusGraph
+
+# In-memory graph cache: accessible_only -> CampusGraph
+_GRAPH_CACHE: Dict[bool, CampusGraph] = {}
+
+# In-memory route query LRU / TTL cache: (origin_str, dest_str, accessible_only, algorithm) -> (expiry_time, RouteResponse)
+_ROUTE_CACHE: "OrderedDict[Tuple[str, str, bool, str], Tuple[float, RouteResponse]]" = OrderedDict()
+_ROUTE_CACHE_MAX_SIZE = 500
+_ROUTE_CACHE_TTL_SEC = 300.0  # 5 minutes TTL
+
+
+def invalidate_graph_cache() -> None:
+    """Clear cached CampusGraph and route query cache when graph topology changes."""
+    _GRAPH_CACHE.clear()
+    _ROUTE_CACHE.clear()
 
 
 def list_active_nodes(
@@ -50,6 +66,7 @@ def create_node(db: Session, node_in: NodeCreate) -> Node:
     db.add(db_node)
     db.commit()
     db.refresh(db_node)
+    invalidate_graph_cache()
     return db_node
 
 
@@ -66,6 +83,7 @@ def update_node(
         setattr(node, field, val)
     db.commit()
     db.refresh(node)
+    invalidate_graph_cache()
     return node
 
 
@@ -77,6 +95,7 @@ def deactivate_node(db: Session, node_id: uuid.UUID) -> Optional[Node]:
     node.is_active = False
     db.commit()
     db.refresh(node)
+    invalidate_graph_cache()
     return node
 
 
@@ -167,6 +186,7 @@ def create_edge(db: Session, edge_in: EdgeCreate) -> Edge:
     db.add(db_edge)
     db.commit()
     db.refresh(db_edge)
+    invalidate_graph_cache()
     return db_edge
 
 
@@ -183,6 +203,7 @@ def update_edge(
         setattr(edge, field, val)
     db.commit()
     db.refresh(edge)
+    invalidate_graph_cache()
     return edge
 
 
@@ -194,6 +215,7 @@ def deactivate_edge(db: Session, edge_id: uuid.UUID) -> Optional[Edge]:
     edge.is_active = False
     db.commit()
     db.refresh(edge)
+    invalidate_graph_cache()
     return edge
 
 
@@ -203,9 +225,13 @@ from app.services.routing.graph import CampusGraph
 
 
 def build_campus_graph(db: Session, accessible_only: bool = False) -> CampusGraph:
-    """Build in-memory CampusGraph populated from active nodes and edges in the database."""
+    """Build or retrieve cached in-memory CampusGraph populated from active nodes and edges in the database."""
+    if accessible_only in _GRAPH_CACHE:
+        return _GRAPH_CACHE[accessible_only]
+
     graph = CampusGraph()
     graph.load_from_db(db, accessible_only=accessible_only)
+    _GRAPH_CACHE[accessible_only] = graph
     return graph
 
 
@@ -216,11 +242,22 @@ def compute_shortest_route(
     accessible_only: bool = False,
     algorithm: str = "dijkstra",
 ) -> Optional[RouteResponse]:
-    """Compute optimal walking route using selected pathfinding algorithm with predecessor tracking."""
-    graph = build_campus_graph(db, accessible_only=accessible_only)
-
+    """Compute optimal walking route using selected pathfinding algorithm with LRU cache."""
     origin_str = str(origin_node_id)
     dest_str = str(destination_node_id)
+    cache_key = (origin_str, dest_str, accessible_only, algorithm)
+    now = time.monotonic()
+
+    # 1. Check in-memory LRU route cache
+    if cache_key in _ROUTE_CACHE:
+        expiry, cached_route = _ROUTE_CACHE[cache_key]
+        if now < expiry:
+            _ROUTE_CACHE.move_to_end(cache_key)
+            return cached_route
+        else:
+            del _ROUTE_CACHE[cache_key]
+
+    graph = build_campus_graph(db, accessible_only=accessible_only)
 
     raw_result = find_shortest_path(
         graph,
@@ -259,7 +296,7 @@ def compute_shortest_route(
         or all(s.get("is_accessible", True) for s in raw_result["segments"])
     )
 
-    return RouteResponse(
+    route_response = RouteResponse(
         origin_node_id=origin_node_id,
         destination_node_id=destination_node_id,
         total_distance_m=total_dist,
@@ -269,4 +306,11 @@ def compute_shortest_route(
         estimated_duration_s=duration_s,
         estimated_duration_min=duration_min,
     )
+
+    # Store in LRU cache with eviction
+    if len(_ROUTE_CACHE) >= _ROUTE_CACHE_MAX_SIZE:
+        _ROUTE_CACHE.popitem(last=False)
+    _ROUTE_CACHE[cache_key] = (now + _ROUTE_CACHE_TTL_SEC, route_response)
+
+    return route_response
 

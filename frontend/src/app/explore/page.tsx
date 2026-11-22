@@ -14,6 +14,7 @@ import { mapBackendToFrontend } from "@/data/campusData";
 import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
+import { useDebounce } from "@/hooks/useDebounce";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -35,8 +36,9 @@ export default function ExploreDashboardPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Global search & filter query
+  // Global search & filter query (debounced by 250ms for smooth filtering)
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 250);
 
   // Dataset C locations loaded from the backend or verified survey fallback
   const [apiLocations, setApiLocations] = useState<CampusLocation[]>([]);
@@ -141,6 +143,9 @@ export default function ExploreDashboardPage() {
           }
         })
         .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") {
+            return;
+          }
           console.warn("[ExplorePage] Route calculation error:", err);
           if (!isCancelled) {
             setActiveRoute(null);
@@ -207,9 +212,9 @@ export default function ExploreDashboardPage() {
     });
   };
 
-  // Filtered locations based on topbar search query
+  // Filtered locations based on debounced topbar search query
   const displayedLocations = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     if (!q) return allLocations;
     return allLocations.filter(
       (loc) =>
@@ -218,7 +223,7 @@ export default function ExploreDashboardPage() {
         loc.description.toLowerCase().includes(q) ||
         loc.departments?.some((d) => d.toLowerCase().includes(q))
     );
-  }, [searchQuery, allLocations]);
+  }, [debouncedSearchQuery, allLocations]);
 
   const savedLocationsList = useMemo(() => {
     return allLocations.filter((l) => savedIds.includes(l.id));

@@ -27,6 +27,7 @@ interface RoutingResponse {
 
 // In-memory cache of graph nodes
 let _nodesCache: BackendNode[] | null = null;
+let _routeAbortController: AbortController | null = null;
 
 async function getNodesCache(): Promise<BackendNode[]> {
   if (!_nodesCache || _nodesCache.length === 0) {
@@ -230,11 +231,19 @@ export const routeService = {
 
     let data: RoutingResponse | null = null;
 
+    // Cancel in-flight route calculation to ensure latest query takes precedence
+    if (_routeAbortController) {
+      _routeAbortController.abort();
+    }
+    _routeAbortController = new AbortController();
+    const signal = _routeAbortController.signal;
+
     try {
       const res = await fetch(`${API_BASE}/api/v1/routing/calculate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal,
         body: JSON.stringify({
           origin_node_id: originNode.id,
           destination_node_id: destNode.id,
@@ -249,7 +258,10 @@ export const routeService = {
       if (res.ok) {
         data = (await res.json()) as RoutingResponse;
       }
-    } catch (apiErr) {
+    } catch (apiErr: unknown) {
+      if (apiErr instanceof DOMException && apiErr.name === "AbortError") {
+        throw apiErr;
+      }
       console.warn("[routeService] Backend calculation call failed, running local Dijkstra solver:", apiErr);
     }
 
