@@ -4,14 +4,17 @@ import React, { useState, useMemo } from "react";
 import { CampusLocation, CampusRoute, LocationCategory } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
+  formatDistance,
+  formatSteps,
+  getDirectionIcon,
+  getAccessibilityBadge,
+} from "@/lib/routeFormatting";
+import {
   SearchIcon,
-  AccessibilityIcon,
   BookmarkIcon,
   RouteIcon,
   CloseIcon,
   CheckCircleIcon,
-  WalkingIcon,
-  ClockIcon,
 } from "./DashboardIcons";
 
 interface DestinationPanelProps {
@@ -53,6 +56,11 @@ export function DestinationPanel({
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [selectingField, setSelectingField] = useState<"origin" | "destination" | null>(null);
   const [showSteps, setShowSteps] = useState(false);
+  const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
+
+  const isSameLocation = Boolean(
+    originLocation && selectedLocation && originLocation.id === selectedLocation.id
+  );
 
   // Filter categories
   const categories: { id: LocationCategory; label: string }[] = [
@@ -127,9 +135,55 @@ export function DestinationPanel({
           </p>
         </div>
 
-        {routeError && (
-          <div role="status" className="rounded-xl border border-amber-800/70 bg-amber-950/40 px-3 py-2 text-xs leading-relaxed text-amber-200">
-            {routeError}
+        {/* ──── Route Error / Unreachable Notice ──── */}
+        {routeError && !isSameLocation && (
+          <div
+            role="status"
+            data-testid="route-error-banner"
+            className="p-3.5 rounded-2xl border border-amber-800/70 bg-amber-950/40 space-y-2 animate-in fade-in"
+          >
+            <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+              <span className="text-sm">⚠️</span>
+              <span>Route Notice</span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-200">
+              {routeError}
+            </p>
+            <p className="text-[11px] text-amber-300/80 pt-1 border-t border-amber-900/50 leading-relaxed">
+              💡 Suggestion: Pick a nearby main avenue (such as Grand Trunk Road or Central Spine) or Gate 1 as your starting point.
+            </p>
+          </div>
+        )}
+
+        {/* ──── Origin = Destination Identical Location Banner ──── */}
+        {isSameLocation && (
+          <div
+            data-testid="same-location-banner"
+            className="p-4 rounded-2xl bg-zinc-900/95 border border-emerald-500/50 space-y-3 animate-in fade-in shadow-xl"
+          >
+            <div className="flex items-center gap-2 text-emerald-400">
+              <CheckCircleIcon className="w-5 h-5 shrink-0" />
+              <span className="text-xs font-bold uppercase tracking-wider font-mono">
+                Location Reached
+              </span>
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed font-medium">
+              Starting point and destination are identical. You are already at this location.
+            </p>
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800 text-center">
+              <div className="p-2 rounded-xl bg-zinc-950/70 border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Distance</span>
+                <span className="text-xs font-bold text-white font-mono">0 m</span>
+              </div>
+              <div className="p-2 rounded-xl bg-zinc-950/70 border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Duration</span>
+                <span className="text-xs font-bold text-white font-mono">0 min</span>
+              </div>
+              <div className="p-2 rounded-xl bg-zinc-950/70 border border-zinc-800">
+                <span className="text-[10px] text-zinc-500 uppercase font-mono block">Steps</span>
+                <span className="text-xs font-bold text-white font-mono">0 steps</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -209,23 +263,40 @@ export function DestinationPanel({
         </div>
 
         {/* ──── Active Route Summary ──── */}
-        {activeRoute && (
-          <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400">
+        {activeRoute && !isSameLocation && (
+          <div
+            data-testid="route-summary-panel"
+            className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 font-mono">
                   Calculated Route
                 </span>
-                <p className="text-xs font-semibold text-white mt-0.5">
+                <p className="text-xs font-bold text-white mt-0.5 truncate">
                   {activeRoute.fromName} → {activeRoute.toName}
                 </p>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                    {formatSteps(activeRoute.distanceMeters)}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                      activeRoute.isAccessible
+                        ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
+                        : "bg-amber-950/60 text-amber-300 border-amber-800/60"
+                    }`}
+                  >
+                    {getAccessibilityBadge(activeRoute.isAccessible).badgeText}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-sm font-bold text-[#DE4B31]">
+              <div className="text-right shrink-0">
+                <span className="text-sm font-extrabold text-[#DE4B31]">
                   ~{activeRoute.estimatedWalkingMinutes} min
                 </span>
-                <p className="text-[11px] text-zinc-400">
-                  {activeRoute.distanceMeters} meters
+                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                  {formatDistance(activeRoute.distanceMeters)}
                 </p>
               </div>
             </div>
@@ -254,25 +325,42 @@ export function DestinationPanel({
               )}
             </div>
 
-            {/* Turn-by-Turn Steps */}
+            {/* Turn-by-Turn Steps with direction icons, distances, and active step interaction */}
             {showSteps && activeRoute.steps && (
-              <div className="mt-2 pt-2 border-t border-zinc-800/80 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {activeRoute.steps.map((step, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2 rounded-lg bg-zinc-800/50 text-[11px] flex items-start gap-2"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-zinc-700 text-zinc-300 flex items-center justify-center text-[10px] font-mono shrink-0">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-zinc-200">{step.instruction}</p>
-                      <p className="text-[10px] text-zinc-400 mt-0.5">
-                        {step.distanceMeters}m
-                      </p>
+              <div className="mt-2 pt-2 border-t border-zinc-800/80 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {activeRoute.steps.map((step, idx) => {
+                  const isStepActive = activeStepIndex === idx;
+                  const icon = getDirectionIcon(step.direction);
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setActiveStepIndex(isStepActive ? null : idx)}
+                      className={`p-2.5 rounded-xl border text-[11px] flex items-start gap-2.5 transition-all cursor-pointer ${
+                        isStepActive
+                          ? "bg-[#DE4B31]/15 border-[#DE4B31] shadow-lg text-white"
+                          : "bg-zinc-800/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/70 text-zinc-300"
+                      }`}
+                      title="Click to focus step"
+                    >
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <span className="w-5 h-5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center text-[10px] font-mono font-bold">
+                          {idx + 1}
+                        </span>
+                        <span className="w-5 h-5 rounded-lg bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-[#DE4B31] flex items-center justify-center text-xs font-bold">
+                          {icon}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`leading-snug ${isStepActive ? "text-white font-medium" : "text-zinc-200"}`}>
+                          {step.instruction}
+                        </p>
+                        <p className="text-[10px] text-zinc-400 font-mono mt-0.5">
+                          {formatDistance(step.distanceMeters)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

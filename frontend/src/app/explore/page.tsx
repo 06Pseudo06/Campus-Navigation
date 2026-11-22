@@ -162,7 +162,7 @@ export default function ExploreDashboardPage() {
       queueMicrotask(() => {
         if (!isCancelled) {
           setActiveRoute(null);
-          setRouteError("Starting point and destination cannot be identical.");
+          setRouteError(null);
         }
       });
     }

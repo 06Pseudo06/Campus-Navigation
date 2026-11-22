@@ -18,7 +18,6 @@ import {
   CompassIcon,
   LayersIcon,
   WalkingIcon,
-  AccessibilityIcon,
 } from "./DashboardIcons";
 import {
   projectGpsToSvg,
@@ -36,8 +35,14 @@ import {
   clearStoredViewport,
   getResponsiveMapPadding,
   calculateRouteBounds,
+  getRouteFitBoundsZoomCap,
   MapViewportState,
 } from "@/lib/mapViewport";
+import {
+  formatDistance,
+  formatSteps,
+  getAccessibilityBadge,
+} from "@/lib/routeFormatting";
 
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
@@ -170,11 +175,12 @@ export function CampusMap({
     const isMobile =
       typeof window !== "undefined" ? window.innerWidth < 1024 : false;
     const padding = getResponsiveMapPadding(isMobile, true);
+    const maxZoom = getRouteFitBoundsZoomCap(bounds);
 
     try {
       mapRef.current.fitBounds(bounds, {
         padding,
-        maxZoom: 18,
+        maxZoom,
         duration: 1000,
       });
     } catch (err) {
@@ -490,7 +496,10 @@ export function CampusMap({
 
       {/* ──── Active Route Top-Left HUD Card ──── */}
       {showRoute && activeRoute && (
-        <div className="absolute top-4 left-4 z-20 max-w-xs sm:max-w-sm rounded-2xl bg-[#111827]/90 border border-zinc-800 shadow-2xl backdrop-blur-xl p-3.5 animate-in fade-in slide-in-from-top-4">
+        <div
+          data-testid="route-summary-hud"
+          className="absolute top-4 left-4 z-20 max-w-xs sm:max-w-sm rounded-2xl bg-[#111827]/90 border border-zinc-800 shadow-2xl backdrop-blur-xl p-3.5 animate-in fade-in slide-in-from-top-4 space-y-2.5"
+        >
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-[#DE4B31]/20 border border-[#DE4B31]/50 flex items-center justify-center shrink-0">
@@ -510,18 +519,24 @@ export function CampusMap({
               <span className="text-xs font-extrabold text-[#DE4B31]">
                 ~{activeRoute.estimatedWalkingMinutes} min
               </span>
-              <p className="text-[10px] text-zinc-400">
-                {activeRoute.distanceMeters} m
+              <p className="text-[10px] text-zinc-400 font-mono">
+                {formatDistance(activeRoute.distanceMeters)}
               </p>
             </div>
           </div>
 
-          <div className="mt-2.5 pt-2 border-t border-zinc-800 flex items-center justify-between text-[10px] text-zinc-400">
-            <span className="flex items-center gap-1 text-emerald-400">
-              <AccessibilityIcon className="w-3 h-3" /> Pedestrian Pathway
+          <div className="flex items-center justify-between text-[11px] pt-2 border-t border-zinc-800/80">
+            <span className="text-zinc-400 font-mono text-[10px]">
+              {formatSteps(activeRoute.distanceMeters)}
             </span>
-            <span className="font-mono text-zinc-500">
-              {engine === "mapbox" ? "Mapbox 3D" : "Vector Fallback"}
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                activeRoute.isAccessible
+                  ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
+                  : "bg-amber-950/60 text-amber-300 border-amber-800/60"
+              }`}
+            >
+              {getAccessibilityBadge(activeRoute.isAccessible).badgeText}
             </span>
           </div>
         </div>
@@ -591,28 +606,40 @@ export function CampusMap({
                 <Layer
                   id="route-casing"
                   type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round",
+                  }}
                   paint={{
-                    "line-color": "#000000",
-                    "line-width": 9,
-                    "line-opacity": 0.8,
+                    "line-color": "#ffffff",
+                    "line-width": 8,
+                    "line-opacity": 0.95,
                   }}
                 />
                 <Layer
                   id="route-glow"
                   type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round",
+                  }}
                   paint={{
                     "line-color": "#DE4B31",
                     "line-width": 6,
-                    "line-blur": 2,
-                    "line-opacity": 0.5,
+                    "line-blur": 3,
+                    "line-opacity": 0.6,
                   }}
                 />
                 <Layer
                   id="route-line"
                   type="line"
+                  layout={{
+                    "line-join": "round",
+                    "line-cap": "round",
+                  }}
                   paint={{
-                    "line-color": "#DE4B31",
-                    "line-width": 4.5,
+                    "line-color": "#E8452C",
+                    "line-width": 4,
                     "line-opacity": 1,
                   }}
                 />
@@ -898,11 +925,21 @@ export function CampusMap({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
+                  {/* White casing beneath vermilion line */}
                   <path
                     d={vectorRoutePathD}
                     fill="none"
-                    stroke="#DE4B31"
-                    strokeWidth="5"
+                    stroke="#ffffff"
+                    strokeWidth="6.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {/* Vermilion route line */}
+                  <path
+                    d={vectorRoutePathD}
+                    fill="none"
+                    stroke="#E8452C"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
@@ -910,8 +947,8 @@ export function CampusMap({
                     d={vectorRoutePathD}
                     fill="none"
                     stroke="#ffffff"
-                    strokeWidth="2.5"
-                    strokeDasharray="8,8"
+                    strokeWidth="1.5"
+                    strokeDasharray="6,6"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />

@@ -7,6 +7,8 @@ import {
   clearStoredViewport,
   getResponsiveMapPadding,
   calculateRouteBounds,
+  haversineMeters,
+  getRouteFitBoundsZoomCap,
   LPU_CAMPUS_BOUNDS,
   LPU_MIN_ZOOM,
   LPU_MAX_ZOOM,
@@ -105,5 +107,28 @@ describe("mapViewport", () => {
     expect(swLat).toBeLessThan(neLat);
     expect(swLng).toBeCloseTo(75.692);
     expect(neLat).toBeCloseTo(31.272);
+  });
+
+  it("calculates haversine distance in meters", () => {
+    // 31.260565, 75.706815 to nearby point
+    const dist = haversineMeters(31.260565, 75.706815, 31.261, 75.707);
+    expect(dist).toBeGreaterThan(40);
+    expect(dist).toBeLessThan(70);
+  });
+
+  it("caps fitBounds maxZoom to 17.5 for short routes (<80m span)", () => {
+    // Two points roughly 50m apart
+    const shortBounds: [[number, number], [number, number]] = [
+      [75.7068, 31.2605],
+      [75.7071, 31.2608],
+    ];
+    expect(getRouteFitBoundsZoomCap(shortBounds)).toBe(17.5);
+
+    // Two points roughly 500m apart
+    const longBounds: [[number, number], [number, number]] = [
+      [75.700, 31.255],
+      [75.705, 31.260],
+    ];
+    expect(getRouteFitBoundsZoomCap(longBounds)).toBe(18.5);
   });
 });

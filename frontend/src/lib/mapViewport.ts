@@ -150,3 +150,29 @@ export function calculateRouteBounds(
     [maxLng, maxLat],
   ];
 }
+
+/**
+ * Calculate Haversine distance in meters between two lat/lng pairs.
+ */
+export function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Returns the maximum zoom cap for route framing.
+ * If the route bounding box diagonal span is < 80 meters, caps zoom to 17.5 to prevent over-zooming.
+ */
+export function getRouteFitBoundsZoomCap(bounds: [[number, number], [number, number]]): number {
+  const [[swLng, swLat], [neLng, neLat]] = bounds;
+  const span = haversineMeters(swLat, swLng, neLat, neLng);
+  return span < 80 ? 17.5 : 18.5;
+}
+

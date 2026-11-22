@@ -40,6 +40,10 @@ test.describe("map smoke", () => {
       timeout: 20_000,
     });
 
+    // Verify Stage 3 Route Summary HUD and Panel
+    await expect(page.getByTestId("route-summary-hud")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("route-summary-panel")).toBeVisible({ timeout: 10_000 });
+
     // Verify Stage 2 Reset View button is visible and clickable
     const resetBtn = page.getByTestId("reset-view-button");
     await expect(resetBtn).toBeVisible();
