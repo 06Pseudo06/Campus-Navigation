@@ -96,3 +96,8 @@ class RouteResponse(BaseModel):
     estimated_duration_s: Optional[float] = None
     estimated_duration_min: Optional[float] = None
 
+
+class GraphPayload(BaseModel):
+    nodes: List[NodeRead]
+    edges: List[EdgeRead]
+

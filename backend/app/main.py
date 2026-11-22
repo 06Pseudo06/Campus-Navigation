@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from app.core.config import Settings, settings
 from app.api.routes import api_router
 
@@ -11,6 +12,9 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
+
+# GZip Compression Middleware for large responses (locations, graphs, routes)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # CORS Middleware Configuration
 origins = list(set(settings.CORS_ORIGINS + [

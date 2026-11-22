@@ -176,3 +176,18 @@ def test_directed_edge_one_way(client):
         json={"origin_node_id": nB["id"], "destination_node_id": nA["id"]},
     )
     assert res_rev.status_code == 404
+
+
+def test_get_graph_and_cache_headers(client):
+    """Verify GET /api/v1/routing/graph returns nodes, edges, Cache-Control and ETag headers."""
+    res = client.get("/api/v1/routing/graph")
+    assert res.status_code == 200
+    assert "Cache-Control" in res.headers
+    assert "max-age=3600" in res.headers["Cache-Control"]
+    assert "ETag" in res.headers
+
+    data = res.json()
+    assert "nodes" in data
+    assert "edges" in data
+    assert isinstance(data["nodes"], list)
+    assert isinstance(data["edges"], list)

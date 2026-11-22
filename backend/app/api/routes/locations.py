@@ -1,8 +1,9 @@
 """Campus locations API endpoints."""
 
+import hashlib
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_admin_role
@@ -23,6 +24,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[LocationRead])
 def list_locations(
+    response: Response,
     query: Optional[str] = Query(None, description="Search by name, slug, or alias with relevance ranking"),
     location_type: Optional[str] = Query(None, description="Filter by location type"),
     is_verified: Optional[bool] = Query(None, description="Filter by verification status"),
@@ -32,7 +34,7 @@ def list_locations(
     db: Session = Depends(get_db),
 ):
     """List searchable campus locations (buildings, gates, rooms, landmarks). Excludes inactive by default."""
-    return location_service.list_locations(
+    results = location_service.list_locations(
         db,
         query=query,
         location_type=location_type,
@@ -41,6 +43,11 @@ def list_locations(
         skip=skip,
         limit=limit,
     )
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    if results:
+        etag_seed = f"{len(results)}:{results[0].id}:{getattr(results[0], 'updated_at', '')}"
+        response.headers["ETag"] = f'"{hashlib.md5(etag_seed.encode()).hexdigest()}"'
+    return results
 
 
 @router.get("/{location_id}", response_model=LocationDetailRead)

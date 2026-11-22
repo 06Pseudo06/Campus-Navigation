@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useMemo, useTransition } from "react";
 import { useAuth } from "@/context/AuthContext";
+import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
-import { CampusMap } from "@/components/dashboard/CampusMap";
+import { CampusMapSkeleton } from "@/components/dashboard/CampusMapSkeleton";
 import { DestinationPanel } from "@/components/dashboard/DestinationPanel";
 import { RoutesTab } from "@/components/dashboard/RoutesTab";
 import { SavedTab } from "@/components/dashboard/SavedTab";
@@ -13,6 +14,15 @@ import { mapBackendToFrontend } from "@/data/campusData";
 import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
+
+// Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
+const CampusMap = dynamic(
+  () => import("@/components/dashboard/CampusMap").then((m) => m.CampusMap),
+  {
+    ssr: false,
+    loading: () => <CampusMapSkeleton />,
+  }
+);
 
 export default function ExploreDashboardPage() {
   const { user } = useAuth();

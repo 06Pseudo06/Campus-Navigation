@@ -1,14 +1,16 @@
 """Route calculation and navigation API endpoints."""
 
+import hashlib
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_admin_role
 from app.schemas.graph import (
     EdgeCreate,
     EdgeRead,
+    GraphPayload,
     NodeCreate,
     NodeRead,
     RouteQuery,
@@ -19,14 +21,36 @@ from app.services import graph_service
 router = APIRouter()
 
 
+@router.get("/graph", response_model=GraphPayload)
+def get_graph(
+    response: Response,
+    accessible_only: bool = Query(False, description="Filter by wheelchair/accessible paths"),
+    is_active: bool = Query(True, description="Filter by active status"),
+    db: Session = Depends(get_db),
+):
+    """Retrieve full navigation graph (nodes and edges) in a single compact gzipped payload."""
+    nodes = graph_service.list_active_nodes(db, is_active=is_active)
+    edges = graph_service.list_active_edges(db, accessible_only=accessible_only, is_active=is_active)
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    etag_seed = f"{len(nodes)}:{len(edges)}"
+    response.headers["ETag"] = f'"{hashlib.md5(etag_seed.encode()).hexdigest()}"'
+    return {"nodes": nodes, "edges": edges}
+
+
 @router.get("/nodes", response_model=List[NodeRead])
 def list_nodes(
+    response: Response,
     location_id: Optional[uuid.UUID] = Query(None, description="Filter nodes by location"),
     is_active: bool = Query(True, description="Filter by active status"),
     db: Session = Depends(get_db),
 ):
     """Retrieve active navigation nodes/waypoints (Public endpoint)."""
-    return graph_service.list_active_nodes(db, location_id=location_id, is_active=is_active)
+    nodes = graph_service.list_active_nodes(db, location_id=location_id, is_active=is_active)
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    if nodes:
+        etag_seed = f"{len(nodes)}:{nodes[0].id}"
+        response.headers["ETag"] = f'"{hashlib.md5(etag_seed.encode()).hexdigest()}"'
+    return nodes
 
 
 @router.post("/nodes", response_model=NodeRead, status_code=status.HTTP_201_CREATED)
@@ -54,12 +78,18 @@ def deactivate_node(
 
 @router.get("/edges", response_model=List[EdgeRead])
 def list_edges(
+    response: Response,
     accessible_only: bool = Query(False, description="Filter by wheelchair/accessible paths"),
     is_active: bool = Query(True, description="Filter by active status"),
     db: Session = Depends(get_db),
 ):
     """Retrieve active walkable connections between nodes (Public endpoint)."""
-    return graph_service.list_active_edges(db, accessible_only=accessible_only, is_active=is_active)
+    edges = graph_service.list_active_edges(db, accessible_only=accessible_only, is_active=is_active)
+    response.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+    if edges:
+        etag_seed = f"{len(edges)}:{edges[0].id}"
+        response.headers["ETag"] = f'"{hashlib.md5(etag_seed.encode()).hexdigest()}"'
+    return edges
 
 
 @router.post("/edges", response_model=EdgeRead, status_code=status.HTTP_201_CREATED)

@@ -2,7 +2,6 @@ import { CampusRoute, CampusLocation, RouteWaypoint, RouteStep } from "@/types/c
 import { locationService, BackendNode } from "@/services/locationService";
 import {
   projectGpsToSvg,
-  VERIFIED_DATASET_C_NODES,
   VERIFIED_DATASET_C_SEGMENTS,
 } from "@/data/campusData";
 
