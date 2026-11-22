@@ -118,23 +118,6 @@ export function CampusMap({
     }
   }, [selectedLocation, engine]);
 
-  // GeoJSON LineString for active route in Mapbox
-  const routeGeoJSON = useMemo(() => {
-    if (!showRoute || !activeRoute?.waypoints?.length) return null;
-    const coords = activeRoute.waypoints
-      .filter((wp) => Number.isFinite(wp.lng) && Number.isFinite(wp.lat))
-      .map((wp) => [wp.lng!, wp.lat!]);
-    if (coords.length < 2) return null;
-    return {
-      type: "Feature" as const,
-      properties: {},
-      geometry: {
-        type: "LineString" as const,
-        coordinates: coords,
-      },
-    };
-  }, [showRoute, activeRoute]);
-
   // GeoJSON MultiLineString for all 29 surveyed walkable pathway segments
   const surveyedSpineGeoJSON = useMemo(() => {
     const lines: Array<Array<[number, number]>> = [];
@@ -163,10 +146,153 @@ export function CampusMap({
     return VERIFIED_DATASET_C_NODES.filter((n) => n.node_type === "junction");
   }, []);
 
+  // Smooth path drawing animation via requestAnimationFrame
+  const [drawProgress, setDrawProgress] = useState(1);
+
+  useEffect(() => {
+    let animId: number;
+    if (!activeRoute?.waypoints?.length || !showRoute) {
+      queueMicrotask(() => setDrawProgress(1));
+      return;
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      queueMicrotask(() => setDrawProgress(1));
+      return;
+    }
+
+    queueMicrotask(() => setDrawProgress(0));
+    const startTime = performance.now();
+    const durationMs = 600;
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setDrawProgress(eased);
+
+      if (progress < 1) {
+        animId = requestAnimationFrame(animate);
+      }
+    };
+
+    animId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animId) {
+        cancelAnimationFrame(animId);
+      }
+    };
+  }, [activeRoute?.id, activeRoute?.waypoints?.length, showRoute]);
+
+  // GeoJSON LineString for active route in Mapbox (interpolated by drawProgress)
+  const routeGeoJSON = useMemo(() => {
+    if (!showRoute || !activeRoute?.waypoints?.length) return null;
+    const coords = activeRoute.waypoints
+      .filter((wp) => Number.isFinite(wp.lng) && Number.isFinite(wp.lat))
+      .map((wp) => [wp.lng!, wp.lat!]);
+    if (coords.length < 2) return null;
+
+    if (drawProgress < 1) {
+      const count = Math.max(2, Math.ceil(coords.length * drawProgress));
+      return {
+        type: "Feature" as const,
+        properties: {},
+        geometry: {
+          type: "LineString" as const,
+          coordinates: coords.slice(0, count),
+        },
+      };
+    }
+
+    return {
+      type: "Feature" as const,
+      properties: {},
+      geometry: {
+        type: "LineString" as const,
+        coordinates: coords,
+      },
+    };
+  }, [showRoute, activeRoute, drawProgress]);
+
+  // GeoJSON FeatureCollection for junction vertices (GPU-accelerated rendering)
+  const junctionGeoJSON = useMemo(() => {
+    return {
+      type: "FeatureCollection" as const,
+      features: junctionNodes.map((j) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [j.longitude, j.latitude],
+        },
+        properties: {
+          id: j.id,
+          title: `${j.survey_id}: Junction Vertex`,
+        },
+      })),
+    };
+  }, [junctionNodes]);
+
+  // GeoJSON FeatureCollection for unselected background destination pins
+  const backgroundLocationsGeoJSON = useMemo(() => {
+    const bgLocs = locations.filter(
+      (loc) =>
+        loc.id !== originLocation?.id &&
+        loc.id !== selectedLocation?.id &&
+        Number.isFinite(loc.coordinates.lat) &&
+        Number.isFinite(loc.coordinates.lng)
+    );
+    return {
+      type: "FeatureCollection" as const,
+      features: bgLocs.map((loc) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [loc.coordinates.lng, loc.coordinates.lat],
+        },
+        properties: {
+          id: loc.id,
+          name: loc.name,
+          code: loc.code || loc.name,
+          category: loc.category,
+          color: CATEGORY_COLORS[loc.category] || "#6366F1",
+        },
+      })),
+    };
+  }, [locations, originLocation?.id, selectedLocation?.id]);
+
+  // Throttled camera move tracking using requestAnimationFrame
+  const cameraRef = useRef({
+    longitude: DATASET_C_INITIAL_CENTER.longitude,
+    latitude: DATASET_C_INITIAL_CENTER.latitude,
+    zoom: DEFAULT_ZOOM,
+  });
+  const onMoveFrameRef = useRef<number | null>(null);
+
+  const handleMapMove = useCallback(
+    (evt: { viewState: { longitude: number; latitude: number; zoom: number } }) => {
+      if (onMoveFrameRef.current) return;
+      onMoveFrameRef.current = requestAnimationFrame(() => {
+        cameraRef.current = evt.viewState;
+        onMoveFrameRef.current = null;
+      });
+    },
+    []
+  );
+
   // Vector fallback route SVG path
   const vectorRoutePathD = useMemo(() => {
     if (!showRoute || !activeRoute?.waypoints?.length) return "";
-    return activeRoute.waypoints.reduce((acc, pt, i) => {
+    const points = activeRoute.waypoints;
+    const count =
+      drawProgress < 1
+        ? Math.max(2, Math.ceil(points.length * drawProgress))
+        : points.length;
+
+    return points.slice(0, count).reduce((acc, pt, i) => {
       const coords =
         pt.x !== undefined && pt.y !== undefined
           ? { x: pt.x, y: pt.y }
@@ -175,7 +301,7 @@ export function CampusMap({
           : { x: 500, y: 350 };
       return i === 0 ? `M ${coords.x} ${coords.y}` : `${acc} L ${coords.x} ${coords.y}`;
     }, "");
-  }, [showRoute, activeRoute]);
+  }, [showRoute, activeRoute, drawProgress]);
 
   const handleMarkerClick = useCallback(
     (loc: CampusLocation) => {
@@ -351,6 +477,17 @@ export function CampusMap({
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
             onError={handleMapboxError}
+            onMove={handleMapMove}
+            interactiveLayerIds={["background-locations-circles"]}
+            onClick={(e) => {
+              const feat = e.features?.[0] as { properties?: { id?: string } } | undefined;
+              if (feat?.properties?.id) {
+                const loc = locations.find((l) => l.id === feat.properties?.id);
+                if (loc) {
+                  handleMarkerClick(loc);
+                }
+              }
+            }}
           >
             <NavigationControl position="bottom-right" showCompass showZoom />
             <GeolocateControl position="bottom-right" trackUserLocation />
@@ -414,94 +551,115 @@ export function CampusMap({
               </Source>
             )}
 
-            {/* 3. 12 Junction Nodes (Subtle Navigational Vertices) */}
-            {junctionNodes.map((j) => (
-              <Marker
-                key={j.id}
-                latitude={j.latitude}
-                longitude={j.longitude}
-                anchor="center"
-              >
-                <div
-                  className="w-2.5 h-2.5 rounded-full bg-zinc-600 border border-zinc-400 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
-                  title={`${j.survey_id}: Junction Vertex`}
-                />
-              </Marker>
-            ))}
-
-            {/* 4. 15 Destination Location Pins */}
-            {locations.map((loc) => {
-              if (!Number.isFinite(loc.coordinates.lat) || !Number.isFinite(loc.coordinates.lng)) {
-                return null;
-              }
-
-              const isOrigin = originLocation?.id === loc.id;
-              const isDestination = selectedLocation?.id === loc.id;
-              const pinColor = isOrigin
-                ? "#10b981"
-                : isDestination
-                ? "#DE4B31"
-                : CATEGORY_COLORS[loc.category] || "#6366F1";
-
-              return (
-                <Marker
-                  key={loc.id}
-                  latitude={loc.coordinates.lat}
-                  longitude={loc.coordinates.lng}
-                  anchor="bottom"
-                  onClick={(e) => {
-                    e.originalEvent.stopPropagation();
-                    handleMarkerClick(loc);
+            {/* 3. 12 Junction Nodes (GPU-accelerated GeoJSON circle layer) */}
+            {junctionGeoJSON && (
+              <Source id="junction-nodes" type="geojson" data={junctionGeoJSON}>
+                <Layer
+                  id="junction-circles"
+                  type="circle"
+                  paint={{
+                    "circle-radius": 3.5,
+                    "circle-color": "#52525b",
+                    "circle-stroke-width": 1.5,
+                    "circle-stroke-color": "#a1a1aa",
+                    "circle-opacity": 0.75,
                   }}
-                >
-                  <div className="relative group cursor-pointer flex flex-col items-center">
-                    {/* Pulsing ring on destination */}
-                    {isDestination && (
-                      <span className="absolute -inset-1 rounded-full bg-[#DE4B31] animate-ping opacity-40 pointer-events-none" />
-                    )}
+                />
+              </Source>
+            )}
 
-                    {/* Marker Pin Icon */}
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center shadow-2xl transition-transform duration-200 group-hover:scale-125 border-2 ${
-                        isOrigin || isDestination
-                          ? "border-white scale-110"
-                          : "border-zinc-900 group-hover:border-white"
-                      }`}
-                      style={{ backgroundColor: pinColor }}
-                    >
-                      <span className="text-[10px] text-white font-bold">
-                        {loc.category === "gate"
-                          ? "🚪"
-                          : loc.category === "hostel"
-                          ? "🏠"
-                          : loc.category === "service"
-                          ? "🍴"
-                          : loc.category === "landmark"
-                          ? "📍"
-                          : "🏛️"}
-                      </span>
-                    </div>
+            {/* 4. Background Destination Locations (GPU-accelerated GeoJSON circle layer) */}
+            {backgroundLocationsGeoJSON && (
+              <Source id="background-locations" type="geojson" data={backgroundLocationsGeoJSON}>
+                <Layer
+                  id="background-locations-circles"
+                  type="circle"
+                  paint={{
+                    "circle-radius": 6.5,
+                    "circle-color": ["get", "color"],
+                    "circle-stroke-width": 2,
+                    "circle-stroke-color": "#090d16",
+                    "circle-opacity": 0.9,
+                  }}
+                />
+              </Source>
+            )}
 
-                    {/* Badge Label */}
-                    <div
-                      className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-md text-[10px] font-bold shadow-lg pointer-events-none transition-all ${
-                        isOrigin
-                          ? "bg-emerald-600 text-white"
+            {/* 5. Active Origin & Selected Destination Pins (Max 2 DOM Markers for Peak FPS) */}
+            {[originLocation, selectedLocation]
+              .filter(
+                (loc): loc is CampusLocation =>
+                  Boolean(loc && Number.isFinite(loc.coordinates.lat) && Number.isFinite(loc.coordinates.lng))
+              )
+              .filter((loc, idx, arr) => arr.findIndex((x) => x.id === loc.id) === idx)
+              .map((loc) => {
+                const isOrigin = originLocation?.id === loc.id;
+                const isDestination = selectedLocation?.id === loc.id;
+                const pinColor = isOrigin
+                  ? "#10b981"
+                  : isDestination
+                  ? "#DE4B31"
+                  : CATEGORY_COLORS[loc.category] || "#6366F1";
+
+                return (
+                  <Marker
+                    key={loc.id}
+                    latitude={loc.coordinates.lat}
+                    longitude={loc.coordinates.lng}
+                    anchor="bottom"
+                    onClick={(e) => {
+                      e.originalEvent.stopPropagation();
+                      handleMarkerClick(loc);
+                    }}
+                  >
+                    <div className="relative group cursor-pointer flex flex-col items-center">
+                      {/* Pulsing ring on destination */}
+                      {isDestination && (
+                        <span className="absolute -inset-1 rounded-full bg-[#DE4B31] animate-ping opacity-40 pointer-events-none" />
+                      )}
+
+                      {/* Marker Pin Icon */}
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center shadow-2xl transition-transform duration-200 group-hover:scale-125 border-2 ${
+                          isOrigin || isDestination
+                            ? "border-white scale-110"
+                            : "border-zinc-900 group-hover:border-white"
+                        }`}
+                        style={{ backgroundColor: pinColor }}
+                      >
+                        <span className="text-[10px] text-white font-bold">
+                          {loc.category === "gate"
+                            ? "🚪"
+                            : loc.category === "hostel"
+                            ? "🏠"
+                            : loc.category === "service"
+                            ? "🍴"
+                            : loc.category === "landmark"
+                            ? "📍"
+                            : "🏛️"}
+                        </span>
+                      </div>
+
+                      {/* Badge Label */}
+                      <div
+                        className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 rounded-md text-[10px] font-bold shadow-lg pointer-events-none transition-all ${
+                          isOrigin
+                            ? "bg-emerald-600 text-white"
+                            : isDestination
+                            ? "bg-[#DE4B31] text-white"
+                            : "bg-[#111827]/95 text-zinc-200 border border-zinc-700 opacity-90 group-hover:opacity-100"
+                        }`}
+                      >
+                        {isOrigin
+                          ? `START • ${loc.code || loc.name}`
                           : isDestination
-                          ? "bg-[#DE4B31] text-white"
-                          : "bg-[#111827]/95 text-zinc-200 border border-zinc-700 opacity-90 group-hover:opacity-100"
-                      }`}
-                    >
-                      {isOrigin
-                        ? `START • ${loc.code || loc.name}`
-                        : isDestination
-                        ? `DEST • ${loc.code || loc.name}`
-                        : loc.code || loc.name}
+                          ? `DEST • ${loc.code || loc.name}`
+                          : loc.code || loc.name}
+                      </div>
                     </div>
-                  </div>
-                </Marker>
-              );
-            })}
+                  </Marker>
+                );
+              })}
 
             {/* 5. Destination Popup Card */}
             {popupLocation &&
