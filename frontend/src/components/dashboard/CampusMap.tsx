@@ -25,10 +25,19 @@ import {
   VERIFIED_DATASET_C_NODES,
   VERIFIED_DATASET_C_SEGMENTS,
 } from "@/data/campusData";
-
-// Initial camera center: LPU Gate 1 (Dataset C surveyed anchor)
-const DATASET_C_INITIAL_CENTER = { latitude: 31.260565, longitude: 75.706815 };
-const DEFAULT_ZOOM = 16.5;
+import {
+  DATASET_C_INITIAL_CENTER,
+  DEFAULT_ZOOM,
+  LPU_CAMPUS_BOUNDS,
+  LPU_MIN_ZOOM,
+  LPU_MAX_ZOOM,
+  getStoredViewport,
+  saveStoredViewport,
+  clearStoredViewport,
+  getResponsiveMapPadding,
+  calculateRouteBounds,
+  MapViewportState,
+} from "@/lib/mapViewport";
 
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
@@ -93,6 +102,30 @@ export function CampusMap({
   const [vectorZoom, setVectorZoom] = useState<number>(1);
   const [hoveredLocation, setHoveredLocation] = useState<CampusLocation | null>(null);
 
+  // Initial viewport state persisted across sessions via sessionStorage
+  const [initialViewport] = useState<MapViewportState>(() => getStoredViewport());
+
+  // Reset view to default LPU campus center
+  const handleResetView = useCallback(() => {
+    clearStoredViewport();
+    if (engine === "mapbox" && mapRef.current) {
+      mapRef.current.flyTo({
+        center: [DATASET_C_INITIAL_CENTER.longitude, DATASET_C_INITIAL_CENTER.latitude],
+        zoom: DEFAULT_ZOOM,
+        pitch: 40,
+        bearing: 0,
+        duration: 1000,
+      });
+    } else if (engine === "vector") {
+      setVectorZoom(1);
+    }
+  }, [engine]);
+
+  // Persist camera viewport on move end to sessionStorage
+  const handleMoveEnd = useCallback((evt: { viewState: MapViewportState }) => {
+    saveStoredViewport(evt.viewState);
+  }, []);
+
   // Auto-switch to vector map if Mapbox experiences a runtime initialization error
   const handleMapboxError = useCallback((err: unknown) => {
     console.warn("[CampusMap] Mapbox initialization failed, switching to vector canvas fallback:", err);
@@ -100,11 +133,12 @@ export function CampusMap({
     setEngine("vector");
   }, []);
 
-  // Fly to selected destination in Mapbox mode
+  // Fly to selected destination in Mapbox mode when no route is active
   useEffect(() => {
     if (
       engine === "mapbox" &&
       selectedLocation &&
+      !activeRoute &&
       Number.isFinite(selectedLocation.coordinates.lat) &&
       Number.isFinite(selectedLocation.coordinates.lng) &&
       mapRef.current
@@ -116,7 +150,37 @@ export function CampusMap({
         duration: 1200,
       });
     }
-  }, [selectedLocation, engine]);
+  }, [selectedLocation, activeRoute, engine]);
+
+  // Auto-fit route bounds with device-aware responsive padding
+  useEffect(() => {
+    if (
+      !showRoute ||
+      !activeRoute?.waypoints ||
+      activeRoute.waypoints.length < 2 ||
+      engine !== "mapbox" ||
+      !mapRef.current
+    ) {
+      return;
+    }
+
+    const bounds = calculateRouteBounds(activeRoute.waypoints);
+    if (!bounds) return;
+
+    const isMobile =
+      typeof window !== "undefined" ? window.innerWidth < 1024 : false;
+    const padding = getResponsiveMapPadding(isMobile, true);
+
+    try {
+      mapRef.current.fitBounds(bounds, {
+        padding,
+        maxZoom: 18,
+        duration: 1000,
+      });
+    } catch (err) {
+      console.warn("[CampusMap] fitBounds error:", err);
+    }
+  }, [activeRoute?.id, activeRoute?.waypoints, showRoute, engine]);
 
   // GeoJSON MultiLineString for all 29 surveyed walkable pathway segments
   const surveyedSpineGeoJSON = useMemo(() => {
@@ -331,6 +395,18 @@ export function CampusMap({
           </button>
         )}
 
+        {/* Reset View Button (Re-center campus in Mapbox 3D or Vector mode) */}
+        <button
+          type="button"
+          onClick={handleResetView}
+          className="w-10 h-10 rounded-xl bg-[#111827]/90 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700/80 shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer group"
+          title="Reset Campus View"
+          aria-label="Reset campus view"
+          data-testid="reset-view-button"
+        >
+          <CompassIcon className="w-5 h-5 text-[#DE4B31] group-hover:rotate-45 transition-transform duration-300" />
+        </button>
+
         {/* Vector Zoom Controls (only shown in Vector mode) */}
         {engine === "vector" && (
           <>
@@ -351,15 +427,6 @@ export function CampusMap({
               aria-label="Zoom Out"
             >
               <ZoomOutIcon className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setVectorZoom(1)}
-              className="w-10 h-10 rounded-xl bg-[#111827]/90 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700/80 shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer"
-              title="Reset View"
-              aria-label="Reset View"
-            >
-              <CompassIcon className="w-5 h-5 text-[#DE4B31]" />
             </button>
           </>
         )}
@@ -466,18 +533,19 @@ export function CampusMap({
           <Map
             ref={mapRef}
             mapboxAccessToken={MAPBOX_TOKEN}
-            initialViewState={{
-              longitude: DATASET_C_INITIAL_CENTER.longitude,
-              latitude: DATASET_C_INITIAL_CENTER.latitude,
-              zoom: DEFAULT_ZOOM,
-              pitch: 40,
-              bearing: 0,
-            }}
+            initialViewState={initialViewport}
+            minZoom={LPU_MIN_ZOOM}
+            maxZoom={LPU_MAX_ZOOM}
+            maxBounds={LPU_CAMPUS_BOUNDS}
+            cooperativeGestures={true}
+            touchPitch={true}
+            touchZoomRotate={true}
             mapStyle={MAP_STYLES[layer] || MAP_STYLES.dark}
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
             onError={handleMapboxError}
             onMove={handleMapMove}
+            onMoveEnd={handleMoveEnd}
             interactiveLayerIds={["background-locations-circles"]}
             onClick={(e) => {
               const feat = e.features?.[0] as { properties?: { id?: string } } | undefined;

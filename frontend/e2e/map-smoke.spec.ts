@@ -39,5 +39,10 @@ test.describe("map smoke", () => {
     await expect(page.getByTestId("route-polyline")).toBeVisible({
       timeout: 20_000,
     });
+
+    // Verify Stage 2 Reset View button is visible and clickable
+    const resetBtn = page.getByTestId("reset-view-button");
+    await expect(resetBtn).toBeVisible();
+    await resetBtn.click();
   });
 });
