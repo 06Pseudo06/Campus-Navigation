@@ -172,3 +172,17 @@ export function CheckCircleIcon({ className = "w-4 h-4" }: { className?: string 
     </svg>
   );
 }
+
+export function CrosshairIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <circle cx="12" cy="12" r="7" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="12" y1="2" x2="12" y2="5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="12" y1="19" x2="12" y2="22" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="2" y1="12" x2="5" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="19" y1="12" x2="22" y2="12" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+

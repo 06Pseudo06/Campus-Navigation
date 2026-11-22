@@ -48,5 +48,10 @@ test.describe("map smoke", () => {
     const resetBtn = page.getByTestId("reset-view-button");
     await expect(resetBtn).toBeVisible();
     await resetBtn.click();
+
+    // Verify Stage 4 Locate Me button is visible and clickable
+    const locateBtn = page.getByTestId("locate-button");
+    await expect(locateBtn).toBeVisible();
+    await locateBtn.click();
   });
 });

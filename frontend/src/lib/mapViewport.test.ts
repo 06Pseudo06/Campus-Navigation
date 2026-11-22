@@ -9,6 +9,7 @@ import {
   calculateRouteBounds,
   haversineMeters,
   getRouteFitBoundsZoomCap,
+  isWithinCampusBounds,
   LPU_CAMPUS_BOUNDS,
   LPU_MIN_ZOOM,
   LPU_MAX_ZOOM,
@@ -130,5 +131,16 @@ describe("mapViewport", () => {
       [75.705, 31.260],
     ];
     expect(getRouteFitBoundsZoomCap(longBounds)).toBe(18.5);
+  });
+
+  it("checks whether coordinate is inside LPU campus bounds", () => {
+    // Inside LPU campus (near Block 1)
+    expect(isWithinCampusBounds(31.260565, 75.706815)).toBe(true);
+
+    // Well outside LPU campus (e.g. Jalandhar city center)
+    expect(isWithinCampusBounds(31.326, 75.576)).toBe(false);
+
+    // Invalid coordinate values
+    expect(isWithinCampusBounds(NaN, 75.706)).toBe(false);
   });
 });

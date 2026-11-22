@@ -43,6 +43,9 @@ import {
   formatSteps,
   getAccessibilityBadge,
 } from "@/lib/routeFormatting";
+import { LocateButton } from "./LocateButton";
+import { FEATURE_GPS } from "@/lib/featureFlags";
+import type { GeoCoordinates, GeolocationStatus, GeolocationPermission } from "@/hooks/useGeolocation";
 
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
@@ -79,6 +82,12 @@ interface CampusMapProps {
   onSetDestination?: (location: CampusLocation) => void;
   activeRoute: CampusRoute | null;
   showRoute: boolean;
+  userCoordinates?: GeoCoordinates | null;
+  geolocationStatus?: GeolocationStatus;
+  geolocationPermission?: GeolocationPermission;
+  onLocateUser?: () => void;
+  isInsideCampus?: boolean;
+  geolocationError?: string | null;
 }
 
 export function CampusMap({
@@ -90,6 +99,12 @@ export function CampusMap({
   onSetDestination,
   activeRoute,
   showRoute,
+  userCoordinates,
+  geolocationStatus = "idle",
+  geolocationPermission = "prompt",
+  onLocateUser,
+  isInsideCampus = true,
+  geolocationError = null,
 }: CampusMapProps) {
   // Map engine state: "mapbox" or "vector" (fallback)
   const [engine, setEngine] = useState<"mapbox" | "vector">(
@@ -156,6 +171,29 @@ export function CampusMap({
       });
     }
   }, [selectedLocation, activeRoute, engine]);
+
+  // Fly to user coordinates on location update or button tap
+  const lastFlyCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (
+      engine === "mapbox" &&
+      userCoordinates &&
+      Number.isFinite(userCoordinates.latitude) &&
+      Number.isFinite(userCoordinates.longitude) &&
+      mapRef.current &&
+      (!lastFlyCoordsRef.current ||
+        Math.abs(lastFlyCoordsRef.current.lat - userCoordinates.latitude) > 0.0001 ||
+        Math.abs(lastFlyCoordsRef.current.lng - userCoordinates.longitude) > 0.0001)
+    ) {
+      lastFlyCoordsRef.current = { lat: userCoordinates.latitude, lng: userCoordinates.longitude };
+      mapRef.current.flyTo({
+        center: [userCoordinates.longitude, userCoordinates.latitude],
+        zoom: 17.5,
+        pitch: 45,
+        duration: 1000,
+      });
+    }
+  }, [userCoordinates, engine]);
 
   // Auto-fit route bounds with device-aware responsive padding
   useEffect(() => {
@@ -412,6 +450,18 @@ export function CampusMap({
         >
           <CompassIcon className="w-5 h-5 text-[#DE4B31] group-hover:rotate-45 transition-transform duration-300" />
         </button>
+
+        {/* GPS Locate Me Button */}
+        {FEATURE_GPS && onLocateUser && (
+          <LocateButton
+            status={geolocationStatus}
+            permissionState={geolocationPermission}
+            onLocate={onLocateUser}
+            hasLocation={Boolean(userCoordinates)}
+            isInsideCampus={isInsideCampus}
+            errorMessage={geolocationError}
+          />
+        )}
 
         {/* Vector Zoom Controls (only shown in Vector mode) */}
         {engine === "vector" && (
@@ -756,6 +806,57 @@ export function CampusMap({
                 );
               })}
 
+            {/* 6. Current User GPS Location (Blue Dot with Pulsing Halo & Heading) */}
+            {userCoordinates &&
+              Number.isFinite(userCoordinates.latitude) &&
+              Number.isFinite(userCoordinates.longitude) && (
+                <Marker
+                  latitude={userCoordinates.latitude}
+                  longitude={userCoordinates.longitude}
+                  anchor="center"
+                >
+                  <div
+                    className="relative flex items-center justify-center pointer-events-none"
+                    data-testid="user-location-marker"
+                  >
+                    {/* Accuracy Halo / Low accuracy indicator */}
+                    <div
+                      className={`absolute rounded-full pointer-events-none transition-all duration-300 ${
+                        userCoordinates.accuracy > 50
+                          ? "w-16 h-16 border-2 border-dashed border-amber-400/70 bg-amber-400/10"
+                          : "w-12 h-12 bg-blue-500/25 border border-blue-400/50 animate-pulse"
+                      }`}
+                    />
+
+                    {/* Outer Pulsing Ping */}
+                    <span className="absolute w-8 h-8 rounded-full bg-blue-500 animate-ping opacity-35 pointer-events-none" />
+
+                    {/* Blue Dot Core */}
+                    <div className="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-xl flex items-center justify-center">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    </div>
+
+                    {/* Heading Arrow if direction is available */}
+                    {userCoordinates.heading !== null && userCoordinates.heading !== undefined && (
+                      <div
+                        className="absolute -top-3 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-blue-400"
+                        style={{
+                          transform: `rotate(${userCoordinates.heading}deg)`,
+                          transformOrigin: "50% 16px",
+                        }}
+                      />
+                    )}
+
+                    {/* Low Accuracy Badge */}
+                    {userCoordinates.accuracy > 50 && (
+                      <div className="absolute -bottom-6 whitespace-nowrap px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-700/80 text-[9px] font-mono shadow-md">
+                        Low accuracy (~{Math.round(userCoordinates.accuracy)}m)
+                      </div>
+                    )}
+                  </div>
+                </Marker>
+              )}
+
             {/* 5. Destination Popup Card */}
             {popupLocation &&
               Number.isFinite(popupLocation.coordinates.lat) &&
@@ -1061,6 +1162,20 @@ export function CampusMap({
                   </g>
                 );
               })}
+
+              {/* 6. User GPS Location Marker in Vector Map */}
+              {userCoordinates &&
+                Number.isFinite(userCoordinates.latitude) &&
+                Number.isFinite(userCoordinates.longitude) && (() => {
+                  const uPos = projectGpsToSvg(userCoordinates.latitude, userCoordinates.longitude);
+                  return (
+                    <g transform={`translate(${uPos.x}, ${uPos.y})`} data-testid="vector-user-location">
+                      <circle r="18" fill="#3b82f6" opacity="0.25" className="animate-pulse" />
+                      <circle r="8" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
+                      <circle r="3" fill="#ffffff" />
+                    </g>
+                  );
+                })()}
             </svg>
           </div>
         </div>

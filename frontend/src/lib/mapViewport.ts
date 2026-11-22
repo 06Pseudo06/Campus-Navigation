@@ -176,3 +176,22 @@ export function getRouteFitBoundsZoomCap(bounds: [[number, number], [number, num
   return span < 80 ? 17.5 : 18.5;
 }
 
+/**
+ * Checks whether a given GPS coordinate is inside the LPU campus bounds (with an optional buffer).
+ */
+export function isWithinCampusBounds(
+  latitude: number,
+  longitude: number,
+  bufferDegrees: number = 0.005
+): boolean {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  const [[swLng, swLat], [neLng, neLat]] = LPU_CAMPUS_BOUNDS;
+  return (
+    latitude >= swLat - bufferDegrees &&
+    latitude <= neLat + bufferDegrees &&
+    longitude >= swLng - bufferDegrees &&
+    longitude <= neLng + bufferDegrees
+  );
+}
+
+

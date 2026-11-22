@@ -15,6 +15,7 @@ import { locationService } from "@/services/locationService";
 import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useGeolocation } from "@/hooks/useGeolocation";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -28,6 +29,9 @@ const CampusMap = dynamic(
 export default function ExploreDashboardPage() {
   const { user } = useAuth();
   const [, startTransition] = useTransition();
+
+  // GPS Location services
+  const geo = useGeolocation();
 
   // Active navigation tab
   const [currentTab, setCurrentTab] = useState<SidebarTab>("explore");
@@ -294,6 +298,12 @@ export default function ExploreDashboardPage() {
                   onSetDestination={handleSelectDestination}
                   activeRoute={activeRoute}
                   showRoute={showRoute}
+                  userCoordinates={geo.coordinates}
+                  geolocationStatus={geo.status}
+                  geolocationPermission={geo.permissionState}
+                  onLocateUser={geo.requestLocation}
+                  isInsideCampus={geo.isInsideCampus}
+                  geolocationError={geo.error?.message}
                 />
               </main>
 
