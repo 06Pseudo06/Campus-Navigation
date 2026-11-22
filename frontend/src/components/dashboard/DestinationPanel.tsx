@@ -357,6 +357,8 @@ export function DestinationPanel({
               onChange={(e) => setPanelSearch(e.target.value)}
               placeholder="Search blocks, gates, food courts..."
               className="w-full h-9 pl-9 pr-8 rounded-xl bg-zinc-900 border border-zinc-700/80 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31] transition-all"
+              data-testid="destination-search"
+              aria-label="Search destination list"
             />
             {panelSearch && (
               <button
@@ -396,6 +398,7 @@ export function DestinationPanel({
               return (
                 <div
                   key={loc.id}
+                  data-testid={`location-item-${loc.slug || loc.id}`}
                   className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
                     isDest
                       ? "bg-[#DE4B31]/15 border-[#DE4B31]/70 text-white"

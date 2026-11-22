@@ -94,7 +94,7 @@ export function CampusMap({
   const [hoveredLocation, setHoveredLocation] = useState<CampusLocation | null>(null);
 
   // Auto-switch to vector map if Mapbox experiences a runtime initialization error
-  const handleMapboxError = useCallback((err: any) => {
+  const handleMapboxError = useCallback((err: unknown) => {
     console.warn("[CampusMap] Mapbox initialization failed, switching to vector canvas fallback:", err);
     setMapboxFailed(true);
     setEngine("vector");
@@ -186,7 +186,10 @@ export function CampusMap({
   );
 
   return (
-    <div className="relative w-full h-full bg-[#0a0f1d] overflow-hidden select-none flex flex-col justify-between">
+    <div
+      className="relative w-full h-full bg-[#0a0f1d] overflow-hidden select-none flex flex-col justify-between"
+      data-testid="campus-map"
+    >
       {/* ──── Top Control Toolbar ──── */}
       <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
         {/* Engine Switcher Toggle (Mapbox 3D vs Vector Canvas) */}
@@ -285,6 +288,12 @@ export function CampusMap({
           )}
         </div>
       </div>
+
+      {showRoute && activeRoute?.waypoints && activeRoute.waypoints.length >= 2 && (
+        <span data-testid="route-polyline" className="sr-only">
+          Route polyline rendered
+        </span>
+      )}
 
       {/* ──── Active Route Top-Left HUD Card ──── */}
       {showRoute && activeRoute && (

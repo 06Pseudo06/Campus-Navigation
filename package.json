@@ -8,6 +8,8 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "backend\\venv\\Scripts\\uvicorn app.main:app --app-dir backend --reload --port 8000",
     "test:backend": "backend\\venv\\Scripts\\pytest backend/tests -v",
+    "test:e2e": "npm --prefix frontend run test:e2e",
+    "test:frontend": "npm --prefix frontend run test:unit",
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend run start",
     "lint": "npm --prefix frontend run lint"

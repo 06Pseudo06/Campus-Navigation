@@ -112,6 +112,8 @@ export function Topbar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search buildings, rooms, landmarks..."
             className="w-full h-10 pl-10 pr-9 rounded-xl bg-zinc-900/90 border border-zinc-700/80 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31] focus:ring-1 focus:ring-[#DE4B31] transition-all"
+            data-testid="campus-search"
+            aria-label="Search campus locations"
           />
           {searchQuery && (
             <button

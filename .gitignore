@@ -87,9 +87,16 @@ coverage/
 # Database data
 pgdata/
 *.sqlite3
+*.db
 backups/
 *.dump
 *.sql
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+frontend/test-results/
+frontend/playwright-report/
 
 # Editor & OS files
 .vscode/

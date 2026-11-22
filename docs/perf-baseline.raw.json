@@ -1,0 +1,107 @@
+{
+  "recordedAt": "2026-11-22T18:02:53.002Z",
+  "apiBase": "http://127.0.0.1:8000",
+  "health": {
+    "status": "healthy",
+    "service": "CampusWay Route Intelligence Service",
+    "version": "1.0.0",
+    "google_auth_configured": true,
+    "environment": "development"
+  },
+  "endpoints": {
+    "GET /api/v1/locations/?query=block": {
+      "attempts": 20,
+      "successes": 20,
+      "p50": 4.75,
+      "p95": 9.48,
+      "min": 3.37,
+      "max": 15.88
+    },
+    "GET /api/v1/routing/nodes": {
+      "attempts": 20,
+      "successes": 20,
+      "p50": 3.24,
+      "p95": 4.28,
+      "min": 3.06,
+      "max": 4.46
+    },
+    "POST /api/v1/routing/calculate": {
+      "attempts": 20,
+      "successes": 20,
+      "p50": 4.63,
+      "p95": 6.73,
+      "min": 4.11,
+      "max": 6.99
+    }
+  },
+  "typicalRoutePairsApiMs": [
+    {
+      "from": "gate-1",
+      "to": "block-1",
+      "ms": 6.25,
+      "source": "api"
+    },
+    {
+      "from": "gate-1",
+      "to": "block-2",
+      "ms": 6.08,
+      "source": "api"
+    },
+    {
+      "from": "block-1",
+      "to": "cc-food-court",
+      "ms": 6.08,
+      "source": "api"
+    },
+    {
+      "from": "block-8",
+      "to": "gh-2",
+      "ms": 4.65,
+      "source": "api"
+    },
+    {
+      "from": "visitor-parking",
+      "to": "uni-hospital",
+      "ms": 4.51,
+      "source": "api"
+    }
+  ],
+  "typicalRoutePairsClientMs": [
+    {
+      "from": "gate-1",
+      "to": "block-1",
+      "ms": 0.085,
+      "source": "client-dijkstra"
+    },
+    {
+      "from": "gate-1",
+      "to": "block-2",
+      "ms": 0.031,
+      "source": "client-dijkstra"
+    },
+    {
+      "from": "block-1",
+      "to": "cc-food-court",
+      "ms": 0.031,
+      "source": "client-dijkstra"
+    },
+    {
+      "from": "block-8",
+      "to": "gh-2",
+      "ms": 0.018,
+      "source": "client-dijkstra"
+    },
+    {
+      "from": "visitor-parking",
+      "to": "uni-hospital",
+      "ms": 0.016,
+      "source": "client-dijkstra"
+    }
+  ],
+  "bundle": {
+    "nextStaticJsBytes": 3087710,
+    "nextStaticJsKiB": 3015.3,
+    "mapRelatedFiles": [],
+    "note": "Map first-render / TTI captured separately via Playwright on /explore."
+  }
+}

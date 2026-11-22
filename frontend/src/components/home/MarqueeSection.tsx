@@ -19,7 +19,7 @@ export function MarqueeSection() {
 
     const track = trackRef.current;
     let currentX = 0;
-    let baseSpeed = 1.2; // default forward movement speed
+    const baseSpeed = 1.2; // default forward movement speed
     let targetSpeed = 1.2;
     let currentSpeed = 1.2;
     let lastScrollY = window.scrollY;
