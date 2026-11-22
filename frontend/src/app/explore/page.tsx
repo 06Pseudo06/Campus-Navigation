@@ -18,6 +18,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
+import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -395,6 +396,11 @@ export default function ExploreDashboardPage() {
                   onLocateUser={geo.requestLocation}
                   isInsideCampus={geo.isInsideCampus}
                   geolocationError={geo.error?.message}
+                />
+                <MockLocationPanel
+                  isMocked={geo.isMocked}
+                  currentCoords={geo.coordinates}
+                  onSetMockCoordinates={geo.setMockCoordinates}
                 />
               </main>
 
