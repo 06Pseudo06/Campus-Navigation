@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition } from "react";
+import React, { useState, useEffect, useMemo, useTransition, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -16,6 +16,8 @@ import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useGeolocation } from "@/hooks/useGeolocation";
+import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
+import { BackendNode } from "@/services/locationService";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -32,6 +34,17 @@ export default function ExploreDashboardPage() {
 
   // GPS Location services
   const geo = useGeolocation();
+
+  // GPS Origin & live re-routing state
+  const [isOriginCurrentLocation, setIsOriginCurrentLocation] = useState(false);
+  const [isRerouting, setIsRerouting] = useState(false);
+  const lastRoutedCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const [backendNodes, setBackendNodes] = useState<BackendNode[]>([]);
+
+  // Load graph nodes for snapping
+  useEffect(() => {
+    locationService.getNodes().then(setBackendNodes).catch(() => {});
+  }, []);
 
   // Active navigation tab
   const [currentTab, setCurrentTab] = useState<SidebarTab>("explore");
@@ -200,6 +213,84 @@ export default function ExploreDashboardPage() {
     }
   };
 
+  const handleSelectCurrentLocationAsOrigin = async () => {
+    setIsOriginCurrentLocation(true);
+    if (!geo.coordinates) {
+      await geo.requestLocation();
+    }
+  };
+
+  // Snap GPS position to nearest graph node when "My current location" is active
+  useEffect(() => {
+    if (!isOriginCurrentLocation || !geo.coordinates) return;
+
+    if (!geo.isInsideCampus) {
+      return;
+    }
+
+    if (backendNodes.length === 0) return;
+
+    const snapResult = snapGpsToGraphNode(geo.coordinates, backendNodes);
+    if (snapResult.snappedNode) {
+      const snapped = snapResult.snappedNode;
+      const nearbyLoc = allLocations.find(
+        (l) => l.nodeId === snapped.id || l.id === snapped.location_id
+      );
+
+      const gpsOriginLocation: CampusLocation = {
+        id: "current-location",
+        name: "My Current Location",
+        code: "GPS",
+        category: "landmark",
+        description: `GPS position near ${nearbyLoc?.name || snapped.survey_id || "campus walkway"}`,
+        coordinates: {
+          lat: geo.coordinates.latitude,
+          lng: geo.coordinates.longitude,
+        },
+        nodeId: snapped.id,
+      };
+
+      setOriginLocation(gpsOriginLocation);
+
+      // Check if re-routing is required
+      if (
+        lastRoutedCoordsRef.current &&
+        activeRoute &&
+        shouldRecomputeRoute(lastRoutedCoordsRef.current, geo.coordinates, activeRoute.waypoints)
+      ) {
+        setIsRerouting(true);
+        lastRoutedCoordsRef.current = {
+          latitude: geo.coordinates.latitude,
+          longitude: geo.coordinates.longitude,
+        };
+        if (selectedLocation) {
+          routeService
+            .calculateRoute(gpsOriginLocation, selectedLocation)
+            .then((rt) => {
+              setActiveRoute(rt);
+              setIsRerouting(false);
+            })
+            .catch(() => {
+              setIsRerouting(false);
+            });
+        }
+      } else if (!lastRoutedCoordsRef.current) {
+        lastRoutedCoordsRef.current = {
+          latitude: geo.coordinates.latitude,
+          longitude: geo.coordinates.longitude,
+        };
+      }
+    }
+  }, [
+    isOriginCurrentLocation,
+    geo.coordinates,
+    geo.isInsideCampus,
+    backendNodes,
+    allLocations,
+    selectedLocation,
+    activeRoute,
+  ]);
+
   const handleToggleSaveLocation = (id: string) => {
     setSavedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -319,11 +410,26 @@ export default function ExploreDashboardPage() {
                   locations={displayedLocations}
                   originLocation={originLocation}
                   selectedLocation={selectedLocation}
-                  onSelectOrigin={handleSelectOrigin}
+                  onSelectOrigin={(loc) => {
+                    setIsOriginCurrentLocation(false);
+                    handleSelectOrigin(loc);
+                  }}
                   onSelectDestination={handleSelectDestination}
                   onSelectLocation={handleSelectDestination}
-                  onSwapLocations={handleSwapLocations}
-                  onUseCurrentLocation={handleUseCurrentLocation}
+                  onSwapLocations={() => {
+                    setIsOriginCurrentLocation(false);
+                    handleSwapLocations();
+                  }}
+                  onUseCurrentLocation={() => {
+                    setIsOriginCurrentLocation(false);
+                    handleUseCurrentLocation();
+                  }}
+                  onSelectCurrentLocationAsOrigin={handleSelectCurrentLocationAsOrigin}
+                  isOriginCurrentLocation={isOriginCurrentLocation}
+                  isRerouting={isRerouting}
+                  userCoordinates={geo.coordinates}
+                  isInsideCampus={geo.isInsideCampus}
+                  geolocationError={geo.error?.message}
                   activeRoute={activeRoute}
                   showRoute={showRoute}
                   onToggleRoute={() => setShowRoute(!showRoute)}

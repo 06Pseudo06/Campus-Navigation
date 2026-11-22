@@ -15,7 +15,9 @@ import {
   RouteIcon,
   CloseIcon,
   CheckCircleIcon,
+  CrosshairIcon,
 } from "./DashboardIcons";
+import type { GeoCoordinates } from "@/hooks/useGeolocation";
 
 interface DestinationPanelProps {
   locations: CampusLocation[];
@@ -26,6 +28,12 @@ interface DestinationPanelProps {
   onSelectLocation?: (location: CampusLocation) => void;
   onSwapLocations: () => void;
   onUseCurrentLocation: () => void;
+  onSelectCurrentLocationAsOrigin?: () => void;
+  isOriginCurrentLocation?: boolean;
+  isRerouting?: boolean;
+  userCoordinates?: GeoCoordinates | null;
+  isInsideCampus?: boolean;
+  geolocationError?: string | null;
   activeRoute: CampusRoute | null;
   routeError?: string | null;
   showRoute: boolean;
@@ -43,6 +51,12 @@ export function DestinationPanel({
   onSelectLocation,
   onSwapLocations,
   onUseCurrentLocation,
+  onSelectCurrentLocationAsOrigin,
+  isOriginCurrentLocation = false,
+  isRerouting = false,
+  userCoordinates,
+  isInsideCampus = true,
+  geolocationError,
   activeRoute,
   routeError,
   showRoute,
@@ -187,6 +201,22 @@ export function DestinationPanel({
           </div>
         )}
 
+        {/* ──── Outside Campus Notice when GPS origin is outside ──── */}
+        {isOriginCurrentLocation && !isInsideCampus && userCoordinates && (
+          <div
+            role="status"
+            className="p-3.5 rounded-2xl border border-amber-800/70 bg-amber-950/40 text-amber-200 text-xs space-y-1.5 animate-in fade-in"
+          >
+            <div className="flex items-center gap-1.5 font-bold text-amber-300">
+              <span>📍</span>
+              <span>You appear to be outside campus</span>
+            </div>
+            <p className="text-[11px] leading-relaxed text-amber-200/90">
+              CampusWay cannot auto-route across external highways. You can pick an LPU campus entrance (such as Gate 1) manually or use the mock location panel.
+            </p>
+          </div>
+        )}
+
         {/* ──── Origin & Destination Controls (Point A to B) ──── */}
         <div className="p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-2.5 relative">
           {/* Starting Point (Origin) */}
@@ -196,28 +226,61 @@ export function DestinationPanel({
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Starting Point (From)
               </span>
-              <button
-                type="button"
-                onClick={onUseCurrentLocation}
-                className="text-[10px] text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer"
-              >
-                Use Gate 1
-              </button>
+              <div className="flex items-center gap-2">
+                {onSelectCurrentLocationAsOrigin && (
+                  <button
+                    type="button"
+                    onClick={onSelectCurrentLocationAsOrigin}
+                    className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
+                    title="Use GPS current location"
+                  >
+                    <CrosshairIcon className="w-3 h-3 text-blue-400" />
+                    <span>My Location</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onUseCurrentLocation}
+                  className="text-[10px] text-zinc-400 hover:text-zinc-300 hover:underline cursor-pointer"
+                >
+                  Gate 1
+                </button>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setSelectingField(selectingField === "origin" ? null : "origin")}
               className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                selectingField === "origin"
+                isOriginCurrentLocation
+                  ? "bg-blue-950/40 border-blue-500 text-white"
+                  : selectingField === "origin"
                   ? "bg-emerald-950/40 border-emerald-500 text-white"
                   : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
               }`}
             >
-              <span className="truncate font-medium">
-                {originLocation ? originLocation.name : "Select starting location..."}
-              </span>
+              <div className="flex items-center gap-1.5 truncate font-medium">
+                {isOriginCurrentLocation ? (
+                  <>
+                    <CrosshairIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <span className="text-blue-200 truncate">My Current Location</span>
+                    {isRerouting && (
+                      <span className="text-[10px] text-amber-400 animate-pulse font-mono ml-1">
+                        (Re-routing…)
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="truncate">
+                    {originLocation ? originLocation.name : "Select starting location..."}
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] text-zinc-400 uppercase font-mono ml-2 shrink-0">
-                {selectingField === "origin" ? "Selecting..." : "Change"}
+                {isOriginCurrentLocation
+                  ? "GPS"
+                  : selectingField === "origin"
+                  ? "Selecting..."
+                  : "Change"}
               </span>
             </button>
           </div>
@@ -481,6 +544,42 @@ export function DestinationPanel({
 
           {/* Location list */}
           <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            {/* Top option when choosing origin: My Current Location */}
+            {selectingField === "origin" && onSelectCurrentLocationAsOrigin && (
+              <div
+                onClick={() => {
+                  onSelectCurrentLocationAsOrigin();
+                  setSelectingField(null);
+                }}
+                data-testid="origin-my-current-location"
+                className="p-2.5 rounded-xl border border-blue-500/70 bg-blue-950/40 hover:bg-blue-900/50 text-xs transition-all flex items-center justify-between gap-2.5 cursor-pointer shadow-lg group mb-1.5"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <CrosshairIcon className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-300 truncate">
+                      <span>My Current Location</span>
+                      <span className="px-1.5 py-0.2 rounded bg-blue-600 text-white text-[9px] uppercase font-mono">
+                        GPS
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                      {userCoordinates
+                        ? isInsideCampus
+                          ? `Accuracy ±${Math.round(userCoordinates.accuracy)}m • Snaps to campus path`
+                          : "Outside campus boundary"
+                        : "Tap to request GPS and snap to nearest path"}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-blue-400 group-hover:underline uppercase font-mono shrink-0">
+                  Select
+                </span>
+              </div>
+            )}
+
             {filteredLocations.map((loc) => {
               const isOrig = originLocation?.id === loc.id;
               const isDest = selectedLocation?.id === loc.id;

@@ -76,6 +76,12 @@ function resolveNearbyNode(
   location: CampusLocation,
   label: string
 ): BackendNode {
+  // 0. Direct nodeId match (e.g. from GPS snapped node)
+  if (location.nodeId) {
+    const direct = nodes.find((n) => n.id === location.nodeId);
+    if (direct) return direct;
+  }
+
   // 1. Check if a node is explicitly linked to this location ID or slug
   const linkedNodes = nodes.filter(
     (node) => node.location_id === location.id || (node.survey_id && location.slug && node.survey_id.toLowerCase().includes(location.slug))
