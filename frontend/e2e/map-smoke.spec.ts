@@ -53,5 +53,28 @@ test.describe("map smoke", () => {
     const locateBtn = page.getByTestId("locate-button");
     await expect(locateBtn).toBeVisible();
     await locateBtn.click();
+
+    // Verify Stage 5 QR Code generation modal
+    const qrBtn = page.getByTestId("destination-qr-button");
+    await expect(qrBtn).toBeVisible();
+    await qrBtn.click();
+
+    const qrModal = page.getByTestId("qr-code-modal");
+    await expect(qrModal).toBeVisible();
+    await expect(page.getByTestId("qr-code-svg-container")).toBeVisible({ timeout: 10_000 });
+
+    // Close modal
+    await page.keyboard.press("Escape");
+    await expect(qrModal).not.toBeVisible();
+  });
+
+  test("resolves deep links and shows handoff or 404", async ({ page }) => {
+    // 1. Valid destination deep link
+    await page.goto("/navigate?to=block-1&from=gate-1");
+    await expect(page.getByTestId("navigate-handoff-card")).toBeVisible({ timeout: 10_000 });
+
+    // 2. Unknown destination deep link
+    await page.goto("/navigate?to=nonexistent-block-xyz");
+    await expect(page.getByTestId("navigate-not-found")).toBeVisible({ timeout: 10_000 });
   });
 });

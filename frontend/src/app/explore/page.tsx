@@ -19,6 +19,7 @@ import { useGeolocation } from "@/hooks/useGeolocation";
 import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
 import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
+import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -88,15 +89,36 @@ export default function ExploreDashboardPage() {
           const mapped = backendLocations.map(mapBackendToFrontend);
           setApiLocations(mapped);
 
-          // Default route: Gate 1 -> Block 1
+          // Deep linking: check URL search parameters (?to=...&from=...)
+          let targetDest: CampusLocation | null = null;
+          let targetOrigin: CampusLocation | null = null;
+
+          if (typeof window !== "undefined") {
+            const searchParams = new URLSearchParams(window.location.search);
+            const { to, from } = parseNavigateParams(searchParams);
+            if (to) {
+              const matchedDest = validateLocationIdentifier(to, mapped);
+              if (matchedDest) targetDest = matchedDest as CampusLocation;
+            }
+            if (from) {
+              if (from.toLowerCase() === "gps") {
+                setIsOriginCurrentLocation(true);
+              } else {
+                const matchedOrig = validateLocationIdentifier(from, mapped);
+                if (matchedOrig) targetOrigin = matchedOrig as CampusLocation;
+              }
+            }
+          }
+
+          // Default fallback route: Gate 1 -> Block 1
           const mainGate = mapped.find((l) => l.slug === "gate-1") || mapped[0] || null;
           const block1 =
             mapped.find((l) => l.slug === "block-1") ||
             mapped.find((l) => l.id !== mainGate?.id) ||
             null;
 
-          setOriginLocation(mainGate);
-          setSelectedLocation(block1);
+          setOriginLocation(targetOrigin || mainGate);
+          setSelectedLocation(targetDest || block1);
         }
       } catch (err) {
         console.warn("[ExplorePage] Failed to fetch verified campus locations:", err);
@@ -220,6 +242,13 @@ export default function ExploreDashboardPage() {
       await geo.requestLocation();
     }
   };
+
+  // Auto-request location when origin is set to GPS (e.g. from deep link ?from=gps)
+  useEffect(() => {
+    if (isOriginCurrentLocation && !geo.coordinates) {
+      geo.requestLocation();
+    }
+  }, [isOriginCurrentLocation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Snap GPS position to nearest graph node when "My current location" is active
   useEffect(() => {

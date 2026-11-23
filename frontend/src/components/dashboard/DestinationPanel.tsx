@@ -16,8 +16,11 @@ import {
   CloseIcon,
   CheckCircleIcon,
   CrosshairIcon,
+  QrCodeIcon,
 } from "./DashboardIcons";
 import type { GeoCoordinates } from "@/hooks/useGeolocation";
+import { FEATURE_QR } from "@/lib/featureFlags";
+import { QrCodeModal } from "./QrCodeModal";
 
 interface DestinationPanelProps {
   locations: CampusLocation[];
@@ -71,6 +74,7 @@ export function DestinationPanel({
   const [selectingField, setSelectingField] = useState<"origin" | "destination" | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
+  const [showQrModal, setShowQrModal] = useState<boolean>(false);
 
   const isSameLocation = Boolean(
     originLocation && selectedLocation && originLocation.id === selectedLocation.id
@@ -250,13 +254,12 @@ export function DestinationPanel({
             <button
               type="button"
               onClick={() => setSelectingField(selectingField === "origin" ? null : "origin")}
-              className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                isOriginCurrentLocation
-                  ? "bg-blue-950/40 border-blue-500 text-white"
-                  : selectingField === "origin"
+              className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${isOriginCurrentLocation
+                ? "bg-blue-950/40 border-blue-500 text-white"
+                : selectingField === "origin"
                   ? "bg-emerald-950/40 border-emerald-500 text-white"
                   : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-1.5 truncate font-medium">
                 {isOriginCurrentLocation ? (
@@ -279,8 +282,8 @@ export function DestinationPanel({
                 {isOriginCurrentLocation
                   ? "GPS"
                   : selectingField === "origin"
-                  ? "Selecting..."
-                  : "Change"}
+                    ? "Selecting..."
+                    : "Change"}
               </span>
             </button>
           </div>
@@ -309,11 +312,10 @@ export function DestinationPanel({
             <button
               type="button"
               onClick={() => setSelectingField(selectingField === "destination" ? null : "destination")}
-              className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                selectingField === "destination"
-                  ? "bg-[#DE4B31]/20 border-[#DE4B31] text-white"
-                  : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
-              }`}
+              className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${selectingField === "destination"
+                ? "bg-[#DE4B31]/20 border-[#DE4B31] text-white"
+                : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
+                }`}
             >
               <span className="truncate font-medium">
                 {selectedLocation ? selectedLocation.name : "Select destination..."}
@@ -344,23 +346,34 @@ export function DestinationPanel({
                     {formatSteps(activeRoute.distanceMeters)}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
-                      activeRoute.isAccessible
-                        ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
-                        : "bg-amber-950/60 text-amber-300 border-amber-800/60"
-                    }`}
+                    className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${activeRoute.isAccessible
+                      ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
+                      : "bg-amber-950/60 text-amber-300 border-amber-800/60"
+                      }`}
                   >
                     {getAccessibilityBadge(activeRoute.isAccessible).badgeText}
                   </span>
                 </div>
               </div>
-              <div className="text-right shrink-0">
+              <div className="text-right shrink-0 flex flex-col items-end gap-1">
                 <span className="text-sm font-extrabold text-[#DE4B31]">
                   ~{activeRoute.estimatedWalkingMinutes} min
                 </span>
                 <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
                   {formatDistance(activeRoute.distanceMeters)}
                 </p>
+                {FEATURE_QR && selectedLocation && (
+                  <button
+                    type="button"
+                    onClick={() => setShowQrModal(true)}
+                    className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-zinc-700 transition-colors cursor-pointer text-[10px] flex items-center gap-1 font-mono"
+                    title="Share this route via QR Code"
+                    aria-label="Share this route via QR Code"
+                  >
+                    <QrCodeIcon className="w-3 h-3" />
+                    <span>QR</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -368,11 +381,10 @@ export function DestinationPanel({
               <button
                 type="button"
                 onClick={onToggleRoute}
-                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                  showRoute
-                    ? "bg-[#DE4B31] text-white hover:bg-[#b83821]"
-                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                }`}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${showRoute
+                  ? "bg-[#DE4B31] text-white hover:bg-[#b83821]"
+                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  }`}
               >
                 <span>{showRoute ? "Hide Route" : "Show Route"}</span>
               </button>
@@ -398,11 +410,10 @@ export function DestinationPanel({
                     <div
                       key={idx}
                       onClick={() => setActiveStepIndex(isStepActive ? null : idx)}
-                      className={`p-2.5 rounded-xl border text-[11px] flex items-start gap-2.5 transition-all cursor-pointer ${
-                        isStepActive
-                          ? "bg-[#DE4B31]/15 border-[#DE4B31] shadow-lg text-white"
-                          : "bg-zinc-800/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/70 text-zinc-300"
-                      }`}
+                      className={`p-2.5 rounded-xl border text-[11px] flex items-start gap-2.5 transition-all cursor-pointer ${isStepActive
+                        ? "bg-[#DE4B31]/15 border-[#DE4B31] shadow-lg text-white"
+                        : "bg-zinc-800/40 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/70 text-zinc-300"
+                        }`}
                       title="Click to focus step"
                     >
                       <div className="flex items-center gap-1 shrink-0 pt-0.5">
@@ -441,19 +452,32 @@ export function DestinationPanel({
                   {selectedLocation.name}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={handleSaveClick}
-                className={`p-2 rounded-xl border transition-colors cursor-pointer shrink-0 ${
-                  isSaved
+              <div className="flex items-center gap-1.5 shrink-0">
+                {FEATURE_QR && (
+                  <button
+                    type="button"
+                    onClick={() => setShowQrModal(true)}
+                    className="p-2 rounded-xl border border-zinc-700 bg-zinc-800/70 text-zinc-400 hover:text-white hover:border-[#DE4B31] transition-colors cursor-pointer"
+                    title="Generate QR code & deep link"
+                    aria-label="Generate QR code & deep link"
+                    data-testid="destination-qr-button"
+                  >
+                    <QrCodeIcon className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveClick}
+                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${isSaved
                     ? "bg-[#DE4B31]/20 border-[#DE4B31] text-[#DE4B31]"
                     : "bg-zinc-800/70 border-zinc-700 text-zinc-400 hover:text-white"
-                }`}
-                title={isSaved ? "Remove from saved" : "Save location"}
-                aria-label={isSaved ? "Remove from saved" : "Save location"}
-              >
-                <BookmarkIcon className="w-4 h-4" filled={isSaved} />
-              </button>
+                    }`}
+                  title={isSaved ? "Remove from saved" : "Save location"}
+                  aria-label={isSaved ? "Remove from saved" : "Save location"}
+                >
+                  <BookmarkIcon className="w-4 h-4" filled={isSaved} />
+                </button>
+              </div>
             </div>
 
             {selectedLocation.description && (
@@ -491,8 +515,8 @@ export function DestinationPanel({
               {selectingField === "origin"
                 ? "Choose Starting Point"
                 : selectingField === "destination"
-                ? "Choose Destination"
-                : "All Campus Places"}
+                  ? "Choose Destination"
+                  : "All Campus Places"}
             </span>
             <span className="text-[10px] text-zinc-400 font-mono">
               {filteredLocations.length} locations
@@ -531,11 +555,10 @@ export function DestinationPanel({
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                  selectedCategory === cat.id
-                    ? "bg-[#DE4B31] text-white shadow-sm"
-                    : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-                }`}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${selectedCategory === cat.id
+                  ? "bg-[#DE4B31] text-white shadow-sm"
+                  : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                  }`}
               >
                 {cat.label}
               </button>
@@ -588,13 +611,12 @@ export function DestinationPanel({
                 <div
                   key={loc.id}
                   data-testid={`location-item-${loc.slug || loc.id}`}
-                  className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
-                    isDest
-                      ? "bg-[#DE4B31]/15 border-[#DE4B31]/70 text-white"
-                      : isOrig
+                  className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${isDest
+                    ? "bg-[#DE4B31]/15 border-[#DE4B31]/70 text-white"
+                    : isOrig
                       ? "bg-emerald-950/40 border-emerald-600/70 text-white"
                       : "bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/70 text-zinc-300"
-                  }`}
+                    }`}
                   onClick={() => handleLocationPick(loc)}
                 >
                   <div className="min-w-0 flex-1">
@@ -661,6 +683,17 @@ export function DestinationPanel({
       <div className="p-3 bg-zinc-900/80 border-t border-zinc-800 text-[10px] text-zinc-500 text-center">
         <span>LPU Dataset C &bull; Dijkstra & A* Navigation</span>
       </div>
+
+      {/* QR Code Navigation Modal */}
+      {FEATURE_QR && selectedLocation && (
+        <QrCodeModal
+          isOpen={showQrModal}
+          onClose={() => setShowQrModal(false)}
+          destination={selectedLocation}
+          origin={originLocation}
+          isOriginCurrentLocation={isOriginCurrentLocation}
+        />
+      )}
     </aside>
   );
 }
