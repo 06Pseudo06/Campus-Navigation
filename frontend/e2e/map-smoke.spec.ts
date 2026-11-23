@@ -561,7 +561,7 @@ test.describe("map smoke", () => {
     await expect(page.getByText("usr_mock_12345")).toBeVisible();
   });
 
-  test("about page renders comprehensive 9 sections, developer profile, and responds to theme", async ({
+  test("about page renders architectural sections, technical stack, and responds to theme", async ({
     page,
   }) => {
     await page.goto("/about", { waitUntil: "domcontentloaded" });
@@ -577,9 +577,9 @@ test.describe("map smoke", () => {
     await expect(page.getByText(/Dijkstra's Algorithm/i)).toBeVisible();
     await expect(page.getByText(/A\* Search Algorithm/i)).toBeVisible();
 
-    // Assert developer profile
-    await expect(page.getByText("Kalyani Mahajan")).toBeVisible();
-    await expect(page.getByText(/Lead Full-Stack Engineer/i)).toBeVisible();
+    // Assert engineering stack & project phases
+    await expect(page.getByText(/Production Architecture/i)).toBeVisible();
+    await expect(page.getByText(/Development Timeline/i)).toBeVisible();
 
     // Assert navigation back to explore
     const exploreBtn = page.getByRole("link", { name: /EXPLORE CAMPUS MAP/i });

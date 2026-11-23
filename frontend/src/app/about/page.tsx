@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { EditorialFooter } from "@/components/home/EditorialFooter";
 import { CustomCursor } from "@/components/motion/CustomCursor";
-import { DEVELOPER_PROFILE } from "@/content/developer";
 import { isReducedMotion } from "@/lib/motion";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -468,99 +467,11 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 7: THE DEVELOPER */}
-      <section className="py-20 lg:py-24 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto space-y-12">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-slate-500 dark:text-zinc-400">
-            <span className="text-[#E8452C]">06 /</span>
-            <span>THE DEVELOPER</span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-[#0E1118] dark:text-white font-display">
-            Engineering &amp; Architecture
-          </h2>
-        </div>
-
-        <div className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-[#0e1422] border border-slate-200 dark:border-zinc-800 shadow-md max-w-4xl space-y-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            {/* Monogram Portrait Slot */}
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#151B28] to-[#0F141F] text-white flex items-center justify-center font-mono font-black text-2xl border-2 border-[#E8452C] shadow-md shrink-0">
-              {DEVELOPER_PROFILE.monogram}
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black uppercase tracking-tight text-[#0E1118] dark:text-white">
-                {DEVELOPER_PROFILE.name}
-              </h3>
-              <p className="text-xs font-mono text-[#E8452C] font-bold uppercase tracking-wider">
-                {DEVELOPER_PROFILE.role}
-              </p>
-              <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-xl leading-relaxed font-sans pt-1">
-                {DEVELOPER_PROFILE.bio}
-              </p>
-            </div>
-          </div>
-
-          {/* Social Links */}
-          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
-            {DEVELOPER_PROFILE.links.github && (
-              <a
-                href={DEVELOPER_PROFILE.links.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-[#0E1118] dark:hover:bg-white text-[#0E1118] dark:text-zinc-200 hover:text-white dark:hover:text-[#0E1118] border border-slate-300 dark:border-zinc-700 text-xs font-mono font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>GitHub</span>
-                <span className="text-[#E8452C]">↗</span>
-              </a>
-            )}
-
-            {DEVELOPER_PROFILE.links.linkedin && (
-              <a
-                href={DEVELOPER_PROFILE.links.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-[#0E1118] dark:hover:bg-white text-[#0E1118] dark:text-zinc-200 hover:text-white dark:hover:text-[#0E1118] border border-slate-300 dark:border-zinc-700 text-xs font-mono font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>LinkedIn</span>
-                <span className="text-[#E8452C]">↗</span>
-              </a>
-            )}
-
-            {DEVELOPER_PROFILE.links.email && (
-              <a
-                href={`mailto:${DEVELOPER_PROFILE.links.email}`}
-                className="px-4 py-2 rounded-full bg-slate-100 dark:bg-zinc-800 hover:bg-[#0E1118] dark:hover:bg-white text-[#0E1118] dark:text-zinc-200 hover:text-white dark:hover:text-[#0E1118] border border-slate-300 dark:border-zinc-700 text-xs font-mono font-semibold transition-colors flex items-center gap-2"
-              >
-                <span>Contact</span>
-                <span className="text-[#E8452C]">&rarr;</span>
-              </a>
-            )}
-          </div>
-
-          {/* Built With Tags */}
-          <div className="space-y-2">
-            <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">
-              PRIMARY TECHNOLOGIES &amp; SPECIALIZATIONS
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {DEVELOPER_PROFILE.builtWith.map((tech, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 rounded-full bg-slate-100 dark:bg-zinc-800 text-[#0E1118] dark:text-zinc-200 border border-slate-300 dark:border-zinc-700 text-[11px] font-mono"
-                >
-                  {tech}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 8: DATA & CREDITS */}
+      {/* SECTION 7: DATA & CREDITS */}
       <section className="py-16 bg-slate-100/70 dark:bg-[#0a0f1d] border-t border-slate-200 dark:border-zinc-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 space-y-6">
           <div className="flex items-center gap-2 text-xs font-mono font-bold tracking-widest uppercase text-slate-500 dark:text-zinc-400">
-            <span className="text-[#E8452C]">07 /</span>
+            <span className="text-[#E8452C]">06 /</span>
             <span>CREDITS &amp; ATTRIBUTION</span>
           </div>
 
