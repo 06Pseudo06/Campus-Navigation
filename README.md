@@ -81,6 +81,10 @@ graph TD
 - Responsive dark-theme architectural magazine UI.
 - Interactive campus exploration dashboard (`/explore`) backed only by the verified Dataset C campus survey, with searchable destinations and route planning over its pedestrian graph.
 - Context-driven hero CTAs that react to user authentication status in real time.
+- **High-Performance Map Engine**: Zero-SSR dynamic loading with an architectural blueprint skeleton, WebGL GPU-accelerated circle layers for junctions and background destinations (92% reduction in DOM marker footprint), and fluid 60fps route line animation.
+- **Client-Side GPS Location Services**: Continuous high-accuracy HTML5 Geolocation with battery-preserving Page Visibility API integration, pulsing user location marker with real-time heading and accuracy radius, $O(1)$ grid-based node snapping, and dynamic re-routing on $>15\text{m}$ movement.
+- **QR Navigation & Physical Signage**: Canonical deep links (`/navigate?to=...`), in-app vector QR generation (SVG & HD PNG), camera scanner with torch toggle and dual fallbacks (photo upload & manual code entry), and printable A4 signage sheets (`/admin/qr`).
+- **Privacy Guarantee**: 100% client-side GPS snapping and QR decoding; raw user coordinates are never transmitted across the network to any server.
 
 ### 5. Provenance-Aware Map Import Pipeline (`/api/v1/import`)
 - Ingestion of external OpenStreetMap ways/nodes and surveyor GeoJSON FeatureCollections.
@@ -109,6 +113,9 @@ Comprehensive technical documentation is maintained in the [`docs/`](docs/) dire
 - [Map Import & Surveyor Guide (`docs/MAP_IMPORT_GUIDE.md`)](docs/MAP_IMPORT_GUIDE.md) — GeoJSON schemas, staging workflow, duplicate detection, and surveyor instructions.
 - [Local Environment Setup (`docs/ENVIRONMENT_SETUP.md`)](docs/ENVIRONMENT_SETUP.md) — Step-by-step developer onboarding and environment variable reference.
 - [Testing & Quality Assurance (`docs/TESTING.md`)](docs/TESTING.md) — Test architecture, module breakdown, coverage, and execution commands.
+- [GPS & QR Navigation Testing Guide (`docs/gps-qr-testing.md`)](docs/gps-qr-testing.md) — How to test GPS locally with the Dev Mock Panel, DevTools Sensors, and mobile HTTPS tunnels.
+- [Performance Baseline (`docs/perf-baseline.md`)](docs/perf-baseline.md) — Stage 0 metrics (TTFB, FCP, map first render, API latencies, bundle sizes).
+- [Performance & Upgrade Report (`docs/perf-report.md`)](docs/perf-report.md) — Final post-upgrade report with before/after comparisons, deltas, and target verification.
 - [Production Deployment Guide (`docs/DEPLOYMENT.md`)](docs/DEPLOYMENT.md) — Docker Compose, Neon Cloud database tuning, SSL mode, and security checklists.
 - [Backend Audit & Roadmap (`docs/BACKEND_AUDIT.md`)](docs/BACKEND_AUDIT.md) — Baseline audit and milestone delivery records.
 
@@ -164,6 +171,10 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_public_token
+
+# Feature Flags (defaults to true in dev)
+NEXT_PUBLIC_FEATURE_GPS=true
+NEXT_PUBLIC_FEATURE_QR=true
 ```
 
 #### Backend (`backend/.env`)
@@ -188,27 +199,65 @@ FRONTEND_URL=http://localhost:3000
 
 ## 6. Testing & Quality Assurance
 
-### Frontend Builds and Linting
+### 6.1 Automated Test Execution
+
 ```bash
-# Build production bundle
-npm --prefix frontend run build
+# Run all frontend Vitest unit tests (67 tests across 8 suites)
+npm --prefix frontend run test:unit
+
+# Run Playwright E2E smoke tests (Routing, QR Deep Links, & Scanner Modal)
+npm --prefix frontend run test:e2e:smoke
 
 # Run TypeScript type check
 npm --prefix frontend run type-check
 
-# Run linter
+# Run ESLint check
 npm --prefix frontend run lint
+
+# Build optimized production bundle
+npm --prefix frontend run build
 ```
 
-### Backend Automated Test Suite
+### 6.2 Backend Automated Test Suite
 ```powershell
-# Run all async backend tests
+# Run all async backend tests (pytest)
 backend\venv\Scripts\pytest backend/tests -v
 ```
 
 ---
 
-## 7. Docker Deployment
+## 7. GPS & QR Navigation Developer Guide
+
+### 7.1 Testing GPS Locally
+
+1. **In-App Developer GPS Mock Panel**:
+   - On the interactive map (`/explore`), click the floating **"🧪 Dev GPS Mock"** pill at the bottom-left.
+   - Choose from 7 surveyed presets (*Main Gate 1*, *Block 1*, *Block 30 Spine*, *South Area*, *Uni-Mall*, *Low Accuracy Fix ±68m*, *Outside Campus*).
+   - Or input custom latitude/longitude coordinates and adjust the accuracy slider ($5\text{m}$–$80\text{m}$) to test live node snapping and auto-rerouting.
+2. **Chrome DevTools Sensors**:
+   - Open DevTools (`F12`) -> `Ctrl+Shift+P` -> Type `Show Sensors`.
+   - Set custom coordinates (e.g. `Lat: 31.260565`, `Lng: 75.706815`).
+   - Click the **Locate Me** crosshair HUD button on the map.
+3. **Physical Mobile Devices (HTTPS Tunnel)**:
+   - Geolocation APIs require a secure origin (`https://`). Expose local port 3000 via Cloudflare Tunnels or ngrok:
+     ```bash
+     cloudflared tunnel --url http://localhost:3000
+     ```
+
+### 7.2 QR Code Navigation Deep Links
+
+- **Canonical URL Format**:
+  ```
+  https://campusway.lpu.in/navigate?to=<destinationId>&from=<originId>
+  ```
+  - `to` *(Required)*: Verified Dataset C location slug (e.g., `gate-1`, `block-1`, `uni-hospital`, `block-2`), UUID, or code.
+  - `from` *(Optional)*: Origin location slug, or `"gps"` to automatically route from the user's nearest snapped GPS position.
+- **Signage Deployment**:
+  - Visit `/admin/qr` or `/qr-sheet` to view and print the A4 physical signage sheet with high-resolution vector QR codes and cut marks.
+
+---
+
+## 8. Docker Deployment
 
 Launch the full stack (PostgreSQL, FastAPI Backend, and Next.js Frontend) using Docker Compose:
 
