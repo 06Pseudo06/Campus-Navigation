@@ -11,8 +11,10 @@ import {
   SignOutIcon,
   CloseIcon,
   CheckCircleIcon,
+  QrCodeIcon,
 } from "./DashboardIcons";
 import { ThemeDropdownSection } from "@/components/theme/ThemeToggle";
+import { FEATURE_QR } from "@/lib/featureFlags";
 
 interface TopbarProps {
   searchQuery: string;
@@ -21,6 +23,7 @@ interface TopbarProps {
   onToggleMobileDrawer?: () => void;
   isMobileDrawerOpen?: boolean;
   locationsStatus?: "loading" | "available" | "unavailable";
+  onOpenQrScanner?: () => void;
 }
 
 export function Topbar({
@@ -30,6 +33,7 @@ export function Topbar({
   onToggleMobileDrawer,
   isMobileDrawerOpen,
   locationsStatus,
+  onOpenQrScanner,
 }: TopbarProps) {
   const { user, logout } = useAuth();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -129,6 +133,21 @@ export function Topbar({
 
       {/* Right: Destination panel toggle (mobile) + User Profile Menu */}
       <div className="flex items-center gap-2.5">
+        {/* Quick QR Scanner trigger */}
+        {FEATURE_QR && onOpenQrScanner && (
+          <button
+            type="button"
+            onClick={onOpenQrScanner}
+            className="h-9 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700/80 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+            title="Scan CampusWay QR Sign"
+            aria-label="Scan CampusWay QR Sign"
+            data-testid="topbar-scan-qr-button"
+          >
+            <QrCodeIcon className="w-3.5 h-3.5 text-[#DE4B31]" />
+            <span className="hidden sm:inline font-mono">Scan QR</span>
+          </button>
+        )}
+
         {/* Toggle mobile destination drawer */}
         {onToggleMobileDrawer && (
           <button

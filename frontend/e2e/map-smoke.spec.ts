@@ -77,4 +77,27 @@ test.describe("map smoke", () => {
     await page.goto("/navigate?to=nonexistent-block-xyz");
     await expect(page.getByTestId("navigate-not-found")).toBeVisible({ timeout: 10_000 });
   });
+
+  test("opens QR scanner modal, supports manual code entry and keyboard dismiss", async ({
+    page,
+  }) => {
+    await page.goto("/explore");
+    const scanBtn = page.getByTestId("topbar-scan-qr-button");
+    await expect(scanBtn).toBeVisible({ timeout: 15_000 });
+    await scanBtn.click();
+
+    const scannerModal = page.getByTestId("qr-scanner-modal");
+    await expect(scannerModal).toBeVisible();
+
+    // Verify Fallback Type Code input
+    await page.getByText("Type Code").click();
+    const input = page.getByPlaceholder("e.g. block-1, gate-1, B1...");
+    await expect(input).toBeVisible();
+    await input.fill("block-2");
+    await scannerModal.getByTestId("manual-code-submit").click();
+
+    // Modal closes and Block 2 destination is focused
+    await expect(scannerModal).not.toBeVisible();
+    await expect(page.getByText("Block 2").first()).toBeVisible();
+  });
 });

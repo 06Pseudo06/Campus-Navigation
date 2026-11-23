@@ -20,6 +20,7 @@ import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
 import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
+import { FEATURE_QR } from "@/lib/featureFlags";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -28,6 +29,12 @@ const CampusMap = dynamic(
     ssr: false,
     loading: () => <CampusMapSkeleton />,
   }
+);
+
+// Lazy-load QR Scanner Modal
+const QrScannerModal = dynamic(
+  () => import("@/components/dashboard/QrScannerModal").then((m) => m.QrScannerModal),
+  { ssr: false }
 );
 
 export default function ExploreDashboardPage() {
@@ -42,10 +49,11 @@ export default function ExploreDashboardPage() {
   const [isRerouting, setIsRerouting] = useState(false);
   const lastRoutedCoordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
   const [backendNodes, setBackendNodes] = useState<BackendNode[]>([]);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
 
   // Load graph nodes for snapping
   useEffect(() => {
-    locationService.getNodes().then(setBackendNodes).catch(() => {});
+    locationService.getNodes().then(setBackendNodes).catch(() => { });
   }, []);
 
   // Active navigation tab
@@ -243,13 +251,6 @@ export default function ExploreDashboardPage() {
     }
   };
 
-  // Auto-request location when origin is set to GPS (e.g. from deep link ?from=gps)
-  useEffect(() => {
-    if (isOriginCurrentLocation && !geo.coordinates) {
-      geo.requestLocation();
-    }
-  }, [isOriginCurrentLocation]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Snap GPS position to nearest graph node when "My current location" is active
   useEffect(() => {
     if (!isOriginCurrentLocation || !geo.coordinates) return;
@@ -381,6 +382,7 @@ export default function ExploreDashboardPage() {
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
           isMobileDrawerOpen={mobileDrawerOpen}
+          onOpenQrScanner={() => setIsQrScannerOpen(true)}
         />
 
         {/* OAuth Authentication Success Banner */}
@@ -435,11 +437,10 @@ export default function ExploreDashboardPage() {
 
               {/* Right Destination Panel (Point A to Point B Routing) */}
               <div
-                className={`lg:block ${
-                  mobileDrawerOpen
-                    ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
-                    : "hidden lg:block"
-                }`}
+                className={`lg:block ${mobileDrawerOpen
+                  ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
+                  : "hidden lg:block"
+                  }`}
               >
                 <DestinationPanel
                   locations={displayedLocations}
@@ -471,6 +472,7 @@ export default function ExploreDashboardPage() {
                   routeError={routeError}
                   savedLocationIds={savedIds}
                   onToggleSaveLocation={handleToggleSaveLocation}
+                  onOpenQrScanner={() => setIsQrScannerOpen(true)}
                 />
               </div>
             </>
@@ -502,6 +504,37 @@ export default function ExploreDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* 4. QR Scanner Modal */}
+      {FEATURE_QR && (
+        <QrScannerModal
+          isOpen={isQrScannerOpen}
+          onClose={() => setIsQrScannerOpen(false)}
+          onScanSuccess={(scannedDest, scannedOrigin) => {
+            const destLoc =
+              allLocations.find((l) => l.slug === scannedDest.slug || l.id === scannedDest.id) ||
+              (scannedDest as CampusLocation);
+
+            handleSelectDestination(destLoc);
+
+            if (scannedOrigin) {
+              if (scannedOrigin.toLowerCase() === "gps") {
+                setIsOriginCurrentLocation(true);
+                geo.requestLocation();
+              } else {
+                const matchedOrig = allLocations.find(
+                  (l) => l.slug === scannedOrigin || l.id === scannedOrigin
+                );
+                if (matchedOrig) {
+                  setIsOriginCurrentLocation(false);
+                  handleSelectOrigin(matchedOrig);
+                }
+              }
+            }
+            setIsQrScannerOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

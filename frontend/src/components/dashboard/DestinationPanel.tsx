@@ -43,6 +43,7 @@ interface DestinationPanelProps {
   onToggleRoute: () => void;
   savedLocationIds: string[];
   onToggleSaveLocation: (id: string) => void;
+  onOpenQrScanner?: () => void;
 }
 
 export function DestinationPanel({
@@ -66,6 +67,7 @@ export function DestinationPanel({
   onToggleRoute,
   savedLocationIds,
   onToggleSaveLocation,
+  onOpenQrScanner,
 }: DestinationPanelProps) {
   const [panelSearch, setPanelSearch] = useState<string>("");
   const debouncedPanelSearch = useDebounce(panelSearch, 250);
@@ -143,14 +145,29 @@ export function DestinationPanel({
     <aside className="w-full lg:w-96 shrink-0 h-full bg-[#0d131f] border-l border-zinc-800 flex flex-col justify-between overflow-y-auto z-10">
       <div className="p-4 sm:p-5 space-y-4">
         {/* Header */}
-        <div>
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-            <RouteIcon className="w-5 h-5 text-[#DE4B31]" />
-            <span>Campus Directions</span>
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Select your starting point and destination
-          </p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+              <RouteIcon className="w-5 h-5 text-[#DE4B31]" />
+              <span>Campus Directions</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Select your starting point and destination
+            </p>
+          </div>
+          {FEATURE_QR && onOpenQrScanner && (
+            <button
+              type="button"
+              onClick={onOpenQrScanner}
+              className="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              title="Scan QR Code Sign"
+              aria-label="Scan QR Code Sign"
+              data-testid="panel-scan-qr-button"
+            >
+              <QrCodeIcon className="w-4 h-4 text-[#DE4B31]" />
+              <span className="text-[11px] font-mono hidden sm:inline">Scan</span>
+            </button>
+          )}
         </div>
 
         {/* ──── Route Error / Unreachable Notice ──── */}
@@ -537,7 +554,7 @@ export function DestinationPanel({
               data-testid="destination-search"
               aria-label="Search destination list"
             />
-            {panelSearch && (
+            {panelSearch ? (
               <button
                 onClick={() => setPanelSearch("")}
                 className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-white"
@@ -545,6 +562,20 @@ export function DestinationPanel({
               >
                 <CloseIcon className="w-4 h-4" />
               </button>
+            ) : (
+              FEATURE_QR &&
+              onOpenQrScanner && (
+                <button
+                  type="button"
+                  onClick={onOpenQrScanner}
+                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-white cursor-pointer"
+                  title="Scan QR Code"
+                  aria-label="Scan QR Code"
+                  data-testid="search-scan-qr-button"
+                >
+                  <QrCodeIcon className="w-3.5 h-3.5 text-[#DE4B31]" />
+                </button>
+              )
             )}
           </div>
 
