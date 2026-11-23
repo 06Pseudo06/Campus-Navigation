@@ -335,7 +335,10 @@ export function DestinationPanel({
         )}
 
         {/* ──── CARD A: Directions Input Card (From, To, Swap, Mode Switcher) ──── */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-3 shadow-xs">
+        <div
+          data-testid="directions-input-card"
+          className="p-4 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-3 shadow-xs"
+        >
           {/* Starting Point (Origin) */}
           <div>
             <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-zinc-400 mb-1">

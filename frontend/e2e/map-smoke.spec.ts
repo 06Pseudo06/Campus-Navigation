@@ -439,4 +439,30 @@ test.describe("map smoke", () => {
     await expect(scaleBar).toBeVisible();
     await expect(scaleBar).toHaveText(/[0-9]+\s*(m|km)/);
   });
+
+  test("responsive bottom sheet on tablet viewport supports peek, half, and full snap states", async ({
+    page,
+  }) => {
+    // Set viewport to tablet portrait (768 x 1024)
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("campus-map")).toBeVisible({ timeout: 15_000 });
+
+    // Assert bottom sheet is visible in tablet mode with peek snap
+    const bottomSheet = page.getByTestId("bottom-sheet");
+    await expect(bottomSheet).toBeVisible();
+    await expect(bottomSheet).toHaveAttribute("data-snap", "peek");
+
+    // Click bottom sheet handle to expand to half
+    const handle = page.getByTestId("bottom-sheet-handle");
+    await handle.click();
+    await expect(bottomSheet).toHaveAttribute("data-snap", "half");
+
+    // Click again to expand to full
+    await handle.click();
+    await expect(bottomSheet).toHaveAttribute("data-snap", "full");
+
+    // Verify directions input card is visible in expanded bottom sheet
+    await expect(page.getByTestId("directions-input-card").first()).toBeVisible();
+  });
 });

@@ -26,6 +26,10 @@ import { BackendNode } from "@/services/locationService";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
 import { FEATURE_QR } from "@/lib/featureFlags";
 import { destroySmoothScroll } from "@/lib/motion";
+import { WalkingIcon, ChevronDownIcon } from "@/components/dashboard/DashboardIcons";
+import { formatDistance } from "@/lib/routeFormatting";
+
+export type BottomSheetSnap = "peek" | "half" | "full";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -66,7 +70,30 @@ export default function ExploreDashboardPage() {
 
   // Mobile menu / drawer controls
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>("peek");
+
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (Math.abs(delta) > 35) {
+      if (delta < 0) {
+        setSheetSnap((prev) => (prev === "peek" ? "half" : "full"));
+      } else {
+        setSheetSnap((prev) => (prev === "full" ? "half" : "peek"));
+      }
+    }
+  };
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     const stored = localStorage.getItem("campusway-sidebar-collapsed");
@@ -228,6 +255,7 @@ export default function ExploreDashboardPage() {
 
   const handleSelectDestination = (loc: CampusLocation) => {
     setSelectedLocation(loc);
+    setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
   };
 
   const handleSwapLocations = () => {
@@ -423,8 +451,8 @@ export default function ExploreDashboardPage() {
             !locationsLoaded ? "loading" : apiLocations.length > 0 ? "available" : "unavailable"
           }
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-          onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          isMobileDrawerOpen={mobileDrawerOpen}
+          onToggleMobileDrawer={() => setSheetSnap((prev) => (prev === "peek" ? "half" : "peek"))}
+          isMobileDrawerOpen={sheetSnap !== "peek"}
           onOpenQrScanner={() => setIsQrScannerOpen(true)}
           locations={allLocations}
           onSelectLocation={handleSelectDestination}
@@ -479,55 +507,133 @@ export default function ExploreDashboardPage() {
                 />
               </main>
 
-              {/* Right Destination Panel (Point A to Point B Routing) */}
+              {/* Right Destination Panel (Responsive: Desktop Right Panel / Tablet & Mobile Bottom Sheet) */}
               <div
-                className={`h-full min-h-0 shrink-0 ${mobileDrawerOpen
-                  ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
-                  : "hidden lg:flex lg:flex-col"
-                  }`}
+                data-testid="bottom-sheet"
+                data-snap={sheetSnap}
+                className={`transition-all duration-300 ease-out z-40 shrink-0 flex flex-col bg-white/95 dark:bg-[#0d131f]/95 backdrop-blur-xl lg:backdrop-blur-none
+                  lg:static lg:h-full lg:w-96 lg:z-10 lg:rounded-none lg:border-t-0 lg:border-l lg:border-slate-200 lg:dark:border-zinc-800 lg:shadow-xl
+                  fixed bottom-0 inset-x-0 rounded-t-3xl border-t border-slate-200 dark:border-zinc-800 shadow-2xl
+                  ${
+                    sheetSnap === "peek"
+                      ? "h-20 lg:h-full"
+                      : sheetSnap === "half"
+                      ? "h-[50vh] lg:h-full"
+                      : "h-[88vh] lg:h-full"
+                  }
+                `}
               >
-                <DestinationPanel
-                  locations={displayedLocations}
-                  originLocation={originLocation}
-                  selectedLocation={selectedLocation}
-                  onSelectOrigin={(loc) => {
-                    setIsOriginCurrentLocation(false);
-                    handleSelectOrigin(loc);
-                  }}
-                  onSelectDestination={handleSelectDestination}
-                  onSelectLocation={handleSelectDestination}
-                  onSwapLocations={() => {
-                    setIsOriginCurrentLocation(false);
-                    handleSwapLocations();
-                  }}
-                  onUseCurrentLocation={() => {
-                    setIsOriginCurrentLocation(false);
-                    handleUseCurrentLocation();
-                  }}
-                  onSelectCurrentLocationAsOrigin={handleSelectCurrentLocationAsOrigin}
-                  isOriginCurrentLocation={isOriginCurrentLocation}
-                  isRerouting={isRerouting}
-                  userCoordinates={geo.coordinates}
-                  isInsideCampus={geo.isInsideCampus}
-                  geolocationError={geo.error?.message}
-                  activeRoute={activeRoute}
-                  showRoute={showRoute}
-                  onToggleRoute={() => setShowRoute(!showRoute)}
-                  routeError={routeError}
-                  savedLocationIds={savedIds}
-                  onToggleSaveLocation={handleToggleSaveLocation}
-                  onOpenQrScanner={() => setIsQrScannerOpen(true)}
-                  onCalculateRoute={handleCalculateRoute}
-                  isCalculatingRoute={isCalculatingRoute}
-                  unsurveyedState={unsurveyedState}
-                  onSelectNearestPlace={(loc) => {
-                    setOriginLocation(loc);
-                    setUnsurveyedState(null);
-                    setIsOriginCurrentLocation(false);
-                  }}
-                  isOutsideCampusBanner={isOutsideCampusBanner}
-                  onDismissOutsideCampusBanner={() => setIsOutsideCampusBanner(false)}
-                />
+                {/* Draggable Handle & Header Bar (Tablet & Mobile only: lg:hidden) */}
+                <div
+                  data-testid="bottom-sheet-handle"
+                  onClick={() =>
+                    setSheetSnap((prev) => (prev === "peek" ? "half" : prev === "half" ? "full" : "peek"))
+                  }
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  className="lg:hidden pt-2.5 pb-2 px-4 cursor-pointer select-none shrink-0 border-b border-slate-100 dark:border-zinc-800/80 flex flex-col items-center"
+                >
+                  <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400 dark:hover:bg-zinc-600 transition-colors mb-2" />
+
+                  {/* Peek Content Row */}
+                  <div className="w-full flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {activeRoute ? (
+                        <>
+                          <div className="w-6 h-6 rounded-lg bg-[#DE4B31]/20 text-[#DE4B31] flex items-center justify-center shrink-0">
+                            <WalkingIcon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              ~{activeRoute.estimatedWalkingMinutes} min ({formatDistance(activeRoute.distanceMeters)})
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                              To {activeRoute.toName}
+                            </p>
+                          </div>
+                        </>
+                      ) : selectedLocation ? (
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {selectedLocation.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                            {selectedLocation.category.toUpperCase()} • {selectedLocation.code || "Place Details"}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                          Directions & Places
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Snap Mode Pill Controls */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-semibold">
+                        {sheetSnap}
+                      </span>
+                      <div
+                        className={`p-1 text-slate-400 transition-transform duration-200 ${
+                          sheetSnap === "full" ? "rotate-180" : ""
+                        }`}
+                      >
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main DestinationPanel Body */}
+                <div
+                  className={`flex-1 min-h-0 overflow-hidden ${
+                    sheetSnap === "peek" ? "hidden lg:flex lg:flex-col" : "flex flex-col"
+                  }`}
+                >
+                  <DestinationPanel
+                    locations={displayedLocations}
+                    originLocation={originLocation}
+                    selectedLocation={selectedLocation}
+                    onSelectOrigin={(loc) => {
+                      setIsOriginCurrentLocation(false);
+                      handleSelectOrigin(loc);
+                    }}
+                    onSelectDestination={handleSelectDestination}
+                    onSelectLocation={handleSelectDestination}
+                    onSwapLocations={() => {
+                      setIsOriginCurrentLocation(false);
+                      handleSwapLocations();
+                    }}
+                    onUseCurrentLocation={() => {
+                      setIsOriginCurrentLocation(false);
+                      handleUseCurrentLocation();
+                    }}
+                    onSelectCurrentLocationAsOrigin={handleSelectCurrentLocationAsOrigin}
+                    isOriginCurrentLocation={isOriginCurrentLocation}
+                    isRerouting={isRerouting}
+                    userCoordinates={geo.coordinates}
+                    isInsideCampus={geo.isInsideCampus}
+                    geolocationError={geo.error?.message}
+                    activeRoute={activeRoute}
+                    showRoute={showRoute}
+                    onToggleRoute={() => setShowRoute(!showRoute)}
+                    routeError={routeError}
+                    savedLocationIds={savedIds}
+                    onToggleSaveLocation={handleToggleSaveLocation}
+                    onOpenQrScanner={() => setIsQrScannerOpen(true)}
+                    onCalculateRoute={handleCalculateRoute}
+                    isCalculatingRoute={isCalculatingRoute}
+                    unsurveyedState={unsurveyedState}
+                    onSelectNearestPlace={(loc) => {
+                      setOriginLocation(loc);
+                      setUnsurveyedState(null);
+                      setIsOriginCurrentLocation(false);
+                    }}
+                    isOutsideCampusBanner={isOutsideCampusBanner}
+                    onDismissOutsideCampusBanner={() => setIsOutsideCampusBanner(false)}
+                  />
+                </div>
               </div>
             </>
           )}
