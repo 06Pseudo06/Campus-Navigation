@@ -410,7 +410,7 @@ export function QrScannerModal({
       }}
       data-testid="qr-scanner-modal"
     >
-      <div className="relative w-full max-w-md rounded-3xl bg-[#0a0f1d] border border-zinc-800 shadow-2xl overflow-hidden flex flex-col text-zinc-200">
+      <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#0a0f1d] border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-zinc-200">
         {/* Hidden Canvas for Frame Processing */}
         <canvas ref={canvasRef} className="hidden" />
 
@@ -426,16 +426,16 @@ export function QrScannerModal({
         />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/60 z-10">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 z-10">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#DE4B31]/15 border border-[#DE4B31]/40 text-[#DE4B31] flex items-center justify-center">
               <QrCodeIcon className="w-4 h-4" />
             </div>
             <div>
-              <h2 id={titleId} className="text-sm font-bold text-white">
+              <h2 id={titleId} className="text-sm font-bold text-slate-900 dark:text-white">
                 Scan Navigation Sign
               </h2>
-              <p className="text-[10px] text-zinc-400 font-mono">
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
                 LPU Dataset C Physical QR
               </p>
             </div>
@@ -449,8 +449,8 @@ export function QrScannerModal({
                 onClick={handleToggleTorch}
                 className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
                   torchOn
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500"
-                    : "bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white"
+                    ? "bg-amber-500/20 text-amber-500 dark:text-amber-300 border-amber-500"
+                    : "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title={torchOn ? "Turn off flashlight" : "Turn on flashlight"}
               >
@@ -461,7 +461,7 @@ export function QrScannerModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Close Scanner"
             >
               <CloseIcon className="w-4 h-4" />
@@ -581,15 +581,15 @@ export function QrScannerModal({
 
         {/* Fallback Drawer: Manual Code Input */}
         {showManualInput && (
-          <div className="p-4 border-t border-zinc-800 bg-[#0f172a] space-y-3 animate-in slide-in-from-bottom-2">
+          <div className="p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#0f172a] space-y-3 animate-in slide-in-from-bottom-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white font-mono uppercase">
+              <span className="text-xs font-bold text-slate-900 dark:text-white font-mono uppercase">
                 Enter Location Code
               </span>
               <button
                 type="button"
                 onClick={() => setShowManualInput(false)}
-                className="text-[10px] text-zinc-400 hover:text-white font-mono"
+                className="text-[10px] text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white font-mono"
               >
                 Close
               </button>
@@ -605,7 +605,7 @@ export function QrScannerModal({
                     setManualError(null);
                   }}
                   placeholder="e.g. block-1, gate-1, B1..."
-                  className="flex-1 h-9 px-3 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31]"
+                  className="flex-1 h-9 px-3 rounded-xl bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31]"
                   autoFocus
                 />
                 <button
@@ -617,18 +617,18 @@ export function QrScannerModal({
                 </button>
               </div>
               {manualError && (
-                <p className="text-[10px] text-rose-400 font-mono">{manualError}</p>
+                <p className="text-[10px] text-rose-600 dark:text-rose-400 font-mono">{manualError}</p>
               )}
             </form>
           </div>
         )}
 
         {/* Bottom Fallback Controls */}
-        <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between text-xs">
+        <div className="p-4 border-t border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-900/40 flex items-center justify-between text-xs">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="text-zinc-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer font-medium"
           >
             <span>📁</span>
             <span>Upload Photo</span>

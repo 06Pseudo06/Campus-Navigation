@@ -31,7 +31,8 @@ const themeAntiFlashScript = `
     try {
       var storedTheme = localStorage.getItem('campusway-theme');
       var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var isDark = storedTheme === 'dark' || (!storedTheme) || (storedTheme === 'system' && prefersDark);
+      var theme = (storedTheme === 'dark' || storedTheme === 'light' || storedTheme === 'system') ? storedTheme : 'system';
+      var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
       var root = document.documentElement;
       if (isDark) {
         root.classList.add('dark');

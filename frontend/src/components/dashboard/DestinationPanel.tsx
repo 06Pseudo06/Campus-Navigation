@@ -60,7 +60,7 @@ export function DestinationPanel({
   isRerouting = false,
   userCoordinates,
   isInsideCampus = true,
-  geolocationError,
+  geolocationError: _geolocationError,
   activeRoute,
   routeError,
   showRoute,
@@ -142,16 +142,16 @@ export function DestinationPanel({
   const isQueryingBlock34 = debouncedPanelSearch.toLowerCase().includes("34");
 
   return (
-    <aside className="w-full lg:w-96 shrink-0 h-full bg-[#0d131f] border-l border-zinc-800 flex flex-col justify-between overflow-y-auto z-10">
+    <aside className="w-full lg:w-96 shrink-0 h-full bg-[#F6F4EF] dark:bg-[#0d131f] border-l border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-100 flex flex-col justify-between overflow-y-auto z-10 transition-colors duration-200">
       <div className="p-4 sm:p-5 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <RouteIcon className="w-5 h-5 text-[#DE4B31]" />
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <RouteIcon className="w-5 h-5 text-[#E8452C]" />
               <span>Campus Directions</span>
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
               Select your starting point and destination
             </p>
           </div>
@@ -159,12 +159,12 @@ export function DestinationPanel({
             <button
               type="button"
               onClick={onOpenQrScanner}
-              className="p-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 text-slate-700 hover:text-slate-950 dark:text-zinc-300 dark:hover:text-white border border-slate-200 dark:border-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
               title="Scan QR Code Sign"
               aria-label="Scan QR Code Sign"
               data-testid="panel-scan-qr-button"
             >
-              <QrCodeIcon className="w-4 h-4 text-[#DE4B31]" />
+              <QrCodeIcon className="w-4 h-4 text-[#E8452C]" />
               <span className="text-[11px] font-mono hidden sm:inline">Scan</span>
             </button>
           )}
@@ -239,11 +239,11 @@ export function DestinationPanel({
         )}
 
         {/* ──── Origin & Destination Controls (Point A to B) ──── */}
-        <div className="p-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-2.5 relative">
+        <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-2.5 relative shadow-xs">
           {/* Starting Point (Origin) */}
           <div>
-            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400 mb-1">
-              <span className="flex items-center gap-1.5 text-emerald-400">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-zinc-400 mb-1">
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 Starting Point (From)
               </span>
@@ -252,17 +252,17 @@ export function DestinationPanel({
                   <button
                     type="button"
                     onClick={onSelectCurrentLocationAsOrigin}
-                    className="text-[10px] text-blue-400 hover:text-blue-300 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
+                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
                     title="Use GPS current location"
                   >
-                    <CrosshairIcon className="w-3 h-3 text-blue-400" />
+                    <CrosshairIcon className="w-3 h-3 text-blue-500" />
                     <span>My Location</span>
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={onUseCurrentLocation}
-                  className="text-[10px] text-zinc-400 hover:text-zinc-300 hover:underline cursor-pointer"
+                  className="text-[10px] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-300 hover:underline cursor-pointer"
                 >
                   Gate 1
                 </button>
@@ -272,19 +272,19 @@ export function DestinationPanel({
               type="button"
               onClick={() => setSelectingField(selectingField === "origin" ? null : "origin")}
               className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${isOriginCurrentLocation
-                ? "bg-blue-950/40 border-blue-500 text-white"
+                ? "bg-blue-50 dark:bg-blue-950/40 border-blue-400 dark:border-blue-500 text-blue-900 dark:text-white"
                 : selectingField === "origin"
-                  ? "bg-emerald-950/40 border-emerald-500 text-white"
-                  : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500 text-emerald-900 dark:text-white"
+                  : "bg-slate-50 dark:bg-zinc-800/70 border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600"
                 }`}
             >
               <div className="flex items-center gap-1.5 truncate font-medium">
                 {isOriginCurrentLocation ? (
                   <>
-                    <CrosshairIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span className="text-blue-200 truncate">My Current Location</span>
+                    <CrosshairIcon className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400 shrink-0" />
+                    <span className="text-blue-700 dark:text-blue-200 truncate">My Current Location</span>
                     {isRerouting && (
-                      <span className="text-[10px] text-amber-400 animate-pulse font-mono ml-1">
+                      <span className="text-[10px] text-amber-500 animate-pulse font-mono ml-1">
                         (Re-routing…)
                       </span>
                     )}
@@ -295,7 +295,7 @@ export function DestinationPanel({
                   </span>
                 )}
               </div>
-              <span className="text-[10px] text-zinc-400 uppercase font-mono ml-2 shrink-0">
+              <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase font-mono ml-2 shrink-0">
                 {isOriginCurrentLocation
                   ? "GPS"
                   : selectingField === "origin"
@@ -310,7 +310,7 @@ export function DestinationPanel({
             <button
               type="button"
               onClick={onSwapLocations}
-              className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-[#DE4B31] border border-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors shadow cursor-pointer text-xs"
+              className="w-7 h-7 rounded-full bg-white dark:bg-zinc-800 hover:bg-[#E8452C] dark:hover:bg-[#E8452C] border border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:text-white dark:hover:text-white flex items-center justify-center transition-colors shadow-xs cursor-pointer text-xs"
               title="Swap starting point and destination"
               aria-label="Swap starting point and destination"
             >
@@ -320,9 +320,9 @@ export function DestinationPanel({
 
           {/* Destination */}
           <div>
-            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400 mb-1">
-              <span className="flex items-center gap-1.5 text-[#DE4B31]">
-                <span className="w-2 h-2 rounded-full bg-[#DE4B31]" />
+            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-zinc-400 mb-1">
+              <span className="flex items-center gap-1.5 text-[#E8452C]">
+                <span className="w-2 h-2 rounded-full bg-[#E8452C]" />
                 Destination (To)
               </span>
             </div>
@@ -330,14 +330,14 @@ export function DestinationPanel({
               type="button"
               onClick={() => setSelectingField(selectingField === "destination" ? null : "destination")}
               className={`w-full text-left p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors cursor-pointer ${selectingField === "destination"
-                ? "bg-[#DE4B31]/20 border-[#DE4B31] text-white"
-                : "bg-zinc-800/70 border-zinc-700 text-zinc-200 hover:border-zinc-600"
+                ? "bg-[#E8452C]/10 border-[#E8452C] text-[#E8452C] font-semibold"
+                : "bg-slate-50 dark:bg-zinc-800/70 border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600"
                 }`}
             >
               <span className="truncate font-medium">
                 {selectedLocation ? selectedLocation.name : "Select destination..."}
               </span>
-              <span className="text-[10px] text-zinc-400 uppercase font-mono ml-2 shrink-0">
+              <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase font-mono ml-2 shrink-0">
                 {selectingField === "destination" ? "Selecting..." : "Change"}
               </span>
             </button>
@@ -348,24 +348,24 @@ export function DestinationPanel({
         {activeRoute && !isSameLocation && (
           <div
             data-testid="route-summary-panel"
-            className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-3"
+            className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-3 shadow-xs"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 font-mono">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 dark:text-zinc-400 font-mono">
                   Calculated Route
                 </span>
-                <p className="text-xs font-bold text-white mt-0.5 truncate">
+                <p className="text-xs font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                   {activeRoute.fromName} → {activeRoute.toName}
                 </p>
                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-zinc-800 text-zinc-300 border border-zinc-700/60">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700/60">
                     {formatSteps(activeRoute.distanceMeters)}
                   </span>
                   <span
                     className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${activeRoute.isAccessible
-                      ? "bg-emerald-950/60 text-emerald-400 border-emerald-800/60"
-                      : "bg-amber-950/60 text-amber-300 border-amber-800/60"
+                      ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800/60"
+                      : "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/60"
                       }`}
                   >
                     {getAccessibilityBadge(activeRoute.isAccessible).badgeText}
@@ -373,17 +373,17 @@ export function DestinationPanel({
                 </div>
               </div>
               <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                <span className="text-sm font-extrabold text-[#DE4B31]">
+                <span className="text-sm font-extrabold text-[#E8452C]">
                   ~{activeRoute.estimatedWalkingMinutes} min
                 </span>
-                <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
+                <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono mt-0.5">
                   {formatDistance(activeRoute.distanceMeters)}
                 </p>
                 {FEATURE_QR && selectedLocation && (
                   <button
                     type="button"
                     onClick={() => setShowQrModal(true)}
-                    className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white border border-zinc-700 transition-colors cursor-pointer text-[10px] flex items-center gap-1 font-mono"
+                    className="p-1 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white border border-slate-200 dark:border-zinc-700 transition-colors cursor-pointer text-[10px] flex items-center gap-1 font-mono"
                     title="Share this route via QR Code"
                     aria-label="Share this route via QR Code"
                   >
@@ -394,13 +394,13 @@ export function DestinationPanel({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t border-zinc-800/80">
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
               <button
                 type="button"
                 onClick={onToggleRoute}
                 className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${showRoute
-                  ? "bg-[#DE4B31] text-white hover:bg-[#b83821]"
-                  : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                  ? "bg-[#E8452C] text-white hover:bg-[#CF3A23]"
+                  : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700"
                   }`}
               >
                 <span>{showRoute ? "Hide Route" : "Show Route"}</span>
@@ -410,7 +410,7 @@ export function DestinationPanel({
                 <button
                   type="button"
                   onClick={() => setShowSteps(!showSteps)}
-                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors cursor-pointer"
+                  className="py-1.5 px-3 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
                 >
                   {showSteps ? "Hide Steps" : `Steps (${activeRoute.steps.length})`}
                 </button>
@@ -459,13 +459,13 @@ export function DestinationPanel({
 
         {/* ──── Selected Destination Card (Details & Save) ──── */}
         {selectedLocation && (
-          <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-2.5">
+          <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-2.5 shadow-xs">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-zinc-400 font-mono">
                   {selectedLocation.category} • {selectedLocation.code}
                 </span>
-                <h3 className="text-sm font-bold text-white truncate">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                   {selectedLocation.name}
                 </h3>
               </div>
@@ -474,7 +474,7 @@ export function DestinationPanel({
                   <button
                     type="button"
                     onClick={() => setShowQrModal(true)}
-                    className="p-2 rounded-xl border border-zinc-700 bg-zinc-800/70 text-zinc-400 hover:text-white hover:border-[#DE4B31] transition-colors cursor-pointer"
+                    className="p-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800/70 text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white hover:border-[#E8452C] transition-colors cursor-pointer"
                     title="Generate QR code & deep link"
                     aria-label="Generate QR code & deep link"
                     data-testid="destination-qr-button"
@@ -486,8 +486,8 @@ export function DestinationPanel({
                   type="button"
                   onClick={handleSaveClick}
                   className={`p-2 rounded-xl border transition-colors cursor-pointer ${isSaved
-                    ? "bg-[#DE4B31]/20 border-[#DE4B31] text-[#DE4B31]"
-                    : "bg-zinc-800/70 border-zinc-700 text-zinc-400 hover:text-white"
+                    ? "bg-[#E8452C]/10 border-[#E8452C] text-[#E8452C]"
+                    : "bg-slate-100 dark:bg-zinc-800/70 border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-white"
                     }`}
                   title={isSaved ? "Remove from saved" : "Save location"}
                   aria-label={isSaved ? "Remove from saved" : "Save location"}
@@ -498,13 +498,13 @@ export function DestinationPanel({
             </div>
 
             {selectedLocation.description && (
-              <p className="text-xs text-zinc-400 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                 {selectedLocation.description}
               </p>
             )}
 
             {saveNotice && (
-              <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <CheckCircleIcon className="w-3.5 h-3.5" />
                 <span>{saveNotice}</span>
               </p>
@@ -514,12 +514,12 @@ export function DestinationPanel({
 
         {/* Block 34 Notice if user queries for 34 */}
         {isQueryingBlock34 && (
-          <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/70 text-amber-200 text-xs space-y-1">
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 text-xs space-y-1">
             <p className="font-bold flex items-center gap-1.5">
               <span>⚠️</span>
               <span>Block 34 (Problem Statement P10)</span>
             </p>
-            <p className="text-[11px] leading-relaxed text-amber-300">
+            <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
               Block 34 is not present in Dataset C. In accordance with data integrity guidelines, its coordinates have not been synthesized. It is scheduled for the next physical survey.
             </p>
           </div>
@@ -528,21 +528,21 @@ export function DestinationPanel({
         {/* ──── Campus Places Search & Filter List ──── */}
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-300">
+            <span className="text-xs font-bold text-slate-800 dark:text-zinc-300">
               {selectingField === "origin"
                 ? "Choose Starting Point"
                 : selectingField === "destination"
                   ? "Choose Destination"
                   : "All Campus Places"}
             </span>
-            <span className="text-[10px] text-zinc-400 font-mono">
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
               {filteredLocations.length} locations
             </span>
           </div>
 
           {/* Search Input */}
           <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-400">
               <SearchIcon className="w-4 h-4" />
             </div>
             <input
@@ -550,14 +550,14 @@ export function DestinationPanel({
               value={panelSearch}
               onChange={(e) => setPanelSearch(e.target.value)}
               placeholder="Search blocks, gates, food courts..."
-              className="w-full h-9 pl-9 pr-8 rounded-xl bg-zinc-900 border border-zinc-700/80 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#DE4B31] transition-all"
+              className="w-full h-9 pl-9 pr-8 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700/80 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#E8452C] transition-all"
               data-testid="destination-search"
               aria-label="Search destination list"
             />
             {panelSearch ? (
               <button
                 onClick={() => setPanelSearch("")}
-                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-white"
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white"
                 aria-label="Clear search"
               >
                 <CloseIcon className="w-4 h-4" />
@@ -568,12 +568,12 @@ export function DestinationPanel({
                 <button
                   type="button"
                   onClick={onOpenQrScanner}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-zinc-400 hover:text-white cursor-pointer"
+                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
                   title="Scan QR Code"
                   aria-label="Scan QR Code"
                   data-testid="search-scan-qr-button"
                 >
-                  <QrCodeIcon className="w-3.5 h-3.5 text-[#DE4B31]" />
+                  <QrCodeIcon className="w-3.5 h-3.5 text-[#E8452C]" />
                 </button>
               )
             )}
@@ -587,8 +587,8 @@ export function DestinationPanel({
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${selectedCategory === cat.id
-                  ? "bg-[#DE4B31] text-white shadow-sm"
-                  : "bg-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+                  ? "bg-[#E8452C] text-white shadow-xs"
+                  : "bg-slate-100 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-400 hover:text-slate-950 dark:hover:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-800"
                   }`}
               >
                 {cat.label}
@@ -606,20 +606,20 @@ export function DestinationPanel({
                   setSelectingField(null);
                 }}
                 data-testid="origin-my-current-location"
-                className="p-2.5 rounded-xl border border-blue-500/70 bg-blue-950/40 hover:bg-blue-900/50 text-xs transition-all flex items-center justify-between gap-2.5 cursor-pointer shadow-lg group mb-1.5"
+                className="p-2.5 rounded-xl border border-blue-400 dark:border-blue-500/70 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-xs transition-all flex items-center justify-between gap-2.5 cursor-pointer shadow-xs group mb-1.5"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-blue-600/30 border border-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <CrosshairIcon className="w-4 h-4 text-blue-400" />
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-600/30 border border-blue-300 dark:border-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <CrosshairIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 font-bold text-blue-300 truncate">
+                    <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-300 truncate">
                       <span>My Current Location</span>
                       <span className="px-1.5 py-0.2 rounded bg-blue-600 text-white text-[9px] uppercase font-mono">
                         GPS
                       </span>
                     </div>
-                    <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
                       {userCoordinates
                         ? isInsideCampus
                           ? `Accuracy ±${Math.round(userCoordinates.accuracy)}m • Snaps to campus path`
@@ -628,7 +628,7 @@ export function DestinationPanel({
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-blue-400 group-hover:underline uppercase font-mono shrink-0">
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 group-hover:underline uppercase font-mono shrink-0">
                   Select
                 </span>
               </div>
@@ -643,30 +643,30 @@ export function DestinationPanel({
                   key={loc.id}
                   data-testid={`location-item-${loc.slug || loc.id}`}
                   className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${isDest
-                    ? "bg-[#DE4B31]/15 border-[#DE4B31]/70 text-white"
+                    ? "bg-[#E8452C]/10 border-[#E8452C] text-slate-900 dark:text-white"
                     : isOrig
-                      ? "bg-emerald-950/40 border-emerald-600/70 text-white"
-                      : "bg-zinc-900/70 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/70 text-zinc-300"
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-slate-900 dark:text-white"
+                      : "bg-white dark:bg-zinc-900/70 border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/70 text-slate-800 dark:text-zinc-300"
                     }`}
                   onClick={() => handleLocationPick(loc)}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-white truncate">
+                      <span className="font-semibold text-slate-900 dark:text-white truncate">
                         {loc.name}
                       </span>
                       {isOrig && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-600 text-white uppercase">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-600 text-white uppercase font-mono">
                           Start
                         </span>
                       )}
                       {isDest && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#DE4B31] text-white uppercase">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#E8452C] text-white uppercase font-mono">
                           Dest
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-zinc-400 line-clamp-1 mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
                       {loc.description}
                     </p>
                   </div>

@@ -119,4 +119,38 @@ test.describe("map smoke", () => {
     );
     expect(monoFont.toLowerCase()).toMatch(/jetbrains mono|font-mono|monospace/);
   });
+
+  test("toggles light, dark, and auto theme and persists preference", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
+
+    // Click theme toggle button in navbar
+    const themeBtn = page.getByRole("button", { name: "Change theme" }).first();
+    await expect(themeBtn).toBeVisible();
+    await themeBtn.click();
+
+    // Select Light Mode
+    const lightOption = page.getByRole("button", { name: "Light Mode" }).first();
+    await expect(lightOption).toBeVisible();
+    await lightOption.click();
+
+    // Verify html tag receives light attributes
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    const storedTheme = await page.evaluate(() => localStorage.getItem("campusway-theme"));
+    expect(storedTheme).toBe("light");
+
+    // Click theme toggle again and select Dark Mode
+    await themeBtn.click();
+    const darkOption = page.getByRole("button", { name: "Dark Mode" }).first();
+    await expect(darkOption).toBeVisible();
+    await darkOption.click();
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    const storedDark = await page.evaluate(() => localStorage.getItem("campusway-theme"));
+    expect(storedDark).toBe("dark");
+
+    // Reload page to verify persistence without flash
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  });
 });

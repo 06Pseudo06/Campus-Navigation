@@ -46,6 +46,7 @@ import {
 import { LocateButton } from "./LocateButton";
 import { FEATURE_GPS } from "@/lib/featureFlags";
 import type { GeoCoordinates, GeolocationStatus, GeolocationPermission } from "@/hooks/useGeolocation";
+import { useTheme } from "@/context/ThemeContext";
 
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
@@ -114,7 +115,27 @@ export function CampusMap({
 
   // Mapbox map reference
   const mapRef = useRef<MapRef | null>(null);
-  const [layer, setLayer] = useState<MapLayerMode>("dark");
+  const { resolvedTheme } = useTheme();
+  const [userExplicitLayer, setUserExplicitLayer] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem("campusway-map-style-explicit"));
+  });
+
+  const [layer, setLayer] = useState<MapLayerMode>(() => {
+    if (typeof window !== "undefined") {
+      const explicit = localStorage.getItem("campusway-map-style");
+      if (explicit && (explicit in MAP_STYLES)) return explicit as MapLayerMode;
+    }
+    return resolvedTheme === "light" ? "streets" : "dark";
+  });
+
+  // Switch default style when theme changes, unless user explicitly selected a layer
+  useEffect(() => {
+    if (!userExplicitLayer) {
+      setLayer(resolvedTheme === "light" ? "streets" : "dark");
+    }
+  }, [resolvedTheme, userExplicitLayer]);
+
   const [layerMenuOpen, setLayerMenuOpen] = useState<boolean>(false);
   const [popupLocation, setPopupLocation] = useState<CampusLocation | null>(null);
 
@@ -521,6 +542,11 @@ export function CampusMap({
                   type="button"
                   onClick={() => {
                     setLayer(mode.id);
+                    setUserExplicitLayer(true);
+                    try {
+                      localStorage.setItem("campusway-map-style", mode.id);
+                      localStorage.setItem("campusway-map-style-explicit", "true");
+                    } catch {}
                     setLayerMenuOpen(false);
                   }}
                   className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${

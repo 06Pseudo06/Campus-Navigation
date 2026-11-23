@@ -189,18 +189,18 @@ export function QrCodeModal({
       }}
       data-testid="qr-code-modal"
     >
-      <div className="relative w-full max-w-md rounded-3xl bg-[#0a0f1d] border border-zinc-800 shadow-2xl overflow-hidden flex flex-col text-zinc-200">
+      <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#0a0f1d] border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-zinc-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800/80 bg-zinc-900/40">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-900/40">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-[#DE4B31]/15 border border-[#DE4B31]/40 text-[#DE4B31] flex items-center justify-center">
               <QrCodeIcon className="w-4 h-4" />
             </div>
             <div>
-              <h2 id={titleId} className="text-sm font-bold text-white tracking-wide">
+              <h2 id={titleId} className="text-sm font-bold text-slate-900 dark:text-white tracking-wide">
                 Navigation QR Code
               </h2>
-              <p className="text-[11px] text-zinc-400 font-mono">
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
                 LPU Dataset C Signage
               </p>
             </div>
@@ -208,7 +208,7 @@ export function QrCodeModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Close QR Modal"
           >
             <CloseIcon className="w-4 h-4" />
@@ -222,10 +222,10 @@ export function QrCodeModal({
             <span className="text-[10px] uppercase font-bold tracking-widest text-[#DE4B31] font-mono">
               Destination Target
             </span>
-            <h3 className="text-lg font-extrabold text-white">
+            <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">
               {destination.name}
             </h3>
-            <p id={descId} className="text-xs text-zinc-400">
+            <p id={descId} className="text-xs text-slate-600 dark:text-zinc-400">
               {includeOrigin
                 ? `Route from ${isOriginCurrentLocation ? "Your Current Location" : origin?.name || "Starting Point"} to ${destination.name}`
                 : "Scanners will be routed directly to this destination from their device GPS or Gate 1."}
@@ -258,15 +258,15 @@ export function QrCodeModal({
 
           {/* Origin Mode Toggle (if a specific origin is set) */}
           {hasSpecificOrigin && (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs">
-              <span className="text-zinc-300">
-                Include origin: <span className="text-white font-semibold">{isOriginCurrentLocation ? "My GPS Location" : origin?.name}</span>
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-100 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-800 text-xs">
+              <span className="text-slate-700 dark:text-zinc-300">
+                Include origin: <span className="text-slate-900 dark:text-white font-semibold">{isOriginCurrentLocation ? "My GPS Location" : origin?.name}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setIncludeOrigin(!includeOrigin)}
                 className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  includeOrigin ? "bg-[#DE4B31]" : "bg-zinc-700"
+                  includeOrigin ? "bg-[#DE4B31]" : "bg-slate-300 dark:bg-zinc-700"
                 }`}
                 aria-pressed={includeOrigin}
               >
@@ -281,7 +281,7 @@ export function QrCodeModal({
 
           {/* Deep Link URL Readout & Copy Button */}
           <div className="space-y-1.5">
-            <span className="text-[10px] uppercase font-bold text-zinc-400 font-mono tracking-wider">
+            <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 font-mono tracking-wider">
               Deep Link URL
             </span>
             <div className="flex items-center gap-2">
@@ -289,7 +289,7 @@ export function QrCodeModal({
                 type="text"
                 readOnly
                 value={fullUrl}
-                className="flex-1 h-9 px-3 rounded-xl bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-zinc-300 truncate focus:outline-none select-all"
+                className="flex-1 h-9 px-3 rounded-xl bg-slate-100 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 text-xs font-mono text-slate-800 dark:text-zinc-300 truncate focus:outline-none select-all"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button
@@ -297,8 +297,8 @@ export function QrCodeModal({
                 onClick={handleCopyLink}
                 className={`h-9 px-3.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   copied
-                    ? "bg-emerald-950/80 border-emerald-700 text-emerald-400"
-                    : "bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-white"
+                    ? "bg-emerald-50 dark:bg-emerald-950/80 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
+                    : "bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-white"
                 }`}
               >
                 {copied ? (
@@ -322,7 +322,7 @@ export function QrCodeModal({
               type="button"
               onClick={handleDownloadSvg}
               disabled={isGenerating || !svgString}
-              className="py-2.5 px-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="py-2.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
               <DownloadIcon className="w-3.5 h-3.5" />
               <span>SVG</span>
@@ -331,7 +331,7 @@ export function QrCodeModal({
               type="button"
               onClick={handleDownloadPng}
               disabled={isGenerating || !pngDataUrl}
-              className="py-2.5 px-2 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              className="py-2.5 px-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:text-slate-900 dark:hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
             >
               <DownloadIcon className="w-3.5 h-3.5" />
               <span>PNG (HD)</span>
@@ -349,8 +349,8 @@ export function QrCodeModal({
         </div>
 
         {/* Footer / Printable Sheet Link */}
-        <div className="p-4 border-t border-zinc-800/80 bg-zinc-900/30 flex items-center justify-between text-xs">
-          <span className="text-zinc-500 text-[11px]">
+        <div className="p-4 border-t border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-900/30 flex items-center justify-between text-xs">
+          <span className="text-slate-500 dark:text-zinc-500 text-[11px]">
             Physical Signage Deployment
           </span>
           <Link

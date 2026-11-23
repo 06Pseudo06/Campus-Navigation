@@ -356,7 +356,7 @@ export default function ExploreDashboardPage() {
   }, [savedIds, allLocations]);
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#0a0f1d] text-zinc-100 font-sans">
+    <div className="h-screen w-screen flex overflow-hidden bg-[#F6F4EF] dark:bg-[#0a0f1d] text-slate-900 dark:text-zinc-100 font-sans transition-colors duration-200">
       {/* 1. Left Navigation Sidebar */}
       <Sidebar
         currentTab={currentTab}
