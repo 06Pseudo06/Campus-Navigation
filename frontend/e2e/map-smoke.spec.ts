@@ -465,4 +465,99 @@ test.describe("map smoke", () => {
     // Verify directions input card is visible in expanded bottom sheet
     await expect(page.getByTestId("directions-input-card").first()).toBeVisible();
   });
+
+  test("topbar profile dropdown renders user details, theme section, and links", async ({
+    page,
+  }) => {
+    // Mock authenticated user session
+    await page.route("**/api/v1/auth/me", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "usr_mock_12345",
+          email: "test.student@lpu.co.in",
+          name: "Aarav Sharma",
+          role: "student",
+          auth_provider: "email",
+          email_verified: true,
+          has_password: true,
+        }),
+      });
+    });
+
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("campus-map")).toBeVisible({ timeout: 15_000 });
+
+    // Click profile button to open dropdown
+    const profileBtn = page.getByTestId("topbar-profile-button");
+    await expect(profileBtn).toBeVisible();
+    await profileBtn.click();
+
+    // Verify profile dropdown menu
+    const dropdownMenu = page.getByTestId("profile-dropdown-menu");
+    await expect(dropdownMenu).toBeVisible();
+
+    // Verify user details
+    await expect(dropdownMenu.getByText("Aarav Sharma")).toBeVisible();
+    await expect(dropdownMenu.getByText("test.student@lpu.co.in")).toBeVisible();
+
+    // Verify navigation links
+    await expect(page.getByTestId("profile-link-settings")).toBeVisible();
+    await expect(page.getByTestId("profile-link-saved")).toBeVisible();
+    await expect(page.getByTestId("profile-link-accessibility")).toBeVisible();
+    await expect(page.getByTestId("profile-dropdown-signout")).toBeVisible();
+  });
+
+  test("profile settings page renders 5 tabs and supports deep-linking", async ({
+    page,
+  }) => {
+    // Mock authenticated user session
+    await page.route("**/api/v1/auth/me", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "usr_mock_12345",
+          email: "test.student@lpu.co.in",
+          name: "Aarav Sharma",
+          role: "student",
+          auth_provider: "email",
+          email_verified: true,
+          has_password: true,
+        }),
+      });
+    });
+
+    // 1. Visit /profile?tab=preferences directly
+    await page.goto("/profile?tab=preferences", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("profile-tabs-nav")).toBeVisible();
+
+    // Assert preferences tab is active and shows map style cards
+    await expect(page.getByTestId("pref-map-style-dark")).toBeVisible();
+    await expect(page.getByTestId("pref-map-style-streets")).toBeVisible();
+
+    // 2. Switch to Privacy & Data tab
+    const privacyTab = page.getByTestId("profile-tab-privacy");
+    await expect(privacyTab).toBeVisible();
+    await privacyTab.click();
+
+    // Assert Zero-Server-Tracking Privacy Policy card is visible
+    await expect(page.getByText("Zero-Server-Tracking Privacy Policy")).toBeVisible();
+
+    // 3. Switch to Saved & Recent tab
+    const savedTab = page.getByTestId("profile-tab-saved");
+    await expect(savedTab).toBeVisible();
+    await savedTab.click();
+
+    await expect(page.getByText("Saved Campus Places")).toBeVisible();
+
+    // 4. Switch to Account & Security tab
+    const accountTab = page.getByTestId("profile-tab-account");
+    await expect(accountTab).toBeVisible();
+    await accountTab.click();
+
+    await expect(page.getByText("Security & Authentication")).toBeVisible();
+    await expect(page.getByText("usr_mock_12345")).toBeVisible();
+  });
 });

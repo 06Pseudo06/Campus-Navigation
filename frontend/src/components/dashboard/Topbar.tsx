@@ -12,6 +12,9 @@ import {
   CloseIcon,
   CheckCircleIcon,
   QrCodeIcon,
+  BookmarkIcon,
+  AccessibilityIcon,
+  SettingsIcon,
 } from "./DashboardIcons";
 import { ThemeDropdownSection, ThemeToggle } from "@/components/theme/ThemeToggle";
 import { FEATURE_QR } from "@/lib/featureFlags";
@@ -360,58 +363,104 @@ export function Topbar({
 
           {/* Profile Dropdown Menu */}
           {profileDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-zinc-700 shadow-2xl py-2 z-50 text-slate-800 dark:text-zinc-200 animate-in fade-in zoom-in-95 duration-100">
-              {/* User details header */}
+            <div
+              data-testid="profile-dropdown-menu"
+              className="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-zinc-700 shadow-2xl py-2 z-50 text-slate-800 dark:text-zinc-200 animate-in fade-in zoom-in-95 duration-100"
+            >
+              {/* User details header with Avatar, Display Name, Email, Role Badge */}
               <div className="px-4 py-3 border-b border-slate-100 dark:border-zinc-800">
-                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
-                  {displayName}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                  {user?.email || "No email provided"}
-                </p>
-                {user?.email_verified && (
-                  <div className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700/60 text-[10px] text-emerald-800 dark:text-emerald-400 font-medium">
-                    <CheckCircleIcon className="w-3 h-3 text-emerald-500 dark:text-emerald-400" />
-                    <span>Verified Session</span>
+                <div className="flex items-center gap-3">
+                  {user?.picture ? (
+                    <Image
+                      src={user.picture}
+                      alt={displayName}
+                      width={40}
+                      height={40}
+                      className="w-10 h-10 rounded-full border border-slate-200 dark:border-zinc-700 object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#E8452C] to-[#f97316] text-white text-sm font-bold flex items-center justify-center shrink-0 shadow-xs">
+                      {userInitials}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {displayName}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                      {user?.email || "guest@campusway.app"}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#E8452C]/10 text-[#E8452C] border border-[#E8452C]/20 uppercase">
+                        {user?.role ? `${user.role} • Campus` : "Student • Block 34"}
+                      </span>
+                      {user?.email_verified && (
+                        <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                          ✓ Verified
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Theme Dropdown Section */}
+              {/* Theme Dropdown Section (Light / Dark / Auto segmented pill) */}
               <ThemeDropdownSection />
 
-              {/* Status information */}
-              <div className="px-4 py-2.5 text-[11px] text-slate-500 dark:text-zinc-400 border-b border-slate-100 dark:border-zinc-800/80">
-                <div className="flex items-center justify-between">
-                  <span>Authentication</span>
-                  <span className="text-slate-700 dark:text-zinc-200 font-mono">
-                    {user?.auth_provider === "google" ? "Google OAuth 2.0" : "Email & Password"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span>Session Storage</span>
-                  <span className="text-slate-700 dark:text-zinc-200 font-mono">HTTP-Only Cookie</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="p-1.5 space-y-1">
+              {/* Navigation Links */}
+              <div className="p-1.5 border-b border-slate-100 dark:border-zinc-800 space-y-0.5">
                 <Link
                   href="/profile"
+                  data-testid="profile-link-settings"
                   onClick={() => setProfileDropdownOpen(false)}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
                 >
-                  <svg className="w-4 h-4 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>Profile & Settings</span>
+                  <SettingsIcon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                  <span>Profile &amp; Settings</span>
                 </Link>
+
+                <Link
+                  href="/profile?tab=saved"
+                  data-testid="profile-link-saved"
+                  onClick={() => setProfileDropdownOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                >
+                  <BookmarkIcon className="w-4 h-4 text-slate-500 dark:text-zinc-400" />
+                  <span>Saved Places</span>
+                </Link>
+
+                <Link
+                  href="/profile?tab=preferences"
+                  data-testid="profile-link-accessibility"
+                  onClick={() => setProfileDropdownOpen(false)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                >
+                  <AccessibilityIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>Accessibility preferences</span>
+                </Link>
+
+                {FEATURE_QR && (
+                  <Link
+                    href="/admin/qr"
+                    data-testid="profile-link-admin-qr"
+                    onClick={() => setProfileDropdownOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800/80 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <QrCodeIcon className="w-4 h-4 text-[#E8452C]" />
+                    <span>Admin / QR Codes</span>
+                  </Link>
+                )}
+              </div>
+
+              {/* Sign out button at the bottom with a subtle red hover */}
+              <div className="p-1.5">
                 <button
                   type="button"
+                  data-testid="profile-dropdown-signout"
                   onClick={handleSignOut}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
                 >
-                  <SignOutIcon className="w-4 h-4 text-rose-500 dark:text-rose-400" />
+                  <SignOutIcon className="w-4 h-4 text-rose-500" />
                   <span>Sign Out</span>
                 </button>
               </div>
