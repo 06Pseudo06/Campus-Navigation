@@ -142,3 +142,122 @@ export function isSafeRedirectTarget(url: string | null | undefined): boolean {
     return false;
   }
 }
+
+export interface QrScanResult {
+  valid: boolean;
+  destination: CampusLocation | BackendLocation | null;
+  origin: string | null;
+  error?: string;
+}
+
+/**
+ * Validates and extracts destination and origin from a scanned QR payload.
+ * Supports:
+ * 1. Absolute CampusWay navigation URLs (e.g. https://campusway.lpu.in/navigate?to=block-1)
+ * 2. Relative URLs (/navigate?to=block-1&from=gate-1)
+ * 3. Direct campus slugs or codes (e.g. 'block-1', 'gate-1', 'B1')
+ * Rejects untrusted external URLs and invalid destination codes.
+ */
+export function parseScannedQrPayload(
+  rawText: string | null | undefined,
+  catalog: (CampusLocation | BackendLocation)[] = VERIFIED_DATASET_C_LOCATIONS
+): QrScanResult {
+  if (!rawText || typeof rawText !== "string") {
+    return {
+      valid: false,
+      destination: null,
+      origin: null,
+      error: "No QR code content detected.",
+    };
+  }
+
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return {
+      valid: false,
+      destination: null,
+      origin: null,
+      error: "Scanned QR code was empty.",
+    };
+  }
+
+  // Case 1: Full URL or Relative URL with query parameters
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+    try {
+      // If relative, use a dummy base for parsing
+      const url = trimmed.startsWith("/")
+        ? new URL(trimmed, "https://campusway.lpu.in")
+        : new URL(trimmed);
+
+      // Validate trusted host if absolute
+      if (!trimmed.startsWith("/") && !isSafeRedirectTarget(trimmed)) {
+        return {
+          valid: false,
+          destination: null,
+          origin: null,
+          error: "Foreign QR code detected. This code is not an official CampusWay sign.",
+        };
+      }
+
+      // Check path
+      if (!url.pathname.startsWith("/navigate") && !url.pathname.startsWith("/explore")) {
+        return {
+          valid: false,
+          destination: null,
+          origin: null,
+          error: "Unrecognized QR format. Expected a CampusWay navigation destination.",
+        };
+      }
+
+      const { to, from } = parseNavigateParams(url.searchParams);
+      if (!to) {
+        return {
+          valid: false,
+          destination: null,
+          origin: null,
+          error: "QR code is missing a destination parameter.",
+        };
+      }
+
+      const destination = validateLocationIdentifier(to, catalog);
+      if (!destination) {
+        return {
+          valid: false,
+          destination: null,
+          origin: null,
+          error: `Destination '${to}' was not found in the verified campus registry.`,
+        };
+      }
+
+      return {
+        valid: true,
+        destination,
+        origin: from,
+      };
+    } catch {
+      return {
+        valid: false,
+        destination: null,
+        origin: null,
+        error: "Malformed QR code URL.",
+      };
+    }
+  }
+
+  // Case 2: Plain text location identifier (slug, code, or UUID)
+  const destination = validateLocationIdentifier(trimmed, catalog);
+  if (destination) {
+    return {
+      valid: true,
+      destination,
+      origin: null,
+    };
+  }
+
+  return {
+    valid: false,
+    destination: null,
+    origin: null,
+    error: `Unrecognized campus destination code '${trimmed.substring(0, 30)}'.`,
+  };
+}

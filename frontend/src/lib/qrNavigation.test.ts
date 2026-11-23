@@ -4,6 +4,7 @@ import {
   validateLocationIdentifier,
   buildNavigateUrl,
   isSafeRedirectTarget,
+  parseScannedQrPayload,
 } from "./qrNavigation";
 import { VERIFIED_DATASET_C_LOCATIONS } from "@/data/campusData";
 
@@ -120,6 +121,59 @@ describe("qrNavigation utilities", () => {
 
     it("rejects untrusted external domains", () => {
       expect(isSafeRedirectTarget("https://evil-phishing-site.com")).toBe(false);
+    });
+  });
+
+  describe("parseScannedQrPayload", () => {
+    it("parses valid absolute navigation URL", () => {
+      const res = parseScannedQrPayload("https://campusway.lpu.in/navigate?to=block-1");
+      expect(res.valid).toBe(true);
+      expect(res.destination?.slug).toBe("block-1");
+      expect(res.origin).toBeNull();
+    });
+
+    it("parses valid URL with both destination and origin", () => {
+      const res = parseScannedQrPayload("http://localhost:3000/navigate?to=block-2&from=gate-1");
+      expect(res.valid).toBe(true);
+      expect(res.destination?.slug).toBe("block-2");
+      expect(res.origin).toBe("gate-1");
+    });
+
+    it("parses relative navigation path", () => {
+      const res = parseScannedQrPayload("/navigate?to=uni-hospital");
+      expect(res.valid).toBe(true);
+      expect(res.destination?.slug).toBe("uni-hospital");
+    });
+
+    it("parses plain campus location slug", () => {
+      const res = parseScannedQrPayload("block-1");
+      expect(res.valid).toBe(true);
+      expect(res.destination?.slug).toBe("block-1");
+    });
+
+    it("parses case-insensitive code", () => {
+      const res = parseScannedQrPayload("GATE-1");
+      expect(res.valid).toBe(true);
+      expect(res.destination?.slug).toBe("gate-1");
+    });
+
+    it("rejects foreign non-campus URLs", () => {
+      const res = parseScannedQrPayload("https://external-website.com/menu");
+      expect(res.valid).toBe(false);
+      expect(res.destination).toBeNull();
+      expect(res.error).toContain("Foreign QR code detected");
+    });
+
+    it("rejects unknown campus location code", () => {
+      const res = parseScannedQrPayload("/navigate?to=block-99-unknown");
+      expect(res.valid).toBe(false);
+      expect(res.destination).toBeNull();
+      expect(res.error).toContain("not found in the verified campus registry");
+    });
+
+    it("rejects empty or null input cleanly", () => {
+      expect(parseScannedQrPayload(null).valid).toBe(false);
+      expect(parseScannedQrPayload("   ").valid).toBe(false);
     });
   });
 });
