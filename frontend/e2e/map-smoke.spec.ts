@@ -366,4 +366,43 @@ test.describe("map smoke", () => {
     await expect(instantDropdown).toBeVisible();
     await expect(page.getByTestId("search-result-block-1")).toBeVisible();
   });
+
+  test("directions panel renders card system with mode switcher and place details", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/explore");
+
+    // 1. Verify Card A Mode Switcher
+    const walkingMode = page.getByRole("button", { name: /Walking/ });
+    const accessibleMode = page.getByRole("button", { name: /Accessible/ });
+    await expect(walkingMode).toBeVisible({ timeout: 15_000 });
+    await expect(accessibleMode).toBeVisible();
+
+    // Click Accessible Mode
+    await accessibleMode.click();
+    await expect(accessibleMode).toHaveClass(/text-emerald/);
+
+    // 2. Select a location without calculating route to verify Card D (Place details card)
+    const block1Item = page.getByTestId("location-item-block-1");
+    await expect(block1Item).toBeVisible();
+    await block1Item.click();
+
+    const placeDetailsCard = page.getByTestId("place-details-card");
+    await expect(placeDetailsCard).toBeVisible();
+    await expect(page.getByTestId("place-directions-here-btn")).toBeVisible();
+
+    // 3. Click "Directions Here" to calculate route and display Card B & C
+    await page.getByTestId("place-directions-here-btn").click();
+    await expect(page.getByTestId("route-summary-panel")).toBeVisible({ timeout: 15_000 });
+
+    // Verify "Start Navigation" button in Card B
+    const startNavBtn = page.getByTestId("start-navigation-button");
+    await expect(startNavBtn).toBeVisible();
+    await startNavBtn.click();
+    await expect(startNavBtn).toContainText("Navigation Active");
+
+    // Verify Turn-by-Turn directions in Card C
+    await expect(page.getByText(/Turn-by-Turn Directions/)).toBeVisible();
+  });
 });
