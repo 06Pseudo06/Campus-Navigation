@@ -100,4 +100,23 @@ test.describe("map smoke", () => {
     await expect(scannerModal).not.toBeVisible();
     await expect(page.getByText("Block 2").first()).toBeVisible();
   });
+
+  test("preserves original typography and font hierarchy", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
+
+    // 1. Assert body font family includes Inter Tight / sans-serif
+    const bodyFont = await page.evaluate(() =>
+      window.getComputedStyle(document.body).fontFamily
+    );
+    expect(bodyFont.toLowerCase()).toMatch(/inter tight|font-sans|sans-serif/);
+
+    // 2. Assert mono labels use JetBrains Mono / monospace
+    const monoLabel = page.locator(".font-mono, [class*='font-mono']").first();
+    await expect(monoLabel).toBeVisible();
+    const monoFont = await monoLabel.evaluate((el) =>
+      window.getComputedStyle(el).fontFamily
+    );
+    expect(monoFont.toLowerCase()).toMatch(/jetbrains mono|font-mono|monospace/);
+  });
 });

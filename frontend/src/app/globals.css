@@ -2,6 +2,11 @@
 @import "lenis/dist/lenis.css";
 
 :root {
+  --font-sans: var(--font-inter-tight), "Inter Tight", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), "JetBrains Mono", "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display: var(--font-sans);
+  --font-geist-sans: var(--font-sans);
+  --font-geist-mono: var(--font-mono);
   --background: #F5F7FB;
   --foreground: #172033;
   --surface: #FFFFFF;
@@ -37,8 +42,9 @@
   --color-muted: var(--text-muted);
   --color-brand: var(--primary-orange);
   --color-brand-hover: var(--primary-orange-hover);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
 }
 
 html {
@@ -48,9 +54,30 @@ html {
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
   overflow-x: hidden;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.font-mono-meta {
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Scope third-party Mapbox styles and isolate typography */
+.mapboxgl-map {
+  font-family: inherit;
+}
+.mapboxgl-map .mapboxgl-popup-content,
+.mapboxgl-map .mapboxgl-marker,
+.mapboxgl-map .mapboxgl-ctrl-group {
+  font-family: var(--font-sans);
 }
 
 /* Prevent browser autofill from turning input background blue */
