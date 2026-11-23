@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition, useRef } from "react";
+import React, { useState, useEffect, useMemo, useTransition, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -16,11 +16,20 @@ import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
+import {
+  snapGpsToGraphNode,
+  shouldRecomputeRoute,
+  getNearestSurveyedPlaces,
+  NearestSurveyedPlace,
+} from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
-import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
 import { FEATURE_QR } from "@/lib/featureFlags";
+import { destroySmoothScroll } from "@/lib/motion";
+import { WalkingIcon, ChevronDownIcon } from "@/components/dashboard/DashboardIcons";
+import { formatDistance } from "@/lib/routeFormatting";
+
+export type BottomSheetSnap = "peek" | "half" | "full";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -61,7 +70,49 @@ export default function ExploreDashboardPage() {
 
   // Mobile menu / drawer controls
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [sheetSnap, setSheetSnap] = useState<BottomSheetSnap>("peek");
+
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchCurrentY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchCurrentY.current - touchStartY.current;
+    if (Math.abs(delta) > 35) {
+      if (delta < 0) {
+        setSheetSnap((prev) => (prev === "peek" ? "half" : "full"));
+      } else {
+        setSheetSnap((prev) => (prev === "full" ? "half" : "peek"));
+      }
+    }
+  };
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("campusway-sidebar-collapsed");
+    if (stored !== null) return stored === "true";
+    return window.innerWidth < 1280;
+  });
+
+  const handleToggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("campusway-sidebar-collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Quick category filter pill state ("all", "building", "hostel", "service", "gate", "landmark")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Global search & filter query (debounced by 250ms for smooth filtering)
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,6 +131,14 @@ export default function ExploreDashboardPage() {
   const [activeRoute, setActiveRoute] = useState<CampusRoute | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [showRoute, setShowRoute] = useState<boolean>(true);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
+
+  // Stage 4: Out-of-coverage states
+  const [unsurveyedState, setUnsurveyedState] = useState<{
+    distanceMeters: number;
+    nearestPlaces: NearestSurveyedPlace[];
+  } | null>(null);
+  const [isOutsideCampusBanner, setIsOutsideCampusBanner] = useState<boolean>(false);
 
   // Bookmarked location IDs
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -159,74 +218,44 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // 3. Compute optimal walking path whenever origin or destination changes
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (locationsLoaded && apiLocations.length === 0) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError("Verified campus locations are currently unavailable.");
-        }
-      });
-    } else if (
-      locationsLoaded &&
-      originLocation &&
-      selectedLocation &&
-      originLocation.id !== selectedLocation.id
-    ) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError(null);
-        }
-      });
-      routeService
-        .calculateRoute(originLocation, selectedLocation)
-        .then((rt) => {
-          if (!isCancelled) {
-            setActiveRoute(rt);
-            setRouteError(null);
-          }
-        })
-        .catch((err) => {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            return;
-          }
-          console.warn("[ExplorePage] Route calculation error:", err);
-          if (!isCancelled) {
-            setActiveRoute(null);
-            setRouteError(
-              err instanceof Error ? err.message : "Unable to calculate route."
-            );
-          }
-        });
-    } else if (
-      originLocation &&
-      selectedLocation &&
-      originLocation.id === selectedLocation.id
-    ) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError(null);
-        }
-      });
+  // Explicit route calculation triggered by the "Get directions" button or Enter key (Stage 4)
+  const handleCalculateRoute = useCallback(async () => {
+    if (!originLocation || !selectedLocation) return;
+    if (originLocation.id === selectedLocation.id) {
+      setActiveRoute(null);
+      return;
     }
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [originLocation, selectedLocation, locationsLoaded, apiLocations.length]);
+    setIsCalculatingRoute(true);
+    setRouteError(null);
 
-  // Location Handlers
+    try {
+      const rt = await routeService.calculateRoute(originLocation, selectedLocation);
+      setActiveRoute(rt);
+      setShowRoute(true);
+      setRouteError(null);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      console.warn("[ExplorePage] Route calculation error:", err);
+      setActiveRoute(null);
+      setRouteError(err instanceof Error ? err.message : "Unable to calculate route.");
+    } finally {
+      setIsCalculatingRoute(false);
+    }
+  }, [originLocation, selectedLocation]);
+
+  // Location Handlers: selecting origin/destination updates pins & inputs without auto-calculating
   const handleSelectOrigin = (loc: CampusLocation) => {
     setOriginLocation(loc);
+    setIsOriginCurrentLocation(false);
+    setUnsurveyedState(null);
   };
 
   const handleSelectDestination = (loc: CampusLocation) => {
     setSelectedLocation(loc);
+    setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
   };
 
   const handleSwapLocations = () => {
@@ -234,6 +263,8 @@ export default function ExploreDashboardPage() {
       const temp = originLocation;
       setOriginLocation(selectedLocation);
       setSelectedLocation(temp);
+      setIsOriginCurrentLocation(false);
+      setUnsurveyedState(null);
     }
   };
 
@@ -241,28 +272,44 @@ export default function ExploreDashboardPage() {
     const mainGate = allLocations.find((l) => l.slug === "gate-1") || allLocations[0];
     if (mainGate) {
       setOriginLocation(mainGate);
+      setIsOriginCurrentLocation(false);
+      setUnsurveyedState(null);
     }
   };
 
   const handleSelectCurrentLocationAsOrigin = async () => {
     setIsOriginCurrentLocation(true);
+    setUnsurveyedState(null);
+    setIsOutsideCampusBanner(false);
     if (!geo.coordinates) {
       await geo.requestLocation();
     }
   };
 
-  // Snap GPS position to nearest graph node when "My current location" is active
+  // Stage 4: Handle the 3 distinct origin states cleanly
   useEffect(() => {
     if (!isOriginCurrentLocation || !geo.coordinates) return;
 
+    // State C: GPS is outside campus bounds
     if (!geo.isInsideCampus) {
+      setIsOutsideCampusBanner(true);
+      setUnsurveyedState(null);
+      const gate1 = allLocations.find((l) => l.slug === "gate-1") || allLocations[0];
+      if (gate1) {
+        setOriginLocation(gate1);
+      }
       return;
     }
 
+    // Inside campus bounds: check distance to nearest surveyed graph node
     if (backendNodes.length === 0) return;
 
     const snapResult = snapGpsToGraphNode(geo.coordinates, backendNodes);
-    if (snapResult.snappedNode) {
+
+    if (snapResult.status === "snapped" && snapResult.snappedNode) {
+      // State A: Inside graph coverage (<= 75m)
+      setIsOutsideCampusBanner(false);
+      setUnsurveyedState(null);
       const snapped = snapResult.snappedNode;
       const nearbyLoc = allLocations.find(
         (l) => l.nodeId === snapped.id || l.id === snapped.location_id
@@ -283,7 +330,7 @@ export default function ExploreDashboardPage() {
 
       setOriginLocation(gpsOriginLocation);
 
-      // Check if re-routing is required
+      // Re-route dynamically if user has active route and moved significantly
       if (
         lastRoutedCoordsRef.current &&
         activeRoute &&
@@ -311,6 +358,14 @@ export default function ExploreDashboardPage() {
           longitude: geo.coordinates.longitude,
         };
       }
+    } else if (snapResult.status === "out_of_range") {
+      // State B: Inside campus boundary, but > 75m from surveyed paths
+      setIsOutsideCampusBanner(false);
+      const nearestPlaces = getNearestSurveyedPlaces(geo.coordinates, allLocations, 3);
+      setUnsurveyedState({
+        distanceMeters: Math.round(snapResult.distanceMeters),
+        nearestPlaces,
+      });
     }
   }, [
     isOriginCurrentLocation,
@@ -338,26 +393,40 @@ export default function ExploreDashboardPage() {
     });
   };
 
-  // Filtered locations based on debounced topbar search query
+  // Filtered locations based on debounced topbar search query and quick category filter
   const displayedLocations = useMemo(() => {
+    let result = allLocations;
+    if (selectedCategory && selectedCategory !== "all") {
+      result = result.filter((loc) => loc.category === selectedCategory);
+    }
     const q = debouncedSearchQuery.trim().toLowerCase();
-    if (!q) return allLocations;
-    return allLocations.filter(
+    if (!q) return result;
+    return result.filter(
       (loc) =>
         loc.name.toLowerCase().includes(q) ||
         loc.code.toLowerCase().includes(q) ||
         loc.description.toLowerCase().includes(q) ||
         loc.departments?.some((d) => d.toLowerCase().includes(q))
     );
-  }, [debouncedSearchQuery, allLocations]);
+  }, [debouncedSearchQuery, selectedCategory, allLocations]);
 
   const savedLocationsList = useMemo(() => {
     return allLocations.filter((l) => savedIds.includes(l.id));
   }, [savedIds, allLocations]);
 
+  // Stage 3 Scrolling Fix: Ensure smooth-scroll / wheel listeners from landing page are cleared
+  // and release any lock on document overflow.
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    destroySmoothScroll();
+  }, []);
+
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#0a0f1d] text-zinc-100 font-sans">
-      {/* 1. Left Navigation Sidebar */}
+    <div className="h-screen w-screen flex overflow-hidden bg-[#F6F4EF] dark:bg-[#0a0f1d] text-slate-900 dark:text-zinc-100 font-sans transition-colors duration-200">
+      {/* 1. Left Navigation Sidebar (Collapsible Rail) */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={(tab) => {
@@ -368,11 +437,13 @@ export default function ExploreDashboardPage() {
         isOpenMobile={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
         savedCount={savedIds.length}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
 
       {/* 2. Main Content View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Topbar */}
+        {/* Topbar with Centered Search, Keyboard Shortcut, and Category Pills */}
         <Topbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -380,9 +451,13 @@ export default function ExploreDashboardPage() {
             !locationsLoaded ? "loading" : apiLocations.length > 0 ? "available" : "unavailable"
           }
           onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-          onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
-          isMobileDrawerOpen={mobileDrawerOpen}
+          onToggleMobileDrawer={() => setSheetSnap((prev) => (prev === "peek" ? "half" : "peek"))}
+          isMobileDrawerOpen={sheetSnap !== "peek"}
           onOpenQrScanner={() => setIsQrScannerOpen(true)}
+          locations={allLocations}
+          onSelectLocation={handleSelectDestination}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
         />
 
         {/* OAuth Authentication Success Banner */}
@@ -404,7 +479,7 @@ export default function ExploreDashboardPage() {
         )}
 
         {/* Tab Body View */}
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 flex overflow-hidden relative min-h-0">
           {currentTab === "explore" && (
             <>
               {/* Central Map Canvas (Mapbox with Vector Fallback) */}
@@ -427,53 +502,138 @@ export default function ExploreDashboardPage() {
                   onLocateUser={geo.requestLocation}
                   isInsideCampus={geo.isInsideCampus}
                   geolocationError={geo.error?.message}
-                />
-                <MockLocationPanel
                   isMocked={geo.isMocked}
-                  currentCoords={geo.coordinates}
                   onSetMockCoordinates={geo.setMockCoordinates}
                 />
               </main>
 
-              {/* Right Destination Panel (Point A to Point B Routing) */}
+              {/* Right Destination Panel (Responsive: Desktop Right Panel / Tablet & Mobile Bottom Sheet) */}
               <div
-                className={`lg:block ${mobileDrawerOpen
-                  ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
-                  : "hidden lg:block"
-                  }`}
+                data-testid="bottom-sheet"
+                data-snap={sheetSnap}
+                className={`transition-all duration-300 ease-out z-40 shrink-0 flex flex-col bg-white/95 dark:bg-[#0d131f]/95 backdrop-blur-xl lg:backdrop-blur-none
+                  lg:static lg:h-full lg:w-96 lg:z-10 lg:rounded-none lg:border-t-0 lg:border-l lg:border-slate-200 lg:dark:border-zinc-800 lg:shadow-xl
+                  fixed bottom-0 inset-x-0 rounded-t-3xl border-t border-slate-200 dark:border-zinc-800 shadow-2xl
+                  ${
+                    sheetSnap === "peek"
+                      ? "h-20 lg:h-full"
+                      : sheetSnap === "half"
+                      ? "h-[50vh] lg:h-full"
+                      : "h-[88vh] lg:h-full"
+                  }
+                `}
               >
-                <DestinationPanel
-                  locations={displayedLocations}
-                  originLocation={originLocation}
-                  selectedLocation={selectedLocation}
-                  onSelectOrigin={(loc) => {
-                    setIsOriginCurrentLocation(false);
-                    handleSelectOrigin(loc);
-                  }}
-                  onSelectDestination={handleSelectDestination}
-                  onSelectLocation={handleSelectDestination}
-                  onSwapLocations={() => {
-                    setIsOriginCurrentLocation(false);
-                    handleSwapLocations();
-                  }}
-                  onUseCurrentLocation={() => {
-                    setIsOriginCurrentLocation(false);
-                    handleUseCurrentLocation();
-                  }}
-                  onSelectCurrentLocationAsOrigin={handleSelectCurrentLocationAsOrigin}
-                  isOriginCurrentLocation={isOriginCurrentLocation}
-                  isRerouting={isRerouting}
-                  userCoordinates={geo.coordinates}
-                  isInsideCampus={geo.isInsideCampus}
-                  geolocationError={geo.error?.message}
-                  activeRoute={activeRoute}
-                  showRoute={showRoute}
-                  onToggleRoute={() => setShowRoute(!showRoute)}
-                  routeError={routeError}
-                  savedLocationIds={savedIds}
-                  onToggleSaveLocation={handleToggleSaveLocation}
-                  onOpenQrScanner={() => setIsQrScannerOpen(true)}
-                />
+                {/* Draggable Handle & Header Bar (Tablet & Mobile only: lg:hidden) */}
+                <div
+                  data-testid="bottom-sheet-handle"
+                  onClick={() =>
+                    setSheetSnap((prev) => (prev === "peek" ? "half" : prev === "half" ? "full" : "peek"))
+                  }
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  className="lg:hidden pt-2.5 pb-2 px-4 cursor-pointer select-none shrink-0 border-b border-slate-100 dark:border-zinc-800/80 flex flex-col items-center"
+                >
+                  <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-700 hover:bg-slate-400 dark:hover:bg-zinc-600 transition-colors mb-2" />
+
+                  {/* Peek Content Row */}
+                  <div className="w-full flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {activeRoute ? (
+                        <>
+                          <div className="w-6 h-6 rounded-lg bg-[#DE4B31]/20 text-[#DE4B31] flex items-center justify-center shrink-0">
+                            <WalkingIcon className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                              ~{activeRoute.estimatedWalkingMinutes} min ({formatDistance(activeRoute.distanceMeters)})
+                            </p>
+                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                              To {activeRoute.toName}
+                            </p>
+                          </div>
+                        </>
+                      ) : selectedLocation ? (
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {selectedLocation.name}
+                          </p>
+                          <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                            {selectedLocation.category.toUpperCase()} • {selectedLocation.code || "Place Details"}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">
+                          Directions & Places
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Snap Mode Pill Controls */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-semibold">
+                        {sheetSnap}
+                      </span>
+                      <div
+                        className={`p-1 text-slate-400 transition-transform duration-200 ${
+                          sheetSnap === "full" ? "rotate-180" : ""
+                        }`}
+                      >
+                        <ChevronDownIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main DestinationPanel Body */}
+                <div
+                  className={`flex-1 min-h-0 overflow-hidden ${
+                    sheetSnap === "peek" ? "hidden lg:flex lg:flex-col" : "flex flex-col"
+                  }`}
+                >
+                  <DestinationPanel
+                    locations={displayedLocations}
+                    originLocation={originLocation}
+                    selectedLocation={selectedLocation}
+                    onSelectOrigin={(loc) => {
+                      setIsOriginCurrentLocation(false);
+                      handleSelectOrigin(loc);
+                    }}
+                    onSelectDestination={handleSelectDestination}
+                    onSelectLocation={handleSelectDestination}
+                    onSwapLocations={() => {
+                      setIsOriginCurrentLocation(false);
+                      handleSwapLocations();
+                    }}
+                    onUseCurrentLocation={() => {
+                      setIsOriginCurrentLocation(false);
+                      handleUseCurrentLocation();
+                    }}
+                    onSelectCurrentLocationAsOrigin={handleSelectCurrentLocationAsOrigin}
+                    isOriginCurrentLocation={isOriginCurrentLocation}
+                    isRerouting={isRerouting}
+                    userCoordinates={geo.coordinates}
+                    isInsideCampus={geo.isInsideCampus}
+                    geolocationError={geo.error?.message}
+                    activeRoute={activeRoute}
+                    showRoute={showRoute}
+                    onToggleRoute={() => setShowRoute(!showRoute)}
+                    routeError={routeError}
+                    savedLocationIds={savedIds}
+                    onToggleSaveLocation={handleToggleSaveLocation}
+                    onOpenQrScanner={() => setIsQrScannerOpen(true)}
+                    onCalculateRoute={handleCalculateRoute}
+                    isCalculatingRoute={isCalculatingRoute}
+                    unsurveyedState={unsurveyedState}
+                    onSelectNearestPlace={(loc) => {
+                      setOriginLocation(loc);
+                      setUnsurveyedState(null);
+                      setIsOriginCurrentLocation(false);
+                    }}
+                    isOutsideCampusBanner={isOutsideCampusBanner}
+                    onDismissOutsideCampusBanner={() => setIsOutsideCampusBanner(false)}
+                  />
+                </div>
               </div>
             </>
           )}

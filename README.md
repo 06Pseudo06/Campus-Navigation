@@ -82,9 +82,16 @@ graph TD
 - Interactive campus exploration dashboard (`/explore`) backed only by the verified Dataset C campus survey, with searchable destinations and route planning over its pedestrian graph.
 - Context-driven hero CTAs that react to user authentication status in real time.
 - **High-Performance Map Engine**: Zero-SSR dynamic loading with an architectural blueprint skeleton, WebGL GPU-accelerated circle layers for junctions and background destinations (92% reduction in DOM marker footprint), and fluid 60fps route line animation.
-- **Client-Side GPS Location Services**: Continuous high-accuracy HTML5 Geolocation with battery-preserving Page Visibility API integration, pulsing user location marker with real-time heading and accuracy radius, $O(1)$ grid-based node snapping, and dynamic re-routing on $>15\text{m}$ movement.
+- **Dynamic Map Style Switcher**: 4 vector tile themes (Dark Architectural, Clean Streets, Satellite Hybrid, Blueprint Nav) with live style switching, polyline preservation, and automatic theme synchronization (dark style in dark mode, light style in light mode unless overridden).
+- **Responsive Layout & Bottom Sheet**: Mobile and tablet viewports feature an interactive 3-state bottom sheet (peek 80px, half 45vh, full 88vh) with touch-drag handle, smooth gesture snapping, and a consolidated single-container architecture eliminating duplicate DOM instances.
+- **Client-Side GPS Location Services**: Continuous high-accuracy HTML5 Geolocation with battery-preserving Page Visibility API integration, pulsing user location marker with real-time heading chevron and accuracy radius, $O(1)$ grid-based node snapping, and dynamic re-routing on $>15\text{m}$ movement.
+- **3-State GPS Routing Architecture**:
+  - *State A (Surveyed Area)*: User is within $75\text{m}$ of a verified graph node; automatically calculates shortest path from snapped location.
+  - *State B (Unsurveyed Campus Area)*: User is inside LPU bounds but $>75\text{m}$ from the pedestrian mesh; renders distance warning and lists nearest surveyed hubs (Gate 1, Block 34, Central Spine).
+  - *State C (Outside Campus Bounds)*: User is off-campus; displays a warm advisory banner offering 1-click routing starting from Main Gate 1.
 - **QR Navigation & Physical Signage**: Canonical deep links (`/navigate?to=...`), in-app vector QR generation (SVG & HD PNG), camera scanner with torch toggle and dual fallbacks (photo upload & manual code entry), and printable A4 signage sheets (`/admin/qr`).
-- **Privacy Guarantee**: 100% client-side GPS snapping and QR decoding; raw user coordinates are never transmitted across the network to any server.
+- **Zero-Server-Tracking Privacy Model**: 100% client-side GPS snapping and QR decoding; raw user coordinates remain in device memory and are never uploaded, logged, or stored on any server. Only topological survey IDs are sent to the routing engine.
+- **Comprehensive Profile & Help Desks**: Full 5-tab settings application (`/profile` with Profile, Preferences, Saved Places, Privacy & Data, Account Security) and dedicated Help Center (`/help` with live assistance ticketing, emergency contacts, campus service directory, and FAQs).
 
 ### 5. Provenance-Aware Map Import Pipeline (`/api/v1/import`)
 - Ingestion of external OpenStreetMap ways/nodes and surveyor GeoJSON FeatureCollections.
@@ -202,10 +209,10 @@ FRONTEND_URL=http://localhost:3000
 ### 6.1 Automated Test Execution
 
 ```bash
-# Run all frontend Vitest unit tests (67 tests across 8 suites)
+# Run all frontend Vitest unit tests (69 tests across 8 suites)
 npm --prefix frontend run test:unit
 
-# Run Playwright E2E smoke tests (Routing, QR Deep Links, & Scanner Modal)
+# Run Playwright E2E smoke tests (19 tests covering Routing, Viewports, Themes, GPS, QR, Profile, About, & Help)
 npm --prefix frontend run test:e2e:smoke
 
 # Run TypeScript type check

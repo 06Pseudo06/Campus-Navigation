@@ -4,6 +4,7 @@
 
 import { haversineMeters } from "./mapViewport";
 import { BackendNode } from "@/services/locationService";
+import { CampusLocation } from "@/types/campus";
 
 export interface SnapResult {
   snappedNode: BackendNode | null;
@@ -11,10 +12,99 @@ export interface SnapResult {
   status: "snapped" | "low_accuracy" | "out_of_range" | "no_nodes";
 }
 
-export const MAX_SNAP_DISTANCE_METERS = 150;
+export const MAX_SNAP_DISTANCE_METERS = 75; // Stage 4: 75m graph coverage boundary
 export const ACCURACY_SNAP_THRESHOLD_METERS = 50;
 export const RECOMPUTE_MOVE_THRESHOLD_METERS = 15;
 export const RECOMPUTE_OFF_ROUTE_THRESHOLD_METERS = 25;
+
+export interface NearestSurveyedPlace {
+  id: string;
+  name: string;
+  slug?: string;
+  distanceMeters: number;
+  bearingDegrees: number;
+  compassDirection: string;
+  location: CampusLocation;
+}
+
+/**
+ * Calculates initial bearing in degrees (0-360) from point 1 to point 2.
+ */
+export function calculateBearingDegrees(
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number
+): number {
+  const φ1 = (fromLat * Math.PI) / 180;
+  const φ2 = (toLat * Math.PI) / 180;
+  const Δλ = ((toLng - fromLng) * Math.PI) / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  const θ = Math.atan2(y, x);
+  return (Math.round((θ * 180) / Math.PI) + 360) % 360;
+}
+
+/**
+ * Converts a bearing in degrees to an 8-point cardinal compass string (e.g. North, North-East).
+ */
+export function bearingToCompass(degrees: number): string {
+  const directions = [
+    "North",
+    "North-East",
+    "East",
+    "South-East",
+    "South",
+    "South-West",
+    "West",
+    "North-West",
+  ];
+  const index = Math.round(degrees / 45) % 8;
+  return directions[index];
+}
+
+/**
+ * Computes the top N nearest verified campus locations with distance and compass direction.
+ */
+export function getNearestSurveyedPlaces(
+  coords: { latitude: number; longitude: number },
+  locations: CampusLocation[],
+  limit: number = 3
+): NearestSurveyedPlace[] {
+  const withDistance = locations
+    .filter(
+      (loc) =>
+        loc.coordinates &&
+        Number.isFinite(loc.coordinates.lat) &&
+        Number.isFinite(loc.coordinates.lng)
+    )
+    .map((loc) => {
+      const dist = haversineMeters(
+        coords.latitude,
+        coords.longitude,
+        loc.coordinates.lat,
+        loc.coordinates.lng
+      );
+      const bearing = calculateBearingDegrees(
+        coords.latitude,
+        coords.longitude,
+        loc.coordinates.lat,
+        loc.coordinates.lng
+      );
+      return {
+        id: loc.id,
+        name: loc.name,
+        slug: loc.slug,
+        distanceMeters: Math.round(dist),
+        bearingDegrees: bearing,
+        compassDirection: bearingToCompass(bearing),
+        location: loc,
+      };
+    });
+
+  withDistance.sort((a, b) => a.distanceMeters - b.distanceMeters);
+  return withDistance.slice(0, limit);
+}
 
 /**
  * 2D Spatial Grid Index for fast O(1) graph node queries.

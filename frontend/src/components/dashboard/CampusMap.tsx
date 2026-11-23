@@ -3,8 +3,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import Map, {
   Marker,
-  NavigationControl,
-  GeolocateControl,
   Source,
   Layer,
   Popup,
@@ -16,6 +14,8 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
   CompassIcon,
+  CompassNeedleIcon,
+  MaximizeIcon,
   LayersIcon,
   WalkingIcon,
 } from "./DashboardIcons";
@@ -44,16 +44,18 @@ import {
   getAccessibilityBadge,
 } from "@/lib/routeFormatting";
 import { LocateButton } from "./LocateButton";
-import { FEATURE_GPS } from "@/lib/featureFlags";
+import { MockLocationDrawer } from "./MockLocationPanel";
+import { FEATURE_GPS, IS_DEV } from "@/lib/featureFlags";
 import type { GeoCoordinates, GeolocationStatus, GeolocationPermission } from "@/hooks/useGeolocation";
+import { useTheme } from "@/context/ThemeContext";
 
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
   dark: "mapbox://styles/mapbox/dark-v11",
-  standard: "mapbox://styles/mapbox/navigation-night-v1",
-  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
   streets: "mapbox://styles/mapbox/streets-v12",
-  blueprint: "mapbox://styles/mapbox/dark-v11",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+  blueprint: "mapbox://styles/mapbox/navigation-night-v1",
+  standard: "mapbox://styles/mapbox/navigation-night-v1",
 };
 
 // Category colors for pins
@@ -88,6 +90,8 @@ interface CampusMapProps {
   onLocateUser?: () => void;
   isInsideCampus?: boolean;
   geolocationError?: string | null;
+  isMocked?: boolean;
+  onSetMockCoordinates?: (coords: Partial<GeoCoordinates> | null) => void;
 }
 
 export function CampusMap({
@@ -105,6 +109,8 @@ export function CampusMap({
   onLocateUser,
   isInsideCampus = true,
   geolocationError = null,
+  isMocked = false,
+  onSetMockCoordinates,
 }: CampusMapProps) {
   // Map engine state: "mapbox" or "vector" (fallback)
   const [engine, setEngine] = useState<"mapbox" | "vector">(
@@ -114,8 +120,63 @@ export function CampusMap({
 
   // Mapbox map reference
   const mapRef = useRef<MapRef | null>(null);
-  const [layer, setLayer] = useState<MapLayerMode>("dark");
+  const { resolvedTheme } = useTheme();
+  const [styleLoadKey, setStyleLoadKey] = useState<number>(0);
+
+  const [userExplicitLayer, setUserExplicitLayer] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem("campusway-map-style-explicit"));
+  });
+
+  const [layer, setLayer] = useState<MapLayerMode>(() => {
+    if (typeof window !== "undefined") {
+      const explicitFlag = localStorage.getItem("campusway-map-style-explicit");
+      const storedStyle = localStorage.getItem("campusway-map-style");
+      if (explicitFlag && storedStyle && storedStyle in MAP_STYLES) {
+        return storedStyle as MapLayerMode;
+      }
+    }
+    return resolvedTheme === "light" ? "streets" : "dark";
+  });
+
+  // Switch default style when theme changes, unless user explicitly selected a layer
+  useEffect(() => {
+    if (!userExplicitLayer) {
+      setLayer(resolvedTheme === "light" ? "streets" : "dark");
+    }
+  }, [resolvedTheme, userExplicitLayer]);
+
   const [layerMenuOpen, setLayerMenuOpen] = useState<boolean>(false);
+
+  const handleSelectStyle = useCallback((newLayer: MapLayerMode) => {
+    setLayer(newLayer);
+    setUserExplicitLayer(true);
+    try {
+      localStorage.setItem("campusway-map-style", newLayer);
+      localStorage.setItem("campusway-map-style-explicit", "true");
+    } catch {}
+    setLayerMenuOpen(false);
+  }, []);
+
+  const handleResetStyle = useCallback(() => {
+    setUserExplicitLayer(false);
+    try {
+      localStorage.removeItem("campusway-map-style");
+      localStorage.removeItem("campusway-map-style-explicit");
+    } catch {}
+    setLayer(resolvedTheme === "light" ? "streets" : "dark");
+    setLayerMenuOpen(false);
+  }, [resolvedTheme]);
+
+  const handleMapLoad = useCallback((evt: { target: { on?: (event: string, callback: () => void) => void } }) => {
+    const map = evt?.target;
+    if (map && typeof map.on === "function") {
+      map.on("style.load", () => {
+        setStyleLoadKey((prev) => prev + 1);
+      });
+    }
+  }, []);
+
   const [popupLocation, setPopupLocation] = useState<CampusLocation | null>(null);
 
   // Vector fallback zoom state
@@ -125,25 +186,111 @@ export function CampusMap({
   // Initial viewport state persisted across sessions via sessionStorage
   const [initialViewport] = useState<MapViewportState>(() => getStoredViewport());
 
-  // Reset view to default LPU campus center
+  // Camera state tracking for Compass & Scale Bar
+  const [currentBearing, setCurrentBearing] = useState<number>(() => initialViewport.bearing || 0);
+  const [currentZoom, setCurrentZoom] = useState<number>(() => initialViewport.zoom || DEFAULT_ZOOM);
+  const [currentLatitude, setCurrentLatitude] = useState<number>(
+    () => initialViewport.latitude || DATASET_C_INITIAL_CENTER.latitude
+  );
+  const [mockPanelOpen, setMockPanelOpen] = useState<boolean>(false);
+
+  const isMockDisabled = process.env.NEXT_PUBLIC_ENABLE_MOCK_LOCATION === "false";
+  const isMockAllowed =
+    !isMockDisabled &&
+    Boolean(onSetMockCoordinates) &&
+    (IS_DEV || process.env.NEXT_PUBLIC_ENABLE_MOCK_LOCATION === "true");
+
+  // Metric scale calculation (meters per pixel at current latitude & zoom)
+  const metersPerPixel = useMemo(() => {
+    return (
+      (156543.03392 * Math.cos((currentLatitude * Math.PI) / 180)) /
+      Math.pow(2, currentZoom)
+    );
+  }, [currentLatitude, currentZoom]);
+
+  const scaleBar = useMemo(() => {
+    const targetPx = 80;
+    const rawMeters = targetPx * metersPerPixel;
+    const standardScales = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+    let distance = standardScales[0];
+    for (const s of standardScales) {
+      if (s <= rawMeters) {
+        distance = s;
+      } else {
+        break;
+      }
+    }
+    const barWidthPx = Math.max(28, Math.min(140, Math.round(distance / metersPerPixel)));
+    const label = distance >= 1000 ? `${distance / 1000} km` : `${distance} m`;
+    return { barWidthPx, label };
+  }, [metersPerPixel]);
+
+  const handleZoomIn = useCallback(() => {
+    if (engine === "mapbox" && mapRef.current) {
+      mapRef.current.zoomIn({ duration: 300 });
+    } else {
+      setVectorZoom((prev) => Math.min(prev + 0.25, 2.5));
+    }
+  }, [engine]);
+
+  const handleZoomOut = useCallback(() => {
+    if (engine === "mapbox" && mapRef.current) {
+      mapRef.current.zoomOut({ duration: 300 });
+    } else {
+      setVectorZoom((prev) => Math.max(prev - 0.25, 0.75));
+    }
+  }, [engine]);
+
+  const handleResetBearing = useCallback(() => {
+    if (engine === "mapbox" && mapRef.current) {
+      try {
+        mapRef.current.rotateTo(0, { duration: 500 });
+        mapRef.current.setPitch(40);
+      } catch {}
+    }
+    setCurrentBearing(0);
+  }, [engine]);
+
+  // Reset view to default LPU campus bounds
   const handleResetView = useCallback(() => {
     clearStoredViewport();
     if (engine === "mapbox" && mapRef.current) {
-      mapRef.current.flyTo({
-        center: [DATASET_C_INITIAL_CENTER.longitude, DATASET_C_INITIAL_CENTER.latitude],
-        zoom: DEFAULT_ZOOM,
-        pitch: 40,
-        bearing: 0,
-        duration: 1000,
-      });
+      const isMobile = typeof window !== "undefined" ? window.innerWidth < 1024 : false;
+      const padding = getResponsiveMapPadding(isMobile, false);
+      try {
+        mapRef.current.fitBounds(LPU_CAMPUS_BOUNDS, {
+          padding,
+          pitch: 40,
+          bearing: 0,
+          duration: 1000,
+        });
+      } catch {
+        mapRef.current.flyTo({
+          center: [DATASET_C_INITIAL_CENTER.longitude, DATASET_C_INITIAL_CENTER.latitude],
+          zoom: DEFAULT_ZOOM,
+          pitch: 40,
+          bearing: 0,
+          duration: 1000,
+        });
+      }
     } else if (engine === "vector") {
       setVectorZoom(1);
     }
+    setCurrentBearing(0);
   }, [engine]);
 
   // Persist camera viewport on move end to sessionStorage
   const handleMoveEnd = useCallback((evt: { viewState: MapViewportState }) => {
     saveStoredViewport(evt.viewState);
+    if (typeof evt.viewState.bearing === "number") {
+      setCurrentBearing(evt.viewState.bearing);
+    }
+    if (typeof evt.viewState.zoom === "number") {
+      setCurrentZoom(evt.viewState.zoom);
+    }
+    if (typeof evt.viewState.latitude === "number") {
+      setCurrentLatitude(evt.viewState.latitude);
+    }
   }, []);
 
   // Auto-switch to vector map if Mapbox experiences a runtime initialization error
@@ -381,10 +528,19 @@ export function CampusMap({
   const onMoveFrameRef = useRef<number | null>(null);
 
   const handleMapMove = useCallback(
-    (evt: { viewState: { longitude: number; latitude: number; zoom: number } }) => {
+    (evt: { viewState: { longitude: number; latitude: number; zoom: number; bearing?: number } }) => {
       if (onMoveFrameRef.current) return;
       onMoveFrameRef.current = requestAnimationFrame(() => {
         cameraRef.current = evt.viewState;
+        if (typeof evt.viewState.bearing === "number") {
+          setCurrentBearing(evt.viewState.bearing);
+        }
+        if (typeof evt.viewState.zoom === "number") {
+          setCurrentZoom(evt.viewState.zoom);
+        }
+        if (typeof evt.viewState.latitude === "number") {
+          setCurrentLatitude(evt.viewState.latitude);
+        }
         onMoveFrameRef.current = null;
       });
     },
@@ -424,32 +580,123 @@ export function CampusMap({
       className="relative w-full h-full bg-[#0a0f1d] overflow-hidden select-none flex flex-col justify-between"
       data-testid="campus-map"
     >
-      {/* ──── Top Control Toolbar ──── */}
-      <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
-        {/* Engine Switcher Toggle (Mapbox 3D vs Vector Canvas) */}
-        {IS_MAPBOX_TOKEN_VALID && !mapboxFailed && (
-          <button
-            type="button"
-            onClick={() => setEngine(engine === "mapbox" ? "vector" : "mapbox")}
-            className="h-10 px-3 rounded-xl bg-[#111827]/95 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700 shadow-xl backdrop-blur-md flex items-center gap-1.5 text-xs font-semibold transition-all cursor-pointer"
-            title={`Switch to ${engine === "mapbox" ? "Vector Canvas" : "Mapbox 3D"}`}
-            aria-label="Switch Map Engine"
-          >
-            <span>{engine === "mapbox" ? "🗺️ 3D Map" : "📐 Vector"}</span>
-          </button>
-        )}
-
-        {/* Reset View Button (Re-center campus in Mapbox 3D or Vector mode) */}
+      {/* ──── Unified Vertical Map Toolbar (Stage 6.3) ──── */}
+      <div
+        data-testid="unified-map-toolbar"
+        className="absolute top-4 right-4 z-30 flex flex-col items-center bg-white/95 dark:bg-[#111827]/95 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-1 gap-1 text-slate-700 dark:text-zinc-200"
+      >
+        {/* Zoom In (+) */}
         <button
           type="button"
-          onClick={handleResetView}
-          className="w-10 h-10 rounded-xl bg-[#111827]/90 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700/80 shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer group"
-          title="Reset Campus View"
-          aria-label="Reset campus view"
-          data-testid="reset-view-button"
+          onClick={handleZoomIn}
+          data-testid="map-zoom-in"
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 transition-colors cursor-pointer"
+          title="Zoom In"
+          aria-label="Zoom In"
         >
-          <CompassIcon className="w-5 h-5 text-[#DE4B31] group-hover:rotate-45 transition-transform duration-300" />
+          <ZoomInIcon className="w-4 h-4" />
         </button>
+
+        {/* Zoom Out (-) */}
+        <button
+          type="button"
+          onClick={handleZoomOut}
+          data-testid="map-zoom-out"
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 transition-colors cursor-pointer"
+          title="Zoom Out"
+          aria-label="Zoom Out"
+        >
+          <ZoomOutIcon className="w-4 h-4" />
+        </button>
+
+        <div className="w-6 h-px bg-slate-200 dark:bg-zinc-800 my-0.5" />
+
+        {/* Compass / Reset Bearing */}
+        <button
+          type="button"
+          onClick={handleResetBearing}
+          data-testid="map-compass"
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 transition-colors cursor-pointer group"
+          title="Reset Bearing (Face North)"
+          aria-label="Reset Bearing (Face North)"
+        >
+          <CompassNeedleIcon
+            className="w-5 h-5 transition-transform duration-300"
+            style={{ transform: `rotate(${-currentBearing}deg)` }}
+          />
+        </button>
+
+        {/* Layer Switcher (Dark, Streets, Satellite, Blueprint) */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setLayerMenuOpen(!layerMenuOpen)}
+            data-testid="layer-switcher-button"
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+              layerMenuOpen || userExplicitLayer
+                ? "bg-[#E8452C] text-white"
+                : "hover:bg-slate-100 dark:hover:bg-zinc-800"
+            }`}
+            title="Map Style"
+            aria-label="Map Layer"
+          >
+            <LayersIcon className="w-4 h-4" />
+          </button>
+
+          {layerMenuOpen && (
+            <div
+              data-testid="map-style-menu"
+              className="absolute top-0 right-12 w-48 rounded-2xl bg-white/95 dark:bg-[#111827]/95 border border-slate-200 dark:border-zinc-700 shadow-2xl backdrop-blur-xl p-2 z-40 flex flex-col gap-1 animate-in fade-in zoom-in-95"
+            >
+              <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 dark:border-zinc-800">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 font-mono">
+                  Map Style
+                </span>
+                {userExplicitLayer && (
+                  <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                    CUSTOM
+                  </span>
+                )}
+              </div>
+              {(
+                [
+                  { id: "dark" as const, label: "Dark Architectural" },
+                  { id: "streets" as const, label: "Clean Streets" },
+                  { id: "satellite" as const, label: "Satellite Hybrid" },
+                  { id: "blueprint" as const, label: "Blueprint Navigation" },
+                ] as const
+              ).map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  data-testid={`layer-option-${mode.id}`}
+                  onClick={() => handleSelectStyle(mode.id)}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
+                    layer === mode.id
+                      ? "bg-[#E8452C] text-white font-semibold"
+                      : "text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  <span>{mode.label}</span>
+                  {layer === mode.id && <span className="text-[10px]">✓</span>}
+                </button>
+              ))}
+
+              {userExplicitLayer && (
+                <div className="pt-1 mt-1 border-t border-slate-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    data-testid="layer-option-reset"
+                    onClick={handleResetStyle}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>↺ Reset to Theme Default</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* GPS Locate Me Button */}
         {FEATURE_GPS && onLocateUser && (
@@ -460,82 +707,70 @@ export function CampusMap({
             hasLocation={Boolean(userCoordinates)}
             isInsideCampus={isInsideCampus}
             errorMessage={geolocationError}
+            compact={true}
           />
         )}
 
-        {/* Vector Zoom Controls (only shown in Vector mode) */}
-        {engine === "vector" && (
-          <>
+        {/* Dev GPS Mock Button (Dev Only) */}
+        {isMockAllowed && onSetMockCoordinates && (
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setVectorZoom((prev) => Math.min(prev + 0.25, 2.5))}
-              className="w-10 h-10 rounded-xl bg-[#111827]/90 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700/80 shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer"
-              title="Zoom In"
-              aria-label="Zoom In"
+              data-testid="mock-location-toggle"
+              onClick={() => setMockPanelOpen(!mockPanelOpen)}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-mono transition-colors cursor-pointer ${
+                isMocked
+                  ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/50"
+                  : mockPanelOpen
+                  ? "bg-slate-200 dark:bg-zinc-800 text-slate-900 dark:text-white"
+                  : "hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+              }`}
+              title={isMocked ? "Mock GPS: Active" : "Dev GPS Mock"}
+              aria-label="Dev GPS Mock"
             >
-              <ZoomInIcon className="w-5 h-5" />
+              <span>🧪</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setVectorZoom((prev) => Math.max(prev - 0.25, 0.75))}
-              className="w-10 h-10 rounded-xl bg-[#111827]/90 hover:bg-[#1f2937] active:bg-zinc-700 text-zinc-200 border border-zinc-700/80 shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer"
-              title="Zoom Out"
-              aria-label="Zoom Out"
-            >
-              <ZoomOutIcon className="w-5 h-5" />
-            </button>
-          </>
+
+            {/* Dev GPS Mock Flyout Drawer */}
+            {mockPanelOpen && (
+              <div className="absolute top-0 right-12 z-40">
+                <MockLocationDrawer
+                  isMocked={isMocked}
+                  currentCoords={userCoordinates || null}
+                  onSetMockCoordinates={onSetMockCoordinates}
+                  onClose={() => setMockPanelOpen(false)}
+                />
+              </div>
+            )}
+          </div>
         )}
 
-        {/* Layer Switcher (Dark, Standard, Satellite, Streets) */}
-        <div className="relative">
+        <div className="w-6 h-px bg-slate-200 dark:bg-zinc-800 my-0.5" />
+
+        {/* Reset View Button (Fit Campus Bounds) */}
+        <button
+          type="button"
+          onClick={handleResetView}
+          className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-800 active:bg-slate-200 dark:active:bg-zinc-700 text-[#E8452C] transition-colors cursor-pointer group"
+          title="Reset Campus View (Fit Bounds)"
+          aria-label="Reset campus view"
+          data-testid="reset-view-button"
+        >
+          <MaximizeIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+        </button>
+
+        {/* Engine Switcher Toggle (Mapbox 3D vs Vector Canvas) */}
+        {IS_MAPBOX_TOKEN_VALID && !mapboxFailed && (
           <button
             type="button"
-            onClick={() => setLayerMenuOpen(!layerMenuOpen)}
-            className={`w-10 h-10 rounded-xl border shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer ${
-              layerMenuOpen || layer !== "dark"
-                ? "bg-[#DE4B31] text-white border-[#DE4B31]"
-                : "bg-[#111827]/90 hover:bg-[#1f2937] text-zinc-200 border-zinc-700/80"
-            }`}
-            title="Map Layer"
-            aria-label="Map Layer"
+            onClick={() => setEngine(engine === "mapbox" ? "vector" : "mapbox")}
+            className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs transition-colors cursor-pointer"
+            title={`Switch to ${engine === "mapbox" ? "Vector Canvas" : "Mapbox 3D"}`}
+            aria-label="Switch Map Engine"
           >
-            <LayersIcon className="w-5 h-5" />
+            <span>{engine === "mapbox" ? "🗺️" : "📐"}</span>
           </button>
-
-          {layerMenuOpen && (
-            <div className="absolute top-0 right-12 w-44 rounded-2xl bg-[#111827]/95 border border-zinc-700 shadow-2xl backdrop-blur-xl p-2 z-40 flex flex-col gap-1 animate-in fade-in zoom-in-95">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1">
-                Map Theme
-              </span>
-              {(
-                [
-                  { id: "dark", label: "Dark Architectural" },
-                  { id: "standard", label: "Navigation Night" },
-                  { id: "satellite", label: "Satellite Hybrid" },
-                  { id: "streets", label: "Clean Streets" },
-                ] as const
-              ).map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => {
-                    setLayer(mode.id);
-                    setLayerMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
-                    layer === mode.id
-                      ? "bg-[#DE4B31] text-white font-semibold"
-                      : "text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                >
-                  <span>{mode.label}</span>
-                  {layer === mode.id && <span className="text-[10px]">✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {showRoute && activeRoute?.waypoints && activeRoute.waypoints.length >= 2 && (
@@ -608,6 +843,7 @@ export function CampusMap({
             mapStyle={MAP_STYLES[layer] || MAP_STYLES.dark}
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
+            onLoad={handleMapLoad}
             onError={handleMapboxError}
             onMove={handleMapMove}
             onMoveEnd={handleMoveEnd}
@@ -622,12 +858,14 @@ export function CampusMap({
               }
             }}
           >
-            <NavigationControl position="bottom-right" showCompass showZoom />
-            <GeolocateControl position="bottom-right" trackUserLocation />
-
             {/* 1. Complete Surveyed Walking Path Segments (29 edges) */}
             {surveyedSpineGeoJSON && (
-              <Source id="surveyed-walkways" type="geojson" data={surveyedSpineGeoJSON}>
+              <Source
+                key={`surveyed-walkways-${layer}-${styleLoadKey}`}
+                id="surveyed-walkways"
+                type="geojson"
+                data={surveyedSpineGeoJSON}
+              >
                 <Layer
                   id="walkway-casing"
                   type="line"
@@ -652,7 +890,12 @@ export function CampusMap({
 
             {/* 2. Active Shortest Route Overlay */}
             {routeGeoJSON && (
-              <Source id="active-route" type="geojson" data={routeGeoJSON}>
+              <Source
+                key={`active-route-${layer}-${styleLoadKey}`}
+                id="active-route"
+                type="geojson"
+                data={routeGeoJSON}
+              >
                 <Layer
                   id="route-casing"
                   type="line"
@@ -698,7 +941,12 @@ export function CampusMap({
 
             {/* 3. 12 Junction Nodes (GPU-accelerated GeoJSON circle layer) */}
             {junctionGeoJSON && (
-              <Source id="junction-nodes" type="geojson" data={junctionGeoJSON}>
+              <Source
+                key={`junction-nodes-${layer}-${styleLoadKey}`}
+                id="junction-nodes"
+                type="geojson"
+                data={junctionGeoJSON}
+              >
                 <Layer
                   id="junction-circles"
                   type="circle"
@@ -715,7 +963,12 @@ export function CampusMap({
 
             {/* 4. Background Destination Locations (GPU-accelerated GeoJSON circle layer) */}
             {backgroundLocationsGeoJSON && (
-              <Source id="background-locations" type="geojson" data={backgroundLocationsGeoJSON}>
+              <Source
+                key={`background-locations-${layer}-${styleLoadKey}`}
+                id="background-locations"
+                type="geojson"
+                data={backgroundLocationsGeoJSON}
+              >
                 <Layer
                   id="background-locations-circles"
                   type="circle"
@@ -806,56 +1059,84 @@ export function CampusMap({
                 );
               })}
 
-            {/* 6. Current User GPS Location (Blue Dot with Pulsing Halo & Heading) */}
+            {/* 6. Current User GPS Location Puck (Stage 6.3) */}
             {userCoordinates &&
               Number.isFinite(userCoordinates.latitude) &&
-              Number.isFinite(userCoordinates.longitude) && (
-                <Marker
-                  latitude={userCoordinates.latitude}
-                  longitude={userCoordinates.longitude}
-                  anchor="center"
-                >
-                  <div
-                    className="relative flex items-center justify-center pointer-events-none"
-                    data-testid="user-location-marker"
+              Number.isFinite(userCoordinates.longitude) && (() => {
+                const rawAccuracyPx = (userCoordinates.accuracy / metersPerPixel) * 2;
+                const accuracyDiameterPx = Math.max(24, Math.min(160, Math.round(rawAccuracyPx)));
+                const isLowAccuracy = userCoordinates.accuracy > 50;
+                const hasHeading = userCoordinates.heading !== null && userCoordinates.heading !== undefined;
+
+                return (
+                  <Marker
+                    latitude={userCoordinates.latitude}
+                    longitude={userCoordinates.longitude}
+                    anchor="center"
                   >
-                    {/* Accuracy Halo / Low accuracy indicator */}
                     <div
-                      className={`absolute rounded-full pointer-events-none transition-all duration-300 ${
-                        userCoordinates.accuracy > 50
-                          ? "w-16 h-16 border-2 border-dashed border-amber-400/70 bg-amber-400/10"
-                          : "w-12 h-12 bg-blue-500/25 border border-blue-400/50 animate-pulse"
-                      }`}
-                    />
-
-                    {/* Outer Pulsing Ping */}
-                    <span className="absolute w-8 h-8 rounded-full bg-blue-500 animate-ping opacity-35 pointer-events-none" />
-
-                    {/* Blue Dot Core */}
-                    <div className="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-xl flex items-center justify-center">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                    </div>
-
-                    {/* Heading Arrow if direction is available */}
-                    {userCoordinates.heading !== null && userCoordinates.heading !== undefined && (
+                      className="relative flex items-center justify-center pointer-events-none"
+                      data-testid="user-location-marker"
+                    >
+                      {/* Pulsating Accuracy Circle matching radius */}
                       <div
-                        className="absolute -top-3 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[8px] border-b-blue-400"
+                        className={`absolute rounded-full transition-all duration-300 pointer-events-none ${
+                          isLowAccuracy
+                            ? "border-2 border-dashed border-amber-400/70 bg-amber-400/10"
+                            : "border border-blue-400/50 bg-blue-500/15 animate-pulse"
+                        }`}
                         style={{
-                          transform: `rotate(${userCoordinates.heading}deg)`,
-                          transformOrigin: "50% 16px",
+                          width: `${accuracyDiameterPx}px`,
+                          height: `${accuracyDiameterPx}px`,
                         }}
                       />
-                    )}
 
-                    {/* Low Accuracy Badge */}
-                    {userCoordinates.accuracy > 50 && (
-                      <div className="absolute -bottom-6 whitespace-nowrap px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-700/80 text-[9px] font-mono shadow-md">
-                        Low accuracy (~{Math.round(userCoordinates.accuracy)}m)
+                      {/* Outer Pulsing Ping */}
+                      <span className="absolute w-8 h-8 rounded-full bg-blue-500 animate-ping opacity-25 pointer-events-none" />
+
+                      {/* Heading Arrow Cone rotating smoothly with heading */}
+                      {hasHeading && (
+                        <div
+                          className="absolute inset-0 flex items-center justify-center transition-transform duration-300 ease-out"
+                          style={{
+                            transform: `rotate(${userCoordinates.heading}deg)`,
+                          }}
+                        >
+                          <div className="absolute -top-4 flex flex-col items-center">
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              className="drop-shadow-md"
+                            >
+                              <path
+                                d="M12 2L19 19L12 15L5 19L12 2Z"
+                                fill="#2563EB"
+                                stroke="#ffffff"
+                                strokeWidth="2"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Blue Dot Core */}
+                      <div className="relative w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-xl flex items-center justify-center z-10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
                       </div>
-                    )}
-                  </div>
-                </Marker>
-              )}
+
+                      {/* Low Accuracy Badge */}
+                      {isLowAccuracy && (
+                        <div className="absolute -bottom-6 whitespace-nowrap px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-700/80 text-[9px] font-mono shadow-md z-20">
+                          Low accuracy (~{Math.round(userCoordinates.accuracy)}m)
+                        </div>
+                      )}
+                    </div>
+                  </Marker>
+                );
+              })()}
 
             {/* 5. Destination Popup Card */}
             {popupLocation &&
@@ -1168,11 +1449,17 @@ export function CampusMap({
                 Number.isFinite(userCoordinates.latitude) &&
                 Number.isFinite(userCoordinates.longitude) && (() => {
                   const uPos = projectGpsToSvg(userCoordinates.latitude, userCoordinates.longitude);
+                  const hasHeading = userCoordinates.heading !== null && userCoordinates.heading !== undefined;
                   return (
                     <g transform={`translate(${uPos.x}, ${uPos.y})`} data-testid="vector-user-location">
                       <circle r="18" fill="#3b82f6" opacity="0.25" className="animate-pulse" />
                       <circle r="8" fill="#2563eb" stroke="#ffffff" strokeWidth="2" />
                       <circle r="3" fill="#ffffff" />
+                      {hasHeading && (
+                        <g transform={`rotate(${userCoordinates.heading})`}>
+                          <polygon points="0,-16 5,-8 -5,-8" fill="#2563eb" stroke="#ffffff" strokeWidth="1" />
+                        </g>
+                      )}
                     </g>
                   );
                 })()}
@@ -1180,6 +1467,21 @@ export function CampusMap({
           </div>
         </div>
       )}
+
+      {/* ──── Sleek Metric Map Scale Bar (Stage 6.3) ──── */}
+      <div
+        data-testid="map-scale-bar"
+        className="absolute bottom-12 left-4 z-20 pointer-events-none select-none flex flex-col items-start gap-0.5 bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md px-2 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 shadow-md"
+        aria-label={`Map scale: ${scaleBar.label}`}
+      >
+        <span className="font-mono text-[9px] font-bold text-slate-800 dark:text-zinc-200 leading-none">
+          {scaleBar.label}
+        </span>
+        <div
+          className="h-1 border-b-2 border-l-2 border-r-2 border-slate-800 dark:border-zinc-200 transition-all duration-200 mt-0.5"
+          style={{ width: `${scaleBar.barWidthPx}px` }}
+        />
+      </div>
 
       {/* ──── Map Footer Bar ──── */}
       <div className="h-10 px-4 bg-[#0a0f1d]/90 border-t border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400 z-20 shrink-0">

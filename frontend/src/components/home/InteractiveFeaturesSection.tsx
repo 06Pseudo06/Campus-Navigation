@@ -281,12 +281,12 @@ export function InteractiveFeaturesSection() {
 
                   {/* Number row: Odometer rolling digits + suffix */}
                   <div className="relative z-10 flex items-baseline justify-center gap-1 mb-2 font-mono tabular-nums leading-none">
-                    {/* Digits Container */}
-                    <div className="flex items-center overflow-hidden h-[clamp(2.5rem,4.2vw,3.8rem)] text-[#0E1118] dark:text-[#F4F6FA] font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight">
+                    {/* Digits Container - ample height mask so glyph descenders/baselines are never clipped */}
+                    <div className="flex items-center overflow-hidden h-[clamp(3.2rem,5.5vw,4.8rem)] text-[#0E1118] dark:text-[#F4F6FA] font-black text-4xl sm:text-5xl lg:text-6xl tracking-tight py-1">
                       {digits.map((digitChar, dIdx) => (
                         <div
                           key={dIdx}
-                          className="relative inline-block h-full w-[0.62em] overflow-hidden tabular-nums leading-none"
+                          className="relative inline-block h-full w-[0.65em] overflow-hidden tabular-nums leading-none"
                         >
                           <div
                             ref={(el) => {
@@ -298,7 +298,7 @@ export function InteractiveFeaturesSection() {
                             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((val) => (
                               <span
                                 key={val}
-                                className="h-[clamp(2.5rem,4.2vw,3.8rem)] flex items-center justify-center tabular-nums"
+                                className="h-[clamp(3.2rem,5.5vw,4.8rem)] flex items-center justify-center tabular-nums leading-none"
                               >
                                 {val}
                               </span>

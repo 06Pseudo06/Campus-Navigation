@@ -92,6 +92,19 @@ export function Navbar() {
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DE4B31] rounded-full" />
             )}
           </Link>
+          <Link
+            href="/help"
+            className={`group relative py-1.5 transition-colors duration-150 ${
+              isLinkActive("/help")
+                ? "text-[#0E1118] dark:text-white font-bold"
+                : "text-[#6B665C] dark:text-zinc-400 hover:text-[#0E1118] dark:hover:text-white"
+            }`}
+          >
+            <span>HELP</span>
+            {isLinkActive("/help") && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#DE4B31] rounded-full" />
+            )}
+          </Link>
         </nav>
 
         {/* Desktop Right Controls (Theme Toggle + Auth Controls) */}
@@ -224,6 +237,18 @@ export function Navbar() {
               }`}
             >
               <span>03 / ABOUT SYSTEM</span>
+              <span className="text-xs">&rarr;</span>
+            </Link>
+            <Link
+              href="/help"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center justify-between py-2.5 px-3 rounded-xl transition-colors ${
+                isLinkActive("/help")
+                  ? "bg-[#DE4B31]/10 text-[#DE4B31] font-bold"
+                  : "hover:bg-slate-200/50 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300"
+              }`}
+            >
+              <span>04 / HELP &amp; SUPPORT</span>
               <span className="text-xs">&rarr;</span>
             </Link>
           </nav>

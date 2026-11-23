@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,7 +31,8 @@ const themeAntiFlashScript = `
     try {
       var storedTheme = localStorage.getItem('campusway-theme');
       var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var isDark = storedTheme === 'dark' || (!storedTheme) || (storedTheme === 'system' && prefersDark);
+      var theme = (storedTheme === 'dark' || storedTheme === 'light' || storedTheme === 'system') ? storedTheme : 'system';
+      var isDark = theme === 'dark' || (theme === 'system' && prefersDark);
       var root = document.documentElement;
       if (isDark) {
         root.classList.add('dark');
@@ -56,7 +59,7 @@ export default function RootLayout({
       lang="en"
       data-scroll-behavior="smooth"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${interTight.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <head>
         <link rel="preconnect" href="https://api.mapbox.com" />
