@@ -23,7 +23,6 @@ import {
   NearestSurveyedPlace,
 } from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
-import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
 import { FEATURE_QR } from "@/lib/featureFlags";
 import { destroySmoothScroll } from "@/lib/motion";
@@ -475,10 +474,7 @@ export default function ExploreDashboardPage() {
                   onLocateUser={geo.requestLocation}
                   isInsideCampus={geo.isInsideCampus}
                   geolocationError={geo.error?.message}
-                />
-                <MockLocationPanel
                   isMocked={geo.isMocked}
-                  currentCoords={geo.coordinates}
                   onSetMockCoordinates={geo.setMockCoordinates}
                 />
               </main>

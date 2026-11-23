@@ -405,4 +405,38 @@ test.describe("map smoke", () => {
     // Verify Turn-by-Turn directions in Card C
     await expect(page.getByText(/Turn-by-Turn Directions/)).toBeVisible();
   });
+
+  test("unified map toolbar controls zoom, compass, reset view, and scale bar renders", async ({
+    page,
+  }) => {
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("campus-map")).toBeVisible({ timeout: 15_000 });
+
+    // Assert unified vertical toolbar is rendered
+    const toolbar = page.getByTestId("unified-map-toolbar");
+    await expect(toolbar).toBeVisible();
+
+    // Verify Zoom In & Zoom Out
+    const zoomIn = page.getByTestId("map-zoom-in");
+    const zoomOut = page.getByTestId("map-zoom-out");
+    await expect(zoomIn).toBeVisible();
+    await expect(zoomOut).toBeVisible();
+    await zoomIn.click();
+    await zoomOut.click();
+
+    // Verify Compass / Reset bearing
+    const compass = page.getByTestId("map-compass");
+    await expect(compass).toBeVisible();
+    await compass.click();
+
+    // Verify Reset View (fit campus bounds)
+    const resetView = page.getByTestId("reset-view-button");
+    await expect(resetView).toBeVisible();
+    await resetView.click();
+
+    // Verify Sleek Metric Map Scale Bar
+    const scaleBar = page.getByTestId("map-scale-bar");
+    await expect(scaleBar).toBeVisible();
+    await expect(scaleBar).toHaveText(/[0-9]+\s*(m|km)/);
+  });
 });

@@ -268,3 +268,26 @@ export function ChevronRightIcon({ className = "w-4 h-4" }: { className?: string
   );
 }
 
+export function CompassNeedleIcon({ className = "w-4 h-4", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+      {/* North needle (vermilion) */}
+      <polygon points="12 4 15 12 12 10" fill="#E8452C" />
+      <polygon points="12 4 9 12 12 10" fill="#ff6b52" />
+      {/* South needle (muted) */}
+      <polygon points="12 20 15 12 12 14" fill="#94a3b8" />
+      <polygon points="12 20 9 12 12 14" fill="#cbd5e1" />
+    </svg>
+  );
+}
+
+export function MaximizeIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+    </svg>
+  );
+}
+
+
