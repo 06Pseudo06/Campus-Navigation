@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useTransition, useRef } from "react";
+import React, { useState, useEffect, useMemo, useTransition, useRef, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/dashboard/Sidebar";
@@ -16,7 +16,12 @@ import { routeService } from "@/services/routeService";
 import { CampusLocation, CampusRoute, SidebarTab } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { snapGpsToGraphNode, shouldRecomputeRoute } from "@/lib/gpsSnapping";
+import {
+  snapGpsToGraphNode,
+  shouldRecomputeRoute,
+  getNearestSurveyedPlaces,
+  NearestSurveyedPlace,
+} from "@/lib/gpsSnapping";
 import { BackendNode } from "@/services/locationService";
 import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
@@ -81,6 +86,14 @@ export default function ExploreDashboardPage() {
   const [activeRoute, setActiveRoute] = useState<CampusRoute | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [showRoute, setShowRoute] = useState<boolean>(true);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
+
+  // Stage 4: Out-of-coverage states
+  const [unsurveyedState, setUnsurveyedState] = useState<{
+    distanceMeters: number;
+    nearestPlaces: NearestSurveyedPlace[];
+  } | null>(null);
+  const [isOutsideCampusBanner, setIsOutsideCampusBanner] = useState<boolean>(false);
 
   // Bookmarked location IDs
   const [savedIds, setSavedIds] = useState<string[]>([]);
@@ -160,70 +173,39 @@ export default function ExploreDashboardPage() {
     }
   }, []);
 
-  // 3. Compute optimal walking path whenever origin or destination changes
-  useEffect(() => {
-    let isCancelled = false;
-
-    if (locationsLoaded && apiLocations.length === 0) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError("Verified campus locations are currently unavailable.");
-        }
-      });
-    } else if (
-      locationsLoaded &&
-      originLocation &&
-      selectedLocation &&
-      originLocation.id !== selectedLocation.id
-    ) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError(null);
-        }
-      });
-      routeService
-        .calculateRoute(originLocation, selectedLocation)
-        .then((rt) => {
-          if (!isCancelled) {
-            setActiveRoute(rt);
-            setRouteError(null);
-          }
-        })
-        .catch((err) => {
-          if (err instanceof DOMException && err.name === "AbortError") {
-            return;
-          }
-          console.warn("[ExplorePage] Route calculation error:", err);
-          if (!isCancelled) {
-            setActiveRoute(null);
-            setRouteError(
-              err instanceof Error ? err.message : "Unable to calculate route."
-            );
-          }
-        });
-    } else if (
-      originLocation &&
-      selectedLocation &&
-      originLocation.id === selectedLocation.id
-    ) {
-      queueMicrotask(() => {
-        if (!isCancelled) {
-          setActiveRoute(null);
-          setRouteError(null);
-        }
-      });
+  // Explicit route calculation triggered by the "Get directions" button or Enter key (Stage 4)
+  const handleCalculateRoute = useCallback(async () => {
+    if (!originLocation || !selectedLocation) return;
+    if (originLocation.id === selectedLocation.id) {
+      setActiveRoute(null);
+      return;
     }
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [originLocation, selectedLocation, locationsLoaded, apiLocations.length]);
+    setIsCalculatingRoute(true);
+    setRouteError(null);
 
-  // Location Handlers
+    try {
+      const rt = await routeService.calculateRoute(originLocation, selectedLocation);
+      setActiveRoute(rt);
+      setShowRoute(true);
+      setRouteError(null);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      console.warn("[ExplorePage] Route calculation error:", err);
+      setActiveRoute(null);
+      setRouteError(err instanceof Error ? err.message : "Unable to calculate route.");
+    } finally {
+      setIsCalculatingRoute(false);
+    }
+  }, [originLocation, selectedLocation]);
+
+  // Location Handlers: selecting origin/destination updates pins & inputs without auto-calculating
   const handleSelectOrigin = (loc: CampusLocation) => {
     setOriginLocation(loc);
+    setIsOriginCurrentLocation(false);
+    setUnsurveyedState(null);
   };
 
   const handleSelectDestination = (loc: CampusLocation) => {
@@ -235,6 +217,8 @@ export default function ExploreDashboardPage() {
       const temp = originLocation;
       setOriginLocation(selectedLocation);
       setSelectedLocation(temp);
+      setIsOriginCurrentLocation(false);
+      setUnsurveyedState(null);
     }
   };
 
@@ -242,28 +226,45 @@ export default function ExploreDashboardPage() {
     const mainGate = allLocations.find((l) => l.slug === "gate-1") || allLocations[0];
     if (mainGate) {
       setOriginLocation(mainGate);
+      setIsOriginCurrentLocation(false);
+      setUnsurveyedState(null);
     }
   };
 
   const handleSelectCurrentLocationAsOrigin = async () => {
     setIsOriginCurrentLocation(true);
+    setUnsurveyedState(null);
+    setIsOutsideCampusBanner(false);
     if (!geo.coordinates) {
       await geo.requestLocation();
     }
   };
 
-  // Snap GPS position to nearest graph node when "My current location" is active
+  // Stage 4: Handle the 3 distinct origin states cleanly
   useEffect(() => {
     if (!isOriginCurrentLocation || !geo.coordinates) return;
 
+    // State C: GPS is outside campus bounds
     if (!geo.isInsideCampus) {
+      setIsOutsideCampusBanner(true);
+      setUnsurveyedState(null);
+      const gate1 = allLocations.find((l) => l.slug === "gate-1") || allLocations[0];
+      if (gate1) {
+        setOriginLocation(gate1);
+      }
+      setIsOriginCurrentLocation(false);
       return;
     }
 
+    // Inside campus bounds: check distance to nearest surveyed graph node
     if (backendNodes.length === 0) return;
 
     const snapResult = snapGpsToGraphNode(geo.coordinates, backendNodes);
-    if (snapResult.snappedNode) {
+
+    if (snapResult.status === "snapped" && snapResult.snappedNode) {
+      // State A: Inside graph coverage (<= 75m)
+      setIsOutsideCampusBanner(false);
+      setUnsurveyedState(null);
       const snapped = snapResult.snappedNode;
       const nearbyLoc = allLocations.find(
         (l) => l.nodeId === snapped.id || l.id === snapped.location_id
@@ -284,7 +285,7 @@ export default function ExploreDashboardPage() {
 
       setOriginLocation(gpsOriginLocation);
 
-      // Check if re-routing is required
+      // Re-route dynamically if user has active route and moved significantly
       if (
         lastRoutedCoordsRef.current &&
         activeRoute &&
@@ -312,6 +313,14 @@ export default function ExploreDashboardPage() {
           longitude: geo.coordinates.longitude,
         };
       }
+    } else if (snapResult.status === "out_of_range") {
+      // State B: Inside campus boundary, but > 75m from surveyed paths
+      setIsOutsideCampusBanner(false);
+      const nearestPlaces = getNearestSurveyedPlaces(geo.coordinates, allLocations, 3);
+      setUnsurveyedState({
+        distanceMeters: Math.round(snapResult.distanceMeters),
+        nearestPlaces,
+      });
     }
   }, [
     isOriginCurrentLocation,
@@ -484,6 +493,16 @@ export default function ExploreDashboardPage() {
                   savedLocationIds={savedIds}
                   onToggleSaveLocation={handleToggleSaveLocation}
                   onOpenQrScanner={() => setIsQrScannerOpen(true)}
+                  onCalculateRoute={handleCalculateRoute}
+                  isCalculatingRoute={isCalculatingRoute}
+                  unsurveyedState={unsurveyedState}
+                  onSelectNearestPlace={(loc) => {
+                    setOriginLocation(loc);
+                    setUnsurveyedState(null);
+                    setIsOriginCurrentLocation(false);
+                  }}
+                  isOutsideCampusBanner={isOutsideCampusBanner}
+                  onDismissOutsideCampusBanner={() => setIsOutsideCampusBanner(false)}
                 />
               </div>
             </>

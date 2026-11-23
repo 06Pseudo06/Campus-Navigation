@@ -36,6 +36,11 @@ test.describe("map smoke", () => {
     await expect(block1).toBeVisible();
     await block1.click();
 
+    // Stage 4: Click the explicit "Get directions" button to calculate route
+    const getDirectionsBtn = page.getByTestId("get-directions-button");
+    await expect(getDirectionsBtn).toBeVisible();
+    await getDirectionsBtn.click();
+
     await expect(page.getByTestId("route-polyline")).toBeVisible({
       timeout: 20_000,
     });
@@ -189,5 +194,40 @@ test.describe("map smoke", () => {
     // Assert window itself did not scroll (overflow contained)
     const windowScrollY = await page.evaluate(() => window.scrollY);
     expect(windowScrollY).toBe(0);
+  });
+
+  test("explicit directions button switches to Recalculate and out-of-coverage shows banner", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/explore");
+
+    const getDirectionsBtn = page.getByTestId("get-directions-button");
+    await expect(getDirectionsBtn).toBeVisible({ timeout: 15_000 });
+
+    // Click Get Directions
+    await getDirectionsBtn.click();
+    await expect(page.getByTestId("route-polyline")).toBeVisible({ timeout: 20_000 });
+
+    // Assert button label switches to Recalculate
+    await expect(getDirectionsBtn).toContainText("Recalculate");
+
+    // Open Dev GPS Mock panel and select Outside Campus preset
+    const mockToggle = page.getByRole("button", { name: /Dev GPS Mock|Mock GPS/ });
+    if (await mockToggle.isVisible()) {
+      await mockToggle.click();
+      const outsidePreset = page.getByRole("button", { name: /Outside Campus/ });
+      await expect(outsidePreset).toBeVisible();
+      await outsidePreset.click();
+
+      // Trigger "My Location" to activate GPS origin
+      const myLocationBtn = page.getByTestId("origin-my-location-btn");
+      await expect(myLocationBtn).toBeVisible();
+      await myLocationBtn.click();
+
+      // Assert outside campus banner appears with Gate 1 default
+      await expect(page.getByTestId("outside-campus-banner")).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByTestId("outside-campus-banner")).toContainText("Main Gate 1");
+    }
   });
 });

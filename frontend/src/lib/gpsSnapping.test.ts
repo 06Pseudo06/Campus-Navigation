@@ -6,8 +6,12 @@ import {
   shouldRecomputeRoute,
   SpatialNodeIndex,
   MAX_SNAP_DISTANCE_METERS,
+  calculateBearingDegrees,
+  bearingToCompass,
+  getNearestSurveyedPlaces,
 } from "./gpsSnapping";
 import { BackendNode } from "@/services/locationService";
+import { CampusLocation } from "@/types/campus";
 
 const MOCK_NODES: BackendNode[] = [
   {
@@ -70,7 +74,7 @@ describe("gpsSnapping utilities", () => {
       expect(res.snappedNode).toBeNull();
     });
 
-    it("rejects points farther than max snap distance (150m)", () => {
+    it("rejects points farther than max snap distance (75m)", () => {
       // Far off coordinate
       const coords = { latitude: 31.275, longitude: 75.72, accuracy: 10 };
       const res = snapGpsToGraphNode(coords, MOCK_NODES);
@@ -143,6 +147,65 @@ describe("gpsSnapping utilities", () => {
       ];
 
       expect(shouldRecomputeRoute(prev, next, waypoints)).toBe(true);
+    });
+  });
+
+  describe("calculateBearingDegrees and bearingToCompass", () => {
+    it("calculates accurate compass bearing between two points", () => {
+      // Due north
+      const bearingNorth = calculateBearingDegrees(31.25, 75.7, 31.26, 75.7);
+      expect(bearingToCompass(bearingNorth)).toBe("North");
+
+      // Due east
+      const bearingEast = calculateBearingDegrees(31.25, 75.7, 31.25, 75.71);
+      expect(bearingToCompass(bearingEast)).toBe("East");
+
+      // Due south
+      const bearingSouth = calculateBearingDegrees(31.26, 75.7, 31.25, 75.7);
+      expect(bearingToCompass(bearingSouth)).toBe("South");
+
+      // Due west
+      const bearingWest = calculateBearingDegrees(31.25, 75.71, 31.25, 75.7);
+      expect(bearingToCompass(bearingWest)).toBe("West");
+    });
+  });
+
+  describe("getNearestSurveyedPlaces", () => {
+    const mockLocations: CampusLocation[] = [
+      {
+        id: "loc-1",
+        name: "Block 1",
+        code: "B1",
+        category: "building",
+        description: "North block",
+        coordinates: { lat: 31.2605, lng: 75.7068 },
+      },
+      {
+        id: "loc-2",
+        name: "Block 32",
+        code: "B32",
+        category: "building",
+        description: "Central block",
+        coordinates: { lat: 31.2585, lng: 75.7042 },
+      },
+      {
+        id: "loc-3",
+        name: "Main Gate 1",
+        code: "G1",
+        category: "gate",
+        description: "West gate",
+        coordinates: { lat: 31.2612, lng: 75.7001 },
+      },
+    ];
+
+    it("returns top 3 nearest surveyed places with distance and compass direction", () => {
+      const coords = { latitude: 31.2586, longitude: 75.7043 }; // Right next to Block 32
+      const nearest = getNearestSurveyedPlaces(coords, mockLocations, 3);
+
+      expect(nearest.length).toBe(3);
+      expect(nearest[0].name).toBe("Block 32");
+      expect(nearest[0].distanceMeters).toBeLessThan(30);
+      expect(nearest[0].compassDirection).toBeDefined();
     });
   });
 });

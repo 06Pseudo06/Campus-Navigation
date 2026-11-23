@@ -21,6 +21,7 @@ import {
 import type { GeoCoordinates } from "@/hooks/useGeolocation";
 import { FEATURE_QR } from "@/lib/featureFlags";
 import { QrCodeModal } from "./QrCodeModal";
+import type { NearestSurveyedPlace } from "@/lib/gpsSnapping";
 
 interface DestinationPanelProps {
   locations: CampusLocation[];
@@ -44,6 +45,15 @@ interface DestinationPanelProps {
   savedLocationIds: string[];
   onToggleSaveLocation: (id: string) => void;
   onOpenQrScanner?: () => void;
+  onCalculateRoute?: () => void;
+  isCalculatingRoute?: boolean;
+  unsurveyedState?: {
+    distanceMeters: number;
+    nearestPlaces: NearestSurveyedPlace[];
+  } | null;
+  onSelectNearestPlace?: (location: CampusLocation) => void;
+  isOutsideCampusBanner?: boolean;
+  onDismissOutsideCampusBanner?: () => void;
 }
 
 export function DestinationPanel({
@@ -68,6 +78,12 @@ export function DestinationPanel({
   savedLocationIds,
   onToggleSaveLocation,
   onOpenQrScanner,
+  onCalculateRoute,
+  isCalculatingRoute = false,
+  unsurveyedState,
+  onSelectNearestPlace,
+  isOutsideCampusBanner = false,
+  onDismissOutsideCampusBanner,
 }: DestinationPanelProps) {
   const [panelSearch, setPanelSearch] = useState<string>("");
   const debouncedPanelSearch = useDebounce(panelSearch, 250);
@@ -140,6 +156,20 @@ export function DestinationPanel({
   };
 
   const isQueryingBlock34 = debouncedPanelSearch.toLowerCase().includes("34");
+
+  const canCalculateRoute = Boolean(
+    originLocation &&
+    selectedLocation &&
+    originLocation.id !== selectedLocation.id
+  );
+
+  const hasActiveRouteForSelection = Boolean(
+    activeRoute &&
+    originLocation &&
+    selectedLocation &&
+    (activeRoute.fromLocationId === originLocation.id || activeRoute.fromName === originLocation.name) &&
+    (activeRoute.toLocationId === selectedLocation.id || activeRoute.toName === selectedLocation.name)
+  );
 
   return (
     <aside
@@ -225,19 +255,70 @@ export function DestinationPanel({
           </div>
         )}
 
-        {/* ──── Outside Campus Notice when GPS origin is outside ──── */}
-        {isOriginCurrentLocation && !isInsideCampus && userCoordinates && (
+        {/* ──── State C: Outside Campus Banner ──── */}
+        {isOutsideCampusBanner && (
           <div
             role="status"
-            className="p-3.5 rounded-2xl border border-amber-800/70 bg-amber-950/40 text-amber-200 text-xs space-y-1.5 animate-in fade-in"
+            data-testid="outside-campus-banner"
+            className="p-3.5 rounded-2xl border border-amber-600/70 bg-amber-500/10 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs space-y-1.5 animate-in fade-in"
           >
-            <div className="flex items-center gap-1.5 font-bold text-amber-300">
-              <span>📍</span>
-              <span>You appear to be outside campus</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-300">
+                <span>📍</span>
+                <span>Outside Campus Bounds</span>
+              </div>
+              {onDismissOutsideCampusBanner && (
+                <button
+                  type="button"
+                  onClick={onDismissOutsideCampusBanner}
+                  className="text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-white font-bold cursor-pointer text-xs"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <p className="text-[11px] leading-relaxed text-amber-200/90">
-              CampusWay cannot auto-route across external highways. You can pick an LPU campus entrance (such as Gate 1) manually or use the mock location panel.
+            <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-200/90">
+              You are outside LPU campus. Walking directions start from Main Gate 1 by default.
             </p>
+          </div>
+        )}
+
+        {/* ──── State B: Unsurveyed Campus Area Card ──── */}
+        {unsurveyedState && (
+          <div
+            role="status"
+            data-testid="unsurveyed-area-card"
+            className="p-4 rounded-2xl border border-amber-600/70 bg-amber-500/10 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs space-y-3 animate-in fade-in"
+          >
+            <div className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400">
+              <span className="text-base">⚠️</span>
+              <span>Unsurveyed Campus Area</span>
+            </div>
+            <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+              You are in an unsurveyed campus area (~{unsurveyedState.distanceMeters}m from surveyed paths).
+            </p>
+            <div className="space-y-1.5 pt-1">
+              <span className="text-[10px] uppercase font-bold tracking-wider font-mono text-amber-700 dark:text-amber-400 block">
+                Snap to nearest surveyed place:
+              </span>
+              <div className="grid grid-cols-1 gap-1.5">
+                {unsurveyedState.nearestPlaces.map((place) => (
+                  <button
+                    key={place.id}
+                    type="button"
+                    onClick={() => onSelectNearestPlace && onSelectNearestPlace(place.location)}
+                    className="w-full text-left p-2 rounded-xl bg-white/80 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-800 border border-amber-500/30 dark:border-amber-700/50 text-slate-800 dark:text-zinc-200 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer group shadow-xs"
+                  >
+                    <span className="font-semibold truncate group-hover:text-[#E8452C] transition-colors">
+                      Snap to {place.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-amber-700 dark:text-amber-400 shrink-0 ml-2 font-bold">
+                      {place.distanceMeters}m {place.compassDirection}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -255,6 +336,7 @@ export function DestinationPanel({
                   <button
                     type="button"
                     onClick={onSelectCurrentLocationAsOrigin}
+                    data-testid="origin-my-location-btn"
                     className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1 font-semibold"
                     title="Use GPS current location"
                   >
@@ -343,6 +425,40 @@ export function DestinationPanel({
               <span className="text-[10px] text-slate-400 dark:text-zinc-400 uppercase font-mono ml-2 shrink-0">
                 {selectingField === "destination" ? "Selecting..." : "Change"}
               </span>
+            </button>
+          </div>
+
+          {/* ──── Primary Route Action Button (Stage 4) ──── */}
+          <div className="pt-1">
+            <button
+              type="button"
+              data-testid="get-directions-button"
+              onClick={onCalculateRoute}
+              disabled={!canCalculateRoute || isCalculatingRoute}
+              className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                !canCalculateRoute
+                  ? "bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed shadow-none"
+                  : isCalculatingRoute
+                  ? "bg-[#E8452C]/80 text-white cursor-wait"
+                  : "bg-[#E8452C] hover:bg-[#DE4B31] text-white active:scale-[0.99] hover:shadow-lg hover:shadow-[#E8452C]/25"
+              }`}
+            >
+              {isCalculatingRoute ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  <span>Calculating Route…</span>
+                </>
+              ) : hasActiveRouteForSelection ? (
+                <>
+                  <RouteIcon className="w-4 h-4" />
+                  <span>Recalculate</span>
+                </>
+              ) : (
+                <>
+                  <RouteIcon className="w-4 h-4" />
+                  <span>Get directions</span>
+                </>
+              )}
             </button>
           </div>
         </div>
