@@ -51,10 +51,10 @@ import { useTheme } from "@/context/ThemeContext";
 // Mapbox style presets
 const MAP_STYLES: Record<MapLayerMode, string> = {
   dark: "mapbox://styles/mapbox/dark-v11",
-  standard: "mapbox://styles/mapbox/navigation-night-v1",
-  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
   streets: "mapbox://styles/mapbox/streets-v12",
-  blueprint: "mapbox://styles/mapbox/dark-v11",
+  satellite: "mapbox://styles/mapbox/satellite-streets-v12",
+  blueprint: "mapbox://styles/mapbox/navigation-night-v1",
+  standard: "mapbox://styles/mapbox/navigation-night-v1",
 };
 
 // Category colors for pins
@@ -116,6 +116,8 @@ export function CampusMap({
   // Mapbox map reference
   const mapRef = useRef<MapRef | null>(null);
   const { resolvedTheme } = useTheme();
+  const [styleLoadKey, setStyleLoadKey] = useState<number>(0);
+
   const [userExplicitLayer, setUserExplicitLayer] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return Boolean(localStorage.getItem("campusway-map-style-explicit"));
@@ -123,8 +125,11 @@ export function CampusMap({
 
   const [layer, setLayer] = useState<MapLayerMode>(() => {
     if (typeof window !== "undefined") {
-      const explicit = localStorage.getItem("campusway-map-style");
-      if (explicit && (explicit in MAP_STYLES)) return explicit as MapLayerMode;
+      const explicitFlag = localStorage.getItem("campusway-map-style-explicit");
+      const storedStyle = localStorage.getItem("campusway-map-style");
+      if (explicitFlag && storedStyle && storedStyle in MAP_STYLES) {
+        return storedStyle as MapLayerMode;
+      }
     }
     return resolvedTheme === "light" ? "streets" : "dark";
   });
@@ -137,6 +142,36 @@ export function CampusMap({
   }, [resolvedTheme, userExplicitLayer]);
 
   const [layerMenuOpen, setLayerMenuOpen] = useState<boolean>(false);
+
+  const handleSelectStyle = useCallback((newLayer: MapLayerMode) => {
+    setLayer(newLayer);
+    setUserExplicitLayer(true);
+    try {
+      localStorage.setItem("campusway-map-style", newLayer);
+      localStorage.setItem("campusway-map-style-explicit", "true");
+    } catch {}
+    setLayerMenuOpen(false);
+  }, []);
+
+  const handleResetStyle = useCallback(() => {
+    setUserExplicitLayer(false);
+    try {
+      localStorage.removeItem("campusway-map-style");
+      localStorage.removeItem("campusway-map-style-explicit");
+    } catch {}
+    setLayer(resolvedTheme === "light" ? "streets" : "dark");
+    setLayerMenuOpen(false);
+  }, [resolvedTheme]);
+
+  const handleMapLoad = useCallback((evt: { target: { on?: (event: string, callback: () => void) => void } }) => {
+    const map = evt?.target;
+    if (map && typeof map.on === "function") {
+      map.on("style.load", () => {
+        setStyleLoadKey((prev) => prev + 1);
+      });
+    }
+  }, []);
+
   const [popupLocation, setPopupLocation] = useState<CampusLocation | null>(null);
 
   // Vector fallback zoom state
@@ -508,15 +543,16 @@ export function CampusMap({
           </>
         )}
 
-        {/* Layer Switcher (Dark, Standard, Satellite, Streets) */}
+        {/* Layer Switcher (Dark, Streets, Satellite, Blueprint) */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setLayerMenuOpen(!layerMenuOpen)}
+            data-testid="layer-switcher-button"
             className={`w-10 h-10 rounded-xl border shadow-lg backdrop-blur-md flex items-center justify-center transition-all cursor-pointer ${
-              layerMenuOpen || layer !== "dark"
+              layerMenuOpen || userExplicitLayer
                 ? "bg-[#DE4B31] text-white border-[#DE4B31]"
-                : "bg-[#111827]/90 hover:bg-[#1f2937] text-zinc-200 border-zinc-700/80"
+                : "bg-white/90 dark:bg-[#111827]/90 text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 hover:bg-slate-100 dark:hover:bg-[#1f2937]"
             }`}
             title="Map Layer"
             aria-label="Map Layer"
@@ -525,40 +561,56 @@ export function CampusMap({
           </button>
 
           {layerMenuOpen && (
-            <div className="absolute top-0 right-12 w-44 rounded-2xl bg-[#111827]/95 border border-zinc-700 shadow-2xl backdrop-blur-xl p-2 z-40 flex flex-col gap-1 animate-in fade-in zoom-in-95">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-2 py-1">
-                Map Theme
-              </span>
+            <div
+              data-testid="map-style-menu"
+              className="absolute top-0 right-12 w-48 rounded-2xl bg-white/95 dark:bg-[#111827]/95 border border-slate-200 dark:border-zinc-700 shadow-2xl backdrop-blur-xl p-2 z-40 flex flex-col gap-1 animate-in fade-in zoom-in-95"
+            >
+              <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 dark:border-zinc-800">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 font-mono">
+                  Map Style
+                </span>
+                {userExplicitLayer && (
+                  <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400 font-semibold">
+                    CUSTOM
+                  </span>
+                )}
+              </div>
               {(
                 [
-                  { id: "dark", label: "Dark Architectural" },
-                  { id: "standard", label: "Navigation Night" },
-                  { id: "satellite", label: "Satellite Hybrid" },
-                  { id: "streets", label: "Clean Streets" },
+                  { id: "dark" as const, label: "Dark Architectural" },
+                  { id: "streets" as const, label: "Clean Streets" },
+                  { id: "satellite" as const, label: "Satellite Hybrid" },
+                  { id: "blueprint" as const, label: "Blueprint Navigation" },
                 ] as const
               ).map((mode) => (
                 <button
                   key={mode.id}
                   type="button"
-                  onClick={() => {
-                    setLayer(mode.id);
-                    setUserExplicitLayer(true);
-                    try {
-                      localStorage.setItem("campusway-map-style", mode.id);
-                      localStorage.setItem("campusway-map-style-explicit", "true");
-                    } catch {}
-                    setLayerMenuOpen(false);
-                  }}
+                  data-testid={`layer-option-${mode.id}`}
+                  onClick={() => handleSelectStyle(mode.id)}
                   className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
                     layer === mode.id
                       ? "bg-[#DE4B31] text-white font-semibold"
-                      : "text-zinc-300 hover:bg-zinc-800"
+                      : "text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
                   }`}
                 >
                   <span>{mode.label}</span>
                   {layer === mode.id && <span className="text-[10px]">✓</span>}
                 </button>
               ))}
+
+              {userExplicitLayer && (
+                <div className="pt-1 mt-1 border-t border-slate-100 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    data-testid="layer-option-reset"
+                    onClick={handleResetStyle}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span>↺ Reset to Theme Default</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -634,6 +686,7 @@ export function CampusMap({
             mapStyle={MAP_STYLES[layer] || MAP_STYLES.dark}
             style={{ width: "100%", height: "100%" }}
             attributionControl={false}
+            onLoad={handleMapLoad}
             onError={handleMapboxError}
             onMove={handleMapMove}
             onMoveEnd={handleMoveEnd}
@@ -653,7 +706,12 @@ export function CampusMap({
 
             {/* 1. Complete Surveyed Walking Path Segments (29 edges) */}
             {surveyedSpineGeoJSON && (
-              <Source id="surveyed-walkways" type="geojson" data={surveyedSpineGeoJSON}>
+              <Source
+                key={`surveyed-walkways-${layer}-${styleLoadKey}`}
+                id="surveyed-walkways"
+                type="geojson"
+                data={surveyedSpineGeoJSON}
+              >
                 <Layer
                   id="walkway-casing"
                   type="line"
@@ -678,7 +736,12 @@ export function CampusMap({
 
             {/* 2. Active Shortest Route Overlay */}
             {routeGeoJSON && (
-              <Source id="active-route" type="geojson" data={routeGeoJSON}>
+              <Source
+                key={`active-route-${layer}-${styleLoadKey}`}
+                id="active-route"
+                type="geojson"
+                data={routeGeoJSON}
+              >
                 <Layer
                   id="route-casing"
                   type="line"
@@ -724,7 +787,12 @@ export function CampusMap({
 
             {/* 3. 12 Junction Nodes (GPU-accelerated GeoJSON circle layer) */}
             {junctionGeoJSON && (
-              <Source id="junction-nodes" type="geojson" data={junctionGeoJSON}>
+              <Source
+                key={`junction-nodes-${layer}-${styleLoadKey}`}
+                id="junction-nodes"
+                type="geojson"
+                data={junctionGeoJSON}
+              >
                 <Layer
                   id="junction-circles"
                   type="circle"
@@ -741,7 +809,12 @@ export function CampusMap({
 
             {/* 4. Background Destination Locations (GPU-accelerated GeoJSON circle layer) */}
             {backgroundLocationsGeoJSON && (
-              <Source id="background-locations" type="geojson" data={backgroundLocationsGeoJSON}>
+              <Source
+                key={`background-locations-${layer}-${styleLoadKey}`}
+                id="background-locations"
+                type="geojson"
+                data={backgroundLocationsGeoJSON}
+              >
                 <Layer
                   id="background-locations-circles"
                   type="circle"

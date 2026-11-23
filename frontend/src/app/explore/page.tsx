@@ -252,7 +252,6 @@ export default function ExploreDashboardPage() {
       if (gate1) {
         setOriginLocation(gate1);
       }
-      setIsOriginCurrentLocation(false);
       return;
     }
 

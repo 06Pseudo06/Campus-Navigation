@@ -230,4 +230,103 @@ test.describe("map smoke", () => {
       await expect(page.getByTestId("outside-campus-banner")).toContainText("Main Gate 1");
     }
   });
+
+  test("map style switcher switches styles, preserves route polyline, and persists preference", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/explore");
+
+    // Calculate a route first so route-polyline is present
+    const getDirectionsBtn = page.getByTestId("get-directions-button");
+    await expect(getDirectionsBtn).toBeVisible({ timeout: 15_000 });
+    await getDirectionsBtn.click();
+    await expect(page.getByTestId("route-polyline")).toBeVisible({ timeout: 20_000 });
+
+    // Open style switcher dropdown
+    const styleBtn = page.getByTestId("layer-switcher-button");
+    await expect(styleBtn).toBeVisible();
+    await styleBtn.click();
+
+    // Verify style menu is displayed
+    const styleMenu = page.getByTestId("map-style-menu");
+    await expect(styleMenu).toBeVisible();
+
+    // Select Satellite style
+    const satelliteOption = page.getByTestId("layer-option-satellite");
+    await expect(satelliteOption).toBeVisible();
+    await satelliteOption.click();
+
+    // Verify style choice is saved to localStorage
+    const savedStyle = await page.evaluate(() => localStorage.getItem("campusway-map-style"));
+    expect(savedStyle).toBe("satellite");
+
+    // Assert route polyline remains visible across style switch
+    await expect(page.getByTestId("route-polyline")).toBeVisible({ timeout: 15_000 });
+
+    // Open style switcher again and verify reset button is available
+    await styleBtn.click();
+    const resetStyleBtn = page.getByTestId("layer-option-reset");
+    await expect(resetStyleBtn).toBeVisible();
+    await resetStyleBtn.click();
+
+    // Verify reset clears explicit localStorage choice
+    const isExplicit = await page.evaluate(() =>
+      localStorage.getItem("campusway-map-style-explicit")
+    );
+    expect(isExplicit).toBeNull();
+  });
+
+  test("dev GPS mock exercises State A, State B, and State C with custom GPS input", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/explore");
+
+    const mockToggle = page.getByTestId("mock-location-toggle");
+    await expect(mockToggle).toBeVisible({ timeout: 15_000 });
+    await mockToggle.click();
+
+    // 1. Activate "My Current Location" as origin
+    const myLocationBtn = page.getByTestId("origin-my-location-btn");
+    await expect(myLocationBtn).toBeVisible();
+    await myLocationBtn.click();
+
+    // 2. Click Main Gate 1 preset (State A: Snapped to surveyed node <= 75m)
+    const gate1Preset = page.getByTestId("mock-preset-gate-1");
+    await expect(gate1Preset).toBeVisible();
+    await gate1Preset.click();
+
+    // Banner should not be visible in State A
+    await expect(page.getByTestId("outside-campus-banner")).not.toBeVisible();
+
+    // 3. Click Near Block 34 preset (State B: Inside campus, > 75m from surveyed paths)
+    const block34Preset = page.getByTestId("mock-preset-block-34-area");
+    await expect(block34Preset).toBeVisible();
+    await block34Preset.click();
+
+    // Should display State B unsurveyed area card with nearest places recommendations
+    await expect(page.getByTestId("unsurveyed-area-card")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("unsurveyed-area-card").getByText("Unsurveyed Campus Area", { exact: true })).toBeVisible();
+
+    // 4. Click Outside Campus preset (State C: Outside campus bounds)
+    const outsidePreset = page.getByTestId("mock-preset-outside-campus");
+    await expect(outsidePreset).toBeVisible();
+    await outsidePreset.click();
+
+    // Should display State C outside campus warning banner
+    await expect(page.getByTestId("outside-campus-banner")).toBeVisible({ timeout: 10_000 });
+
+    // 5. Test Custom GPS input
+    const latInput = page.getByTestId("mock-custom-lat");
+    const lngInput = page.getByTestId("mock-custom-lng");
+    const setCustomBtn = page.getByTestId("mock-set-custom-gps-btn");
+
+    await latInput.fill("31.258646");
+    await lngInput.fill("75.708691");
+    await setCustomBtn.click();
+
+    // Snapped to Block 1 (State A), outside banner dismissed
+    await expect(page.getByTestId("outside-campus-banner")).not.toBeVisible();
+  });
 });

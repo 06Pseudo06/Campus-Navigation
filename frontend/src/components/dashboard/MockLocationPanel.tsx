@@ -19,18 +19,18 @@ const PRESETS: MockPreset[] = [
   {
     id: "gate-1",
     name: "Main Gate 1 (Entrance)",
-    description: "North-West campus entry point",
-    latitude: 31.26128,
-    longitude: 75.70014,
+    description: "North-West campus entry point (G1-ENTRY)",
+    latitude: 31.260565,
+    longitude: 75.706815,
     accuracy: 8,
     heading: 90,
   },
   {
     id: "block-1",
     name: "Block 1 (Computer Science)",
-    description: "Central academic block",
-    latitude: 31.260565,
-    longitude: 75.706815,
+    description: "Academic block entrance (BLOCK-1)",
+    latitude: 31.258646,
+    longitude: 75.708691,
     accuracy: 10,
     heading: 180,
   },
@@ -46,7 +46,7 @@ const PRESETS: MockPreset[] = [
   {
     id: "block-34-area",
     name: "Near Block 34 (South Area)",
-    description: "South campus sector near survey boundary",
+    description: "South campus sector (>75m from surveyed paths)",
     latitude: 31.2568,
     longitude: 75.7035,
     accuracy: 15,
@@ -63,7 +63,7 @@ const PRESETS: MockPreset[] = [
   {
     id: "low-accuracy",
     name: "Low Accuracy Fix (±68m)",
-    description: "Tests low-accuracy filter fallback",
+    description: "Tests low-accuracy filter fallback (>50m threshold)",
     latitude: 31.260565,
     longitude: 75.706815,
     accuracy: 68,
@@ -95,8 +95,13 @@ export function MockLocationPanel({
   const [customLng, setCustomLng] = useState<string>("75.706815");
   const [customAccuracy, setCustomAccuracy] = useState<number>(10);
 
-  // In production, render nothing unless explicitly in dev mode
-  if (!IS_DEV && process.env.NEXT_PUBLIC_ENABLE_MOCK_LOCATION !== "true") {
+  // In production (or when NEXT_PUBLIC_ENABLE_MOCK_LOCATION=false) hide the Dev GPS Mock panel completely
+  const isMockDisabled = process.env.NEXT_PUBLIC_ENABLE_MOCK_LOCATION === "false";
+  const isMockAllowed =
+    !isMockDisabled &&
+    (IS_DEV || process.env.NEXT_PUBLIC_ENABLE_MOCK_LOCATION === "true");
+
+  if (!isMockAllowed) {
     return null;
   }
 
@@ -122,6 +127,7 @@ export function MockLocationPanel({
       {/* Floating Toggle Pill */}
       <button
         type="button"
+        data-testid="mock-location-toggle"
         onClick={() => setIsOpen(!isOpen)}
         className={`h-8 px-3 rounded-full text-[11px] font-bold font-mono shadow-xl border flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md ${
           isMocked
@@ -146,6 +152,7 @@ export function MockLocationPanel({
             {isMocked && (
               <button
                 type="button"
+                data-testid="mock-reset-gps"
                 onClick={() => onSetMockCoordinates(null)}
                 className="text-[10px] text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:underline font-mono cursor-pointer"
               >
@@ -176,6 +183,7 @@ export function MockLocationPanel({
               <button
                 key={p.id}
                 type="button"
+                data-testid={`mock-preset-${p.id}`}
                 onClick={() => {
                   onSetMockCoordinates({
                     latitude: p.latitude,
@@ -215,6 +223,7 @@ export function MockLocationPanel({
                 value={customLat}
                 onChange={(e) => setCustomLat(e.target.value)}
                 placeholder="Latitude"
+                data-testid="mock-custom-lat"
                 className="h-8 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-[11px] font-mono text-slate-900 dark:text-zinc-200 focus:outline-none focus:border-amber-500"
               />
               <input
@@ -223,6 +232,7 @@ export function MockLocationPanel({
                 value={customLng}
                 onChange={(e) => setCustomLng(e.target.value)}
                 placeholder="Longitude"
+                data-testid="mock-custom-lng"
                 className="h-8 px-2 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-[11px] font-mono text-slate-900 dark:text-zinc-200 focus:outline-none focus:border-amber-500"
               />
             </div>
@@ -236,11 +246,13 @@ export function MockLocationPanel({
                 max="80"
                 value={customAccuracy}
                 onChange={(e) => setCustomAccuracy(parseInt(e.target.value))}
+                data-testid="mock-custom-acc"
                 className="w-32 accent-amber-500 cursor-pointer"
               />
             </div>
             <button
               type="submit"
+              data-testid="mock-set-custom-gps-btn"
               className="w-full py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold text-xs transition-colors cursor-pointer"
             >
               Set Custom GPS
