@@ -94,8 +94,8 @@ export function EditorialFooter() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/explore?tab=help" className="hover:text-[#DE4B31] transition-colors">
-                    Visitor Support
+                  <Link href="/help" className="hover:text-[#DE4B31] transition-colors">
+                    Help &amp; FAQ
                   </Link>
                 </li>
                 <li>

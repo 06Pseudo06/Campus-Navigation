@@ -560,4 +560,64 @@ test.describe("map smoke", () => {
     await expect(page.getByText("Security & Authentication")).toBeVisible();
     await expect(page.getByText("usr_mock_12345")).toBeVisible();
   });
+
+  test("about page renders comprehensive 9 sections, developer profile, and responds to theme", async ({
+    page,
+  }) => {
+    await page.goto("/about", { waitUntil: "domcontentloaded" });
+
+    // Assert hero headline
+    await expect(page.getByRole("heading", { name: /Built to help you arrive/i })).toBeVisible();
+
+    // Assert key numbers section
+    await expect(page.getByText(/ROUTING LATENCY/i)).toBeVisible();
+
+    // Assert how routing works & Dijkstra / A* cards
+    await expect(page.getByText(/Mathematical Precision, Real Walking Guidance/i)).toBeVisible();
+    await expect(page.getByText(/Dijkstra's Algorithm/i)).toBeVisible();
+    await expect(page.getByText(/A\* Search Algorithm/i)).toBeVisible();
+
+    // Assert developer profile
+    await expect(page.getByText("Kalyani Mahajan")).toBeVisible();
+    await expect(page.getByText(/Lead Full-Stack Engineer/i)).toBeVisible();
+
+    // Assert navigation back to explore
+    const exploreBtn = page.getByRole("link", { name: /EXPLORE CAMPUS MAP/i });
+    await expect(exploreBtn).toBeVisible();
+    await expect(exploreBtn).toHaveAttribute("href", "/explore");
+  });
+
+  test("help page renders support directory, submits assistance ticket, and expands FAQs", async ({
+    page,
+  }) => {
+    await page.goto("/help", { waitUntil: "domcontentloaded" });
+
+    // Assert main headline
+    await expect(page.getByRole("heading", { name: /Help & Navigation Support/i })).toBeVisible();
+
+    // Assert support directory
+    await expect(page.getByText("Campus Safety & Security Operations")).toBeVisible();
+    await expect(page.getByText("Shanti Devi Mittal Hospital")).toBeVisible();
+
+    // Assert Blue Light Call Stations
+    await expect(page.getByText(/Blue Light Emergency Call Stations/i)).toBeVisible();
+
+    // Fill and submit live assistance ticket
+    await page.locator("#contact-phone").fill("+91 98765 43210");
+    await page.locator("#issue-description").fill("Need step-free ramp guidance near Block 34.");
+    const submitBtn = page.getByTestId("submit-assistance-btn");
+    await expect(submitBtn).toBeVisible();
+    await submitBtn.click();
+
+    // Assert confirmed ticket card
+    const ticketCard = page.getByTestId("assistance-ticket-card");
+    await expect(ticketCard).toBeVisible({ timeout: 10_000 });
+    await expect(ticketCard).toContainText("TICKET REF:");
+
+    // Toggle FAQ item
+    const faqQuestion = page.getByText(/How do I calculate wheelchair-accessible or step-free routes\?/i);
+    await expect(faqQuestion).toBeVisible();
+    await faqQuestion.click();
+    await expect(page.getByText(/The routing engine dynamically filters out staircases/i)).toBeVisible();
+  });
 });

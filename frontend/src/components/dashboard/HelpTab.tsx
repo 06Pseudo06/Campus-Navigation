@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { HelpCircleIcon, CheckCircleIcon } from "./DashboardIcons";
 
 export function HelpTab() {
@@ -42,12 +43,20 @@ export function HelpTab() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-xs font-semibold text-[#fca5a5] mb-2">
-          <HelpCircleIcon className="w-3.5 h-3.5" />
-          <span>Visitor & Campus Assistance</span>
+        <div className="flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#DE4B31]/20 border border-[#DE4B31]/40 text-xs font-semibold text-[#fca5a5] mb-2">
+            <HelpCircleIcon className="w-3.5 h-3.5" />
+            <span>Visitor &amp; Campus Assistance</span>
+          </div>
+          <Link
+            href="/help"
+            className="text-xs font-mono font-bold text-[#DE4B31] hover:underline"
+          >
+            Full Help Page &rarr;
+          </Link>
         </div>
         <h2 className="text-2xl font-bold text-white tracking-tight">
-          Help & Navigation Support
+          Help &amp; Navigation Support
         </h2>
         <p className="text-sm text-zinc-400 mt-1">
           Assistance for first-time campus visitors, students, and accessibility requests.
