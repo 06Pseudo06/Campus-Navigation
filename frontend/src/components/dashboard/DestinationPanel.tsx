@@ -142,7 +142,10 @@ export function DestinationPanel({
   const isQueryingBlock34 = debouncedPanelSearch.toLowerCase().includes("34");
 
   return (
-    <aside className="w-full lg:w-96 shrink-0 h-full bg-[#F6F4EF] dark:bg-[#0d131f] border-l border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-100 flex flex-col justify-between overflow-y-auto z-10 transition-colors duration-200">
+    <aside
+      data-testid="destination-panel-scroll"
+      className="w-full lg:w-96 shrink-0 h-full min-h-0 bg-[#F6F4EF] dark:bg-[#0d131f] border-l border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-100 flex flex-col justify-between overflow-y-auto overscroll-contain z-10 transition-colors duration-200"
+    >
       <div className="p-4 sm:p-5 space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">

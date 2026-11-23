@@ -227,7 +227,8 @@ export function useSmoothScroll(): Lenis | null {
     setLenis(instance);
 
     return () => {
-      // Retain instance across normal client re-renders
+      destroySmoothScroll();
+      setLenis(null);
     };
   }, []);
 

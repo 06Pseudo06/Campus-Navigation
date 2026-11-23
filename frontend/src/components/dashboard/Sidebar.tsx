@@ -56,7 +56,10 @@ export function Sidebar({
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full justify-between p-4 bg-white dark:bg-[#0d131f] text-slate-800 dark:text-zinc-100 border-r border-slate-200 dark:border-zinc-800/80 select-none transition-colors duration-200">
+    <div
+      data-testid="sidebar-scroll-container"
+      className="flex flex-col h-full justify-between p-4 bg-white dark:bg-[#0d131f] text-slate-800 dark:text-zinc-100 border-r border-slate-200 dark:border-zinc-800/80 overflow-y-auto overscroll-contain transition-colors duration-200"
+    >
       {/* Top Branding */}
       <div>
         <div className="flex items-center justify-between px-2 pt-2 pb-6">
@@ -167,7 +170,7 @@ export function Sidebar({
   return (
     <>
       {/* Desktop fixed sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 h-full flex-col">
+      <aside className="hidden md:flex w-64 shrink-0 h-full flex-col min-h-0">
         {sidebarContent}
       </aside>
 

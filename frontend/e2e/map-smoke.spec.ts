@@ -153,4 +153,41 @@ test.describe("map smoke", () => {
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
+
+  test("allows natural wheel scrolling on directions panel without scrolling window", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await page.goto("/explore");
+
+    const panel = page.getByTestId("destination-panel-scroll");
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+
+    // Wait for location items to load and populate the panel list
+    const firstLocationItem = page.locator("[data-testid^='location-item-']").first();
+    await expect(firstLocationItem).toBeVisible({ timeout: 10_000 });
+
+    // Assert scroll container can overflow
+    const canScroll = await panel.evaluate((el) => el.scrollHeight > el.clientHeight);
+    expect(canScroll).toBe(true);
+
+    // Assert initial scrollTop is 0
+    const initialScrollTop = await panel.evaluate((el) => el.scrollTop);
+    expect(initialScrollTop).toBe(0);
+
+    // Hover over panel and dispatch mouse wheel scroll
+    await panel.hover();
+    await page.mouse.wheel(0, 300);
+
+    // Wait for scroll to update
+    await page.waitForTimeout(400);
+
+    // Assert scrollTop has increased
+    const scrolledTop = await panel.evaluate((el) => el.scrollTop);
+    expect(scrolledTop).toBeGreaterThan(0);
+
+    // Assert window itself did not scroll (overflow contained)
+    const windowScrollY = await page.evaluate(() => window.scrollY);
+    expect(windowScrollY).toBe(0);
+  });
 });

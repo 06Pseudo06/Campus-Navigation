@@ -21,6 +21,7 @@ import { BackendNode } from "@/services/locationService";
 import { MockLocationPanel } from "@/components/dashboard/MockLocationPanel";
 import { parseNavigateParams, validateLocationIdentifier } from "@/lib/qrNavigation";
 import { FEATURE_QR } from "@/lib/featureFlags";
+import { destroySmoothScroll } from "@/lib/motion";
 
 // Lazy-load CampusMap (Mapbox GL) with zero-SSR to optimize initial page bundle and rendering
 const CampusMap = dynamic(
@@ -355,6 +356,16 @@ export default function ExploreDashboardPage() {
     return allLocations.filter((l) => savedIds.includes(l.id));
   }, [savedIds, allLocations]);
 
+  // Stage 3 Scrolling Fix: Ensure smooth-scroll / wheel listeners from landing page are cleared
+  // and release any lock on document overflow.
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+    }
+    destroySmoothScroll();
+  }, []);
+
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#F6F4EF] dark:bg-[#0a0f1d] text-slate-900 dark:text-zinc-100 font-sans transition-colors duration-200">
       {/* 1. Left Navigation Sidebar */}
@@ -404,7 +415,7 @@ export default function ExploreDashboardPage() {
         )}
 
         {/* Tab Body View */}
-        <div className="flex-1 flex overflow-hidden relative">
+        <div className="flex-1 flex overflow-hidden relative min-h-0">
           {currentTab === "explore" && (
             <>
               {/* Central Map Canvas (Mapbox with Vector Fallback) */}
@@ -437,9 +448,9 @@ export default function ExploreDashboardPage() {
 
               {/* Right Destination Panel (Point A to Point B Routing) */}
               <div
-                className={`lg:block ${mobileDrawerOpen
+                className={`h-full min-h-0 shrink-0 ${mobileDrawerOpen
                   ? "fixed inset-y-16 right-0 w-full sm:w-96 z-40 shadow-2xl block"
-                  : "hidden lg:block"
+                  : "hidden lg:flex lg:flex-col"
                   }`}
               >
                 <DestinationPanel
