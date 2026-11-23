@@ -811,28 +811,35 @@ export function ArchitecturalHero() {
         </div>
       </div>
 
-      {/* 6. BOTTOM BAR: SCROLL INDICATOR & STATS ROW */}
-      <div
-        ref={metaRowRef}
-        className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono text-[#5B5750] dark:text-zinc-400 pt-6 will-change-transform"
-      >
-        <div className="flex flex-wrap items-center gap-4 sm:gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-7 rounded-full border border-[#0E1118]/40 dark:border-white/30 flex items-start justify-center p-1">
-              <div className="w-1 h-2 bg-[#E8452C] rounded-full animate-scroll-bounce" />
+      {/* 6. BOTTOM BAR: SCROLL INDICATOR & STATS ROW with Contrast Scrim */}
+      <div className="relative z-20 w-full mt-auto pointer-events-none">
+        {/* Subtle backdrop gradient scrim ensuring high contrast over the orange sun sphere */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -top-8 bg-gradient-to-t from-[#F7F3EC] via-[#F7F3EC]/80 to-transparent dark:from-[#070B14] dark:via-[#070B14]/80 dark:to-transparent pointer-events-none"
+        />
+        <div
+          ref={metaRowRef}
+          className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-12 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono text-slate-700 dark:text-zinc-300 pt-6 pb-2 will-change-transform pointer-events-auto"
+        >
+          <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-7 rounded-full border border-slate-700/60 dark:border-white/50 flex items-start justify-center p-1 bg-white/40 dark:bg-black/40 backdrop-blur-xs">
+                <div className="w-1 h-2 bg-[#E8452C] rounded-full animate-scroll-bounce" />
+              </div>
+              <span className="tracking-wider font-semibold">SCROLL TO EXPLORE</span>
             </div>
-            <span className="tracking-wider">SCROLL TO EXPLORE</span>
+            <span className="hidden sm:inline opacity-40">&bull;</span>
+            <span className="hidden sm:inline tracking-wider font-medium">31.2536&deg; N, 75.7037&deg; E</span>
           </div>
-          <span className="hidden sm:inline opacity-30">&bull;</span>
-          <span className="hidden sm:inline tracking-wider">31.2536&deg; N, 75.7037&deg; E</span>
-        </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#E8452C] animate-pulse" />
-            <span className="tracking-wider text-[#0E1118] dark:text-zinc-200">LIVE SATELLITE SYNC</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#E8452C] animate-pulse" />
+              <span className="tracking-wider text-slate-900 dark:text-white font-bold">LIVE SATELLITE SYNC</span>
+            </div>
+            <span className="tracking-wider text-slate-600 dark:text-zinc-400 font-medium">DATASET 2026.04</span>
           </div>
-          <span className="tracking-wider text-[#5B5750] dark:text-zinc-400">DATASET 2026.04</span>
         </div>
       </div>
 

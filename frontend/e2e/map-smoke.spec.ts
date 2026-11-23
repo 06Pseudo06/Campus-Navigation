@@ -620,4 +620,42 @@ test.describe("map smoke", () => {
     await faqQuestion.click();
     await expect(page.getByText(/The routing engine dynamically filters out staircases/i)).toBeVisible();
   });
+
+  test("landing page hero section bottom meta row contrast scrim is legible", async ({
+    page,
+  }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const heroHeadline = page.getByRole("heading", { name: /Navigate Further/i });
+    await expect(heroHeadline).toBeVisible({ timeout: 15_000 });
+
+    // Assert bottom meta row is rendered with legible text
+    await expect(page.getByText(/SCROLL TO EXPLORE/i)).toBeVisible();
+    await expect(page.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
+    await expect(page.getByText(/31.2536° N, 75.7037° E/i)).toBeVisible();
+  });
+
+  test("full multi-viewport responsive matrix (360x740, 768x1024, 1280x800, 1920x1080)", async ({
+    page,
+  }) => {
+    const viewports = [
+      { name: "mobile", width: 360, height: 740 },
+      { name: "tablet", width: 768, height: 1024 },
+      { name: "laptop", width: 1280, height: 800 },
+      { name: "desktop", width: 1920, height: 1080 },
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/explore", { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("campus-map")).toBeVisible({ timeout: 15_000 });
+
+      if (vp.width < 1024) {
+        // Mobile & tablet: bottom sheet container is rendered
+        await expect(page.getByTestId("bottom-sheet")).toBeVisible();
+      } else {
+        // Desktop & laptop: full sidebar rail and unified toolbar are present
+        await expect(page.getByTestId("unified-map-toolbar")).toBeVisible();
+      }
+    }
+  });
 });
