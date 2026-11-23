@@ -329,4 +329,41 @@ test.describe("map smoke", () => {
     // Snapped to Block 1 (State A), outside banner dismissed
     await expect(page.getByTestId("outside-campus-banner")).not.toBeVisible();
   });
+
+  test("sidebar toggles between full width and icon-only rail, and '/' shortcut focuses search", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.goto("/explore");
+
+    // 1. Sidebar collapse toggle
+    const collapseToggle = page.getByTestId("sidebar-collapse-toggle");
+    await expect(collapseToggle).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Collapse Sidebar")).toBeVisible();
+
+    // Click collapse toggle to switch to icon-only rail
+    await collapseToggle.dispatchEvent("click");
+    await expect(page.getByText("Collapse Sidebar")).not.toBeVisible();
+
+    // Verify stored preference
+    const isCollapsed = await page.evaluate(() =>
+      localStorage.getItem("campusway-sidebar-collapsed")
+    );
+    expect(isCollapsed).toBe("true");
+
+    // Click toggle again to expand back
+    await collapseToggle.dispatchEvent("click");
+    await expect(page.getByText("Collapse Sidebar")).toBeVisible();
+
+    // 2. Pressing "/" key focuses the search input
+    await page.keyboard.press("/");
+    const searchInput = page.getByTestId("campus-search");
+    await expect(searchInput).toBeFocused();
+
+    // 3. Instant search dropdown appears on typing
+    await searchInput.fill("Block");
+    const instantDropdown = page.getByTestId("instant-search-dropdown");
+    await expect(instantDropdown).toBeVisible();
+    await expect(page.getByTestId("search-result-block-1")).toBeVisible();
+  });
 });

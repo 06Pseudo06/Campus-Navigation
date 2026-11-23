@@ -68,6 +68,25 @@ export default function ExploreDashboardPage() {
   // Mobile menu / drawer controls
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("campusway-sidebar-collapsed");
+    if (stored !== null) return stored === "true";
+    return window.innerWidth < 1280;
+  });
+
+  const handleToggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("campusway-sidebar-collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // Quick category filter pill state ("all", "building", "hostel", "service", "gate", "landmark")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Global search & filter query (debounced by 250ms for smooth filtering)
   const [searchQuery, setSearchQuery] = useState("");
@@ -347,18 +366,22 @@ export default function ExploreDashboardPage() {
     });
   };
 
-  // Filtered locations based on debounced topbar search query
+  // Filtered locations based on debounced topbar search query and quick category filter
   const displayedLocations = useMemo(() => {
+    let result = allLocations;
+    if (selectedCategory && selectedCategory !== "all") {
+      result = result.filter((loc) => loc.category === selectedCategory);
+    }
     const q = debouncedSearchQuery.trim().toLowerCase();
-    if (!q) return allLocations;
-    return allLocations.filter(
+    if (!q) return result;
+    return result.filter(
       (loc) =>
         loc.name.toLowerCase().includes(q) ||
         loc.code.toLowerCase().includes(q) ||
         loc.description.toLowerCase().includes(q) ||
         loc.departments?.some((d) => d.toLowerCase().includes(q))
     );
-  }, [debouncedSearchQuery, allLocations]);
+  }, [debouncedSearchQuery, selectedCategory, allLocations]);
 
   const savedLocationsList = useMemo(() => {
     return allLocations.filter((l) => savedIds.includes(l.id));
@@ -376,7 +399,7 @@ export default function ExploreDashboardPage() {
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#F6F4EF] dark:bg-[#0a0f1d] text-slate-900 dark:text-zinc-100 font-sans transition-colors duration-200">
-      {/* 1. Left Navigation Sidebar */}
+      {/* 1. Left Navigation Sidebar (Collapsible Rail) */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={(tab) => {
@@ -387,11 +410,13 @@ export default function ExploreDashboardPage() {
         isOpenMobile={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
         savedCount={savedIds.length}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
 
       {/* 2. Main Content View Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Topbar */}
+        {/* Topbar with Centered Search, Keyboard Shortcut, and Category Pills */}
         <Topbar
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -402,6 +427,10 @@ export default function ExploreDashboardPage() {
           onToggleMobileDrawer={() => setMobileDrawerOpen(!mobileDrawerOpen)}
           isMobileDrawerOpen={mobileDrawerOpen}
           onOpenQrScanner={() => setIsQrScannerOpen(true)}
+          locations={allLocations}
+          onSelectLocation={handleSelectDestination}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
         />
 
         {/* OAuth Authentication Success Banner */}
