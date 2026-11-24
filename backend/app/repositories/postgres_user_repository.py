@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import func, inspect as sa_inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -481,4 +481,106 @@ class PostgresUserRepository:
         await self.session.delete(user)
         await self.session.commit()
         return True
+
+    async def list_users(
+        self,
+        search: Optional[str] = None,
+        role: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> Tuple[List[UserProfile], int]:
+        """List registered users with optional search and role filtering."""
+        stmt = select(User).options(selectinload(User.credentials), selectinload(User.identities))
+        count_stmt = select(func.count()).select_from(User)
+
+        if search:
+            term = f"%{search.strip().lower()}%"
+            stmt = stmt.where((func.lower(User.full_name).ilike(term)) | (func.lower(User.email).ilike(term)))
+            count_stmt = count_stmt.where((func.lower(User.full_name).ilike(term)) | (func.lower(User.email).ilike(term)))
+        if role:
+            stmt = stmt.where(User.role == role)
+            count_stmt = count_stmt.where(User.role == role)
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
+            count_stmt = count_stmt.where(User.is_active.is_(is_active))
+
+        total_res = await self.session.execute(count_stmt)
+        total = total_res.scalar() or 0
+
+        stmt = stmt.order_by(User.created_at.desc()).offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        users = result.scalars().all()
+
+        profiles = [user_to_profile(u) for u in users]
+        return profiles, total
+
+    async def update_role(self, user_id: Union[str, uuid.UUID], new_role: str) -> UserProfile:
+        """Update role for a user with last administrator protection."""
+        if new_role not in ("student", "admin", "moderator"):
+            raise ValueError(f"Invalid role '{new_role}'. Must be one of: student, admin, moderator.")
+
+        uid = uuid.UUID(str(user_id))
+        stmt = select(User).where(User.id == uid).options(selectinload(User.credentials), selectinload(User.identities))
+        res = await self.session.execute(stmt)
+        user = res.scalar_one_or_none()
+        if not user:
+            raise ValueError("User not found.")
+
+        # Guard: Cannot demote the last active administrator
+        if user.role == "admin" and new_role != "admin" and user.is_active:
+            admin_count_res = await self.session.execute(
+                select(func.count()).select_from(User).where(User.role == "admin", User.is_active.is_(True))
+            )
+            if (admin_count_res.scalar() or 0) <= 1:
+                raise ValueError("Cannot demote the last active administrator.")
+
+        user.role = new_role
+        user.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user_to_profile(user)
+
+    async def update_status(self, user_id: Union[str, uuid.UUID], is_active: bool) -> UserProfile:
+        """Activate or deactivate a user account with last administrator protection."""
+        uid = uuid.UUID(str(user_id))
+        stmt = select(User).where(User.id == uid).options(selectinload(User.credentials), selectinload(User.identities))
+        res = await self.session.execute(stmt)
+        user = res.scalar_one_or_none()
+        if not user:
+            raise ValueError("User not found.")
+
+        # Guard: Cannot deactivate the last active administrator
+        if user.role == "admin" and not is_active and user.is_active:
+            admin_count_res = await self.session.execute(
+                select(func.count()).select_from(User).where(User.role == "admin", User.is_active.is_(True))
+            )
+            if (admin_count_res.scalar() or 0) <= 1:
+                raise ValueError("Cannot deactivate the last active administrator.")
+
+        user.is_active = is_active
+        user.updated_at = datetime.now(timezone.utc)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user_to_profile(user)
+
+    async def count_stats(self) -> Dict[str, int]:
+        """Aggregate counts for dashboard overview."""
+        total_res = await self.session.execute(select(func.count()).select_from(User))
+        active_res = await self.session.execute(select(func.count()).select_from(User).where(User.is_active.is_(True)))
+        admin_res = await self.session.execute(select(func.count()).select_from(User).where(User.role == "admin"))
+        student_res = await self.session.execute(select(func.count()).select_from(User).where(User.role == "student"))
+        mod_res = await self.session.execute(select(func.count()).select_from(User).where(User.role == "moderator"))
+
+        total = total_res.scalar() or 0
+        active = active_res.scalar() or 0
+        return {
+            "total": total,
+            "active": active,
+            "inactive": total - active,
+            "students": student_res.scalar() or 0,
+            "admins": admin_res.scalar() or 0,
+            "moderators": mod_res.scalar() or 0,
+        }
+
 

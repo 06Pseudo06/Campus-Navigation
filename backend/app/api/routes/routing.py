@@ -10,9 +10,11 @@ from app.api.dependencies import get_db, require_admin_role
 from app.schemas.graph import (
     EdgeCreate,
     EdgeRead,
+    EdgeUpdate,
     GraphPayload,
     NodeCreate,
     NodeRead,
+    NodeUpdate,
     RouteQuery,
     RouteResponse,
 )
@@ -63,6 +65,20 @@ def create_node(
     return graph_service.create_node(db, node_in)
 
 
+@router.put("/nodes/{node_id}", response_model=NodeRead)
+def update_node(
+    node_id: uuid.UUID,
+    node_in: NodeUpdate,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
+):
+    """Update a navigation graph node (Administrative operation)."""
+    node = graph_service.update_node(db, node_id, node_in)
+    if not node:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found.")
+    return node
+
+
 @router.delete("/nodes/{node_id}", response_model=NodeRead)
 def deactivate_node(
     node_id: uuid.UUID,
@@ -105,6 +121,20 @@ def create_edge(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.put("/edges/{edge_id}", response_model=EdgeRead)
+def update_edge(
+    edge_id: uuid.UUID,
+    edge_in: EdgeUpdate,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
+):
+    """Update a walkable connection (Administrative operation)."""
+    edge = graph_service.update_edge(db, edge_id, edge_in)
+    if not edge:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge not found.")
+    return edge
+
+
 @router.delete("/edges/{edge_id}", response_model=EdgeRead)
 def deactivate_edge(
     edge_id: uuid.UUID,
@@ -116,6 +146,15 @@ def deactivate_edge(
     if not edge:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Edge not found.")
     return edge
+
+
+@router.get("/graph/validate")
+def validate_routing_graph(
+    db: Session = Depends(get_db),
+    _admin: str = Depends(require_admin_role),
+):
+    """Validate graph topology, disconnected vertices, and edge consistency (Administrative operation)."""
+    return graph_service.validate_graph(db)
 
 
 @router.post("/calculate", response_model=RouteResponse)

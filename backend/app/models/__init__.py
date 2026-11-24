@@ -11,6 +11,7 @@ from app.models.favorite import Favorite
 from app.models.report import LocationReport
 from app.models.map_import import MapImportBatch, StagedLocation
 from app.models.assistance import AssistanceRequest
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -27,6 +28,7 @@ __all__ = [
     "MapImportBatch",
     "StagedLocation",
     "AssistanceRequest",
+    "AuditLog",
     "generate_slug",
     "normalize_alias_text",
 ]

@@ -219,6 +219,48 @@ def deactivate_edge(db: Session, edge_id: uuid.UUID) -> Optional[Edge]:
     return edge
 
 
+def validate_graph(db: Session) -> Dict[str, Any]:
+    """Validate graph topology: find disconnected nodes, dangling references, self loops."""
+    nodes = db.query(Node).all()
+    edges = db.query(Edge).all()
+
+    node_ids = {n.id for n in nodes}
+    active_node_ids = {n.id for n in nodes if n.is_active}
+
+    incident_edges: Dict[uuid.UUID, int] = {n.id: 0 for n in nodes}
+    dangling_edges = []
+    self_loops = []
+
+    for e in edges:
+        if e.source_node_id not in node_ids or e.target_node_id not in node_ids:
+            dangling_edges.append(str(e.id))
+        if e.source_node_id == e.target_node_id:
+            self_loops.append(str(e.id))
+        if e.is_active:
+            if e.source_node_id in incident_edges:
+                incident_edges[e.source_node_id] += 1
+            if e.target_node_id in incident_edges:
+                incident_edges[e.target_node_id] += 1
+
+    disconnected_nodes = [
+        {"id": str(n.id), "node_type": n.node_type, "latitude": n.latitude, "longitude": n.longitude}
+        for n in nodes
+        if n.is_active and incident_edges.get(n.id, 0) == 0
+    ]
+
+    return {
+        "total_nodes": len(nodes),
+        "active_nodes": len(active_node_ids),
+        "total_edges": len(edges),
+        "active_edges": sum(1 for e in edges if e.is_active),
+        "disconnected_active_nodes": disconnected_nodes,
+        "disconnected_count": len(disconnected_nodes),
+        "dangling_edges": dangling_edges,
+        "self_loops": self_loops,
+        "is_valid": len(dangling_edges) == 0 and len(self_loops) == 0,
+    }
+
+
 from app.services.routing.algorithms import find_shortest_path
 from app.services.routing.directions import calculate_walking_duration, generate_step_directions
 from app.services.routing.graph import CampusGraph

@@ -15,7 +15,8 @@ from app.core.security import decode_access_token
 from app.models.user import User
 
 
-def require_admin_role(
+async def require_admin_role(
+    request: Request,
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> str:
@@ -24,44 +25,114 @@ def require_admin_role(
     Accepts:
     1. Static administrative secret via 'X-Admin-Key' or 'Authorization: Bearer <key>'
     2. Valid JWT Bearer token with role='admin'
+    3. Authenticated session cookie ('campusway_session') belonging to an active user with role='admin'
     """
-    token = None
+    # 1. Match static admin API key header
     if x_admin_key:
-        token = x_admin_key.strip()
-    elif authorization:
-        parts = authorization.strip().split()
-        if len(parts) == 2 and parts[0].lower() == "bearer":
-            token = parts[1]
-        else:
-            token = authorization.strip()
-
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required: Administrative privileges required.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # 1. Match static admin API key
-    if token == settings.ADMIN_API_KEY:
-        return "admin"
-
-    # 2. Check if valid JWT with role='admin'
-    try:
-        payload = decode_access_token(token)
-        if payload.get("role") == "admin":
+        if x_admin_key.strip() == settings.ADMIN_API_KEY:
             return "admin"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: Insufficient administrative privileges.",
+            detail="Access forbidden: Invalid administrative credentials.",
         )
-    except ValueError:
-        pass
+
+    # 2. Check Authorization header
+    token = None
+    if authorization:
+        parts = authorization.strip().split()
+        token = parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+
+    if token:
+        if token == settings.ADMIN_API_KEY:
+            return "admin"
+        try:
+            payload = decode_access_token(token)
+            if payload.get("role") == "admin":
+                return "admin"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden: Insufficient administrative privileges.",
+            )
+        except HTTPException:
+            raise
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired authentication token.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    # 3. Check session cookie
+    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if session_token:
+        from app.core.security import get_security_manager
+        from app.services.user_store import get_in_memory_user_repository
+        security_manager = get_security_manager()
+        token_data = security_manager.extract_session_token_data(session_token)
+        if token_data and "user_id" in token_data:
+            repo = get_in_memory_user_repository()
+            user = repo.get_by_id(token_data["user_id"])
+            if user:
+                if not getattr(user, "is_active", True):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Account is inactive. Please contact support.",
+                    )
+                if getattr(user, "role", "student") == "admin":
+                    return "admin"
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access forbidden: Insufficient administrative privileges.",
+                )
 
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Access forbidden: Invalid administrative credentials.",
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required: Administrative privileges required.",
+        headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+async def get_current_admin_user(
+    request: Request,
+    _admin_role: str = Depends(require_admin_role),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+) -> dict:
+    """Resolve acting administrator information for audit logging and route actions."""
+    session_token = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    if session_token:
+        from app.core.security import get_security_manager
+        from app.services.user_store import get_in_memory_user_repository
+        token_data = get_security_manager().extract_session_token_data(session_token)
+        if token_data and "user_id" in token_data:
+            user = get_in_memory_user_repository().get_by_id(token_data["user_id"])
+            if user:
+                return {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "name": user.name,
+                    "role": user.role,
+                }
+
+    if authorization:
+        parts = authorization.strip().split()
+        tok = parts[1] if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+        try:
+            payload = decode_access_token(tok)
+            return {
+                "id": str(payload.get("sub", "admin-jwt")),
+                "email": payload.get("email", "admin@campusway.lpu.in"),
+                "name": "Admin User",
+                "role": "admin",
+            }
+        except Exception:
+            pass
+
+    return {
+        "id": "admin-system",
+        "email": "admin@campusway.lpu.in",
+        "name": "System Administrator",
+        "role": "admin",
+    }
 
 
 def get_current_user_id(
@@ -180,5 +251,6 @@ __all__ = [
     "require_moderator_or_admin",
     "get_current_user_id",
     "get_current_user",
+    "get_current_admin_user",
 ]
 

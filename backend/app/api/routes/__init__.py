@@ -2,11 +2,12 @@
 
 from fastapi import APIRouter
 from app.api.v1.auth import router as auth_router
-from app.api.routes import imports, locations, routing, assistance, favorites, reports
+from app.api.routes import admin, imports, locations, routing, assistance, favorites, reports
 
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="", tags=["Authentication"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin Control Centre"])
 api_router.include_router(imports.router, prefix="/import", tags=["Map Import"])
 api_router.include_router(locations.router, prefix="/locations", tags=["Locations"])
 api_router.include_router(routing.router, prefix="/routing", tags=["Routing"])

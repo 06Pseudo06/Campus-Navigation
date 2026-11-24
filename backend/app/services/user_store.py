@@ -2,7 +2,7 @@ import inspect
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 from app.schemas.user import GoogleUserInfo, UserProfile
 
 
@@ -210,6 +210,97 @@ class InMemoryUserRepository:
 
         return True
 
+    def seed_admin_user(
+        self,
+        email: str = "admin@campusway.lpu.in",
+        name: str = "Campus Operations Admin",
+        password: str = "Admin@CampusWay2026!",
+    ) -> UserProfile:
+        """Ensure default administrator user exists in repository."""
+        from app.core.security import hash_password
+        existing = self.get_by_email(email)
+        if existing:
+            return existing
+        return self.create_email_user(
+            email=email,
+            name=name,
+            password_hash=hash_password(password),
+            role="admin",
+        )
+
+    def list_users(
+        self,
+        search: Optional[str] = None,
+        role: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> Tuple[List[UserProfile], int]:
+        """List registered users with optional search and role filtering."""
+        users = list(self._users_by_id.values())
+        if search:
+            s = search.strip().lower()
+            users = [
+                u for u in users
+                if (u.name and s in u.name.lower())
+                or (u.email and s in u.email.lower())
+                or s in u.id
+            ]
+        if role:
+            users = [u for u in users if u.role == role]
+        if is_active is not None:
+            users = [u for u in users if u.is_active is is_active]
+
+        total = len(users)
+        users.sort(key=lambda u: u.created_at, reverse=True)
+        return users[skip : skip + limit], total
+
+    def update_role(self, user_id: str, new_role: str) -> UserProfile:
+        """Update role for user with last administrator protection."""
+        user = self.get_by_id(user_id)
+        if not user:
+            raise ValueError("User not found.")
+        if new_role not in ("student", "admin", "moderator"):
+            raise ValueError(f"Invalid role '{new_role}'. Must be one of: student, admin, moderator.")
+
+        # Guard: Cannot demote the last active administrator
+        if user.role == "admin" and new_role != "admin" and user.is_active:
+            active_admins = [u for u in self._users_by_id.values() if u.role == "admin" and u.is_active]
+            if len(active_admins) <= 1:
+                raise ValueError("Cannot demote the last active administrator.")
+
+        updated = user.model_copy(update={"role": new_role})
+        self._users_by_id[str(user_id)] = updated
+        return updated
+
+    def update_status(self, user_id: str, is_active: bool) -> UserProfile:
+        """Activate or deactivate user account with last administrator protection."""
+        user = self.get_by_id(user_id)
+        if not user:
+            raise ValueError("User not found.")
+
+        # Guard: Cannot deactivate the last active administrator
+        if user.role == "admin" and not is_active and user.is_active:
+            active_admins = [u for u in self._users_by_id.values() if u.role == "admin" and u.is_active]
+            if len(active_admins) <= 1:
+                raise ValueError("Cannot deactivate the last active administrator.")
+
+        updated = user.model_copy(update={"is_active": is_active})
+        self._users_by_id[str(user_id)] = updated
+        return updated
+
+    def count_stats(self) -> Dict[str, int]:
+        """Aggregate counts for dashboard overview."""
+        all_users = list(self._users_by_id.values())
+        return {
+            "total": len(all_users),
+            "active": sum(1 for u in all_users if u.is_active),
+            "inactive": sum(1 for u in all_users if not u.is_active),
+            "students": sum(1 for u in all_users if u.role == "student"),
+            "admins": sum(1 for u in all_users if u.role == "admin"),
+            "moderators": sum(1 for u in all_users if u.role == "moderator"),
+        }
+
     def clear(self) -> None:
         """Utility for automated test resets."""
         self._users_by_id.clear()
@@ -220,6 +311,7 @@ class InMemoryUserRepository:
 
 # Global singleton instance for local runtime / test fallback
 _user_repository = InMemoryUserRepository()
+_user_repository.seed_admin_user()
 
 
 def get_in_memory_user_repository() -> InMemoryUserRepository:
@@ -344,6 +436,18 @@ class ResilientUserRepository:
 
     async def cleanup_expired_sessions(self, *args, **kwargs):
         return await self._execute("cleanup_expired_sessions", *args, **kwargs)
+
+    async def list_users(self, *args, **kwargs):
+        return await self._execute("list_users", *args, **kwargs)
+
+    async def update_role(self, *args, **kwargs):
+        return await self._execute("update_role", *args, **kwargs)
+
+    async def update_status(self, *args, **kwargs):
+        return await self._execute("update_status", *args, **kwargs)
+
+    async def count_stats(self, *args, **kwargs):
+        return await self._execute("count_stats", *args, **kwargs)
 
 
 def get_user_repository(

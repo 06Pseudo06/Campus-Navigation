@@ -15,11 +15,11 @@ def test_migration_revision_chain():
     heads = script.get_heads()
     assert len(heads) == 1
     head_rev = heads[0]
-    assert head_rev == "005_add_user_credentials_and_sessions"
+    assert head_rev == "006_add_audit_logs"
 
     revision = script.get_revision(head_rev)
     assert revision is not None
-    assert revision.down_revision == "004_report_resolution_notes"
+    assert revision.down_revision == "005_add_user_credentials_and_sessions"
 
 
 def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
@@ -56,6 +56,7 @@ def test_migration_upgrade_and_downgrade_on_disposable_db(tmp_path):
             "assistance_requests",
             "user_credentials",
             "user_sessions",
+            "audit_logs",
         }
         assert expected_tables.issubset(tables)
 

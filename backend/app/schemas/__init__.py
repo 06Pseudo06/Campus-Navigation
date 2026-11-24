@@ -40,6 +40,7 @@ from app.schemas.report import (
     LocationReportUpdate,
     ReportStatus,
 )
+from app.schemas.audit_log import AuditLogRead
 
 __all__ = [
     "UserBase",
@@ -75,4 +76,5 @@ __all__ = [
     "LocationReportUpdate",
     "LocationReportRead",
     "ReportStatus",
+    "AuditLogRead",
 ]
