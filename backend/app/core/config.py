@@ -58,7 +58,12 @@ class Settings(BaseSettings):
 
     @property
     def is_database_configured(self) -> bool:
-        return bool(self.DATABASE_URL and self.DATABASE_URL.strip() and not self.DATABASE_URL.startswith("sqlite:///:memory:"))
+        if not self.DATABASE_URL or not self.DATABASE_URL.strip():
+            return False
+        raw = self.DATABASE_URL.strip().lower()
+        if raw.startswith("sqlite") or raw == ":memory:":
+            return False
+        return raw.startswith("postgresql") or raw.startswith("postgres")
 
     @property
     def is_google_configured(self) -> bool:

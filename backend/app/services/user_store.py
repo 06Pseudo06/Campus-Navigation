@@ -239,21 +239,31 @@ async def get_db_optional(
     settings: Settings = Depends(get_settings),
 ) -> AsyncGenerator[Optional[AsyncSession], None]:
     """Yields an active database session when DATABASE_URL is configured, or None for in-memory mode."""
-    if getattr(settings, "ENVIRONMENT", "").lower() == "test" or not getattr(settings, "is_database_configured", False):
-        yield None
-        return
-    try:
-        from app.core.database import get_async_db
-        db_gen = get_async_db()
-    except Exception:
+    if (
+        getattr(settings, "ENVIRONMENT", "").lower() == "test"
+        or not getattr(settings, "is_database_configured", False)
+        or ResilientUserRepository._db_offline
+    ):
         yield None
         return
 
+    has_yielded = False
     try:
+        from app.core.database import get_async_db
+        db_gen = get_async_db()
         async for session in db_gen:
+            has_yielded = True
             yield session
-    except (GeneratorExit, BaseException):
+    except GeneratorExit:
         raise
+    except Exception as exc:
+        logging.getLogger("campusway.auth").warning(
+            "Database session initialization error (%s). Operating in resilient in-memory mode.",
+            exc,
+        )
+        ResilientUserRepository._db_offline = True
+        if not has_yielded:
+            yield None
 
 
 class ResilientUserRepository:

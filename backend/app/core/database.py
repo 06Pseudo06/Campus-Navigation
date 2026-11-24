@@ -78,6 +78,8 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
     url = make_url(raw_url)
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
+    elif url.drivername.startswith("sqlite"):
+        raise ValueError("Async engine only supports PostgreSQL. SQLite does not support asyncpg operations.")
 
     connect_args: Dict[str, Any] = {}
     ssl_mode = url.query.get("sslmode")
