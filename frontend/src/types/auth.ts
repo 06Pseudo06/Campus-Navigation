@@ -45,8 +45,10 @@ export interface UserProfile {
   id: string;
   email: string;
   name?: string | null;
+  full_name?: string | null;
   picture?: string | null;
   email_verified: boolean;
+  is_active?: boolean;
   created_at: string;
   last_login_at: string;
   auth_provider?: string;

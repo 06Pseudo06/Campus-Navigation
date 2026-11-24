@@ -15,10 +15,13 @@ export interface BackendLocation {
   parent_id: string | null;
   name: string;
   slug: string;
+  short_code?: string | null;
   location_type: string;
   description: string | null;
   latitude: number | null;
   longitude: number | null;
+  building?: string | null;
+  floor?: string | null;
   address_details: string | null;
   is_verified: boolean;
   is_active: boolean;
@@ -32,6 +35,7 @@ export interface BackendNode {
   node_type: string;
   latitude: number;
   longitude: number;
+  floor?: number | null;
   is_accessible: boolean;
   is_active: boolean;
   created_at?: string;
@@ -43,6 +47,7 @@ export interface BackendEdge {
   source_node_id: string;
   target_node_id: string;
   distance_m: number;
+  distance_meters?: number;
   path_type: string;
   is_bidirectional: boolean;
   is_accessible: boolean;
