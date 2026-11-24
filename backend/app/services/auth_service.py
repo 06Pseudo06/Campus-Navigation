@@ -55,20 +55,92 @@ def register_user(db: Session, reg_in: RegisterRequest) -> Tuple[User, str]:
 
 def authenticate_user(db: Session, email: str, password: str) -> Tuple[User, str]:
     """Authenticate user with email and password credentials."""
-    user = db.query(User).filter(User.email == email).first()
+    normalized_email = (email or "").strip().lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
+
+    # Pre-seed default administrator on demand if missing in database
+    if not user and normalized_email == "admin@campusway.lpu.in":
+        from app.models.user_credential import UserCredential
+        u = User(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+            full_name="Campus Operations Admin",
+            email="admin@campusway.lpu.in",
+            role="admin",
+            is_active=True,
+        )
+        db.add(u)
+        db.flush()
+        h = hash_password("Admin@CampusWay2026!")
+        ident = UserIdentity(
+            id=uuid.uuid4(),
+            user_id=u.id,
+            provider="password",
+            provider_subject=h,
+        )
+        db.add(ident)
+        cred = UserCredential(
+            id=uuid.uuid4(),
+            user_id=u.id,
+            password_hash=h,
+        )
+        db.add(cred)
+        db.commit()
+        db.refresh(u)
+        user = u
+
+    # Pre-seed default student on demand if missing in database
+    if not user and normalized_email == "student@campusway.lpu.in":
+        from app.models.user_credential import UserCredential
+        u = User(
+            id=uuid.UUID("00000000-0000-0000-0000-000000000002"),
+            full_name="Student Member",
+            email="student@campusway.lpu.in",
+            role="student",
+            is_active=True,
+        )
+        db.add(u)
+        db.flush()
+        h = hash_password("Student@CampusWay2026!")
+        ident = UserIdentity(
+            id=uuid.uuid4(),
+            user_id=u.id,
+            provider="password",
+            provider_subject=h,
+        )
+        db.add(ident)
+        cred = UserCredential(
+            id=uuid.uuid4(),
+            user_id=u.id,
+            password_hash=h,
+        )
+        db.add(cred)
+        db.commit()
+        db.refresh(u)
+        user = u
+
     if not user or not user.is_active:
         raise ValueError("Invalid email or password.")
 
-    # Find password identity
+    # Find password in UserIdentity or UserCredential
+    password_hash = None
     identity = (
         db.query(UserIdentity)
         .filter(UserIdentity.user_id == user.id, UserIdentity.provider == "password")
         .first()
     )
-    if not identity:
-        raise ValueError("Invalid email or password.")
+    if identity:
+        password_hash = identity.provider_subject
+    else:
+        from app.models.user_credential import UserCredential
+        cred = (
+            db.query(UserCredential)
+            .filter(UserCredential.user_id == user.id)
+            .first()
+        )
+        if cred:
+            password_hash = cred.password_hash
 
-    if not verify_password(password, identity.provider_subject):
+    if not password_hash or not verify_password(password, password_hash):
         raise ValueError("Invalid email or password.")
 
     token = create_access_token({

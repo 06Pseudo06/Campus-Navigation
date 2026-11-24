@@ -27,10 +27,19 @@ class InMemoryUserRepository:
         self._users_by_email: Dict[str, str] = {}
         # Maps token_hash -> session record dict
         self._sessions_by_hash: Dict[str, dict] = {}
+        self.seed_admin_user()
+        self.seed_student_user()
 
     def get_by_id(self, user_id: str) -> Optional[UserProfile]:
         """Fetch user by primary internal UUID."""
-        return self._users_by_id.get(user_id)
+        uid = str(user_id)
+        if uid in self._users_by_id:
+            return self._users_by_id[uid]
+        if uid == "50d3d6d2-63c1-445a-8171-bd2a985427e8":
+            return self.seed_admin_user()
+        if uid == "9f7d52a8-00fc-43d3-bb15-5988682a0063":
+            return self.seed_student_user()
+        return None
 
     def get_by_google_sub(self, google_sub: str) -> Optional[UserProfile]:
         """Fetch user by Google's stable unique `sub` identifier."""
@@ -43,9 +52,14 @@ class InMemoryUserRepository:
         """Fetch user by normalized lowercase email address."""
         if not email:
             return None
-        user_id = self._users_by_email.get(email.strip().lower())
+        norm = email.strip().lower()
+        user_id = self._users_by_email.get(norm)
         if user_id:
             return self._users_by_id.get(user_id)
+        if norm == "admin@campusway.lpu.in":
+            return self.seed_admin_user()
+        if norm == "student@campusway.lpu.in":
+            return self.seed_student_user()
         return None
 
     def create_email_user(
@@ -61,7 +75,10 @@ class InMemoryUserRepository:
         """
         normalized_email = email.strip().lower()
         now = datetime.now(timezone.utc)
-        user_id = str(uuid.uuid4())
+        old_id = self._users_by_email.get(normalized_email)
+        if old_id and old_id in self._users_by_id:
+            del self._users_by_id[old_id]
+        user_id = old_id or str(uuid.uuid4())
 
         new_user = UserProfile(
             id=user_id,
@@ -218,15 +235,57 @@ class InMemoryUserRepository:
     ) -> UserProfile:
         """Ensure default administrator user exists in repository."""
         from app.core.security import hash_password
-        existing = self.get_by_email(email)
-        if existing:
-            return existing
-        return self.create_email_user(
-            email=email,
-            name=name,
+        norm_email = email.strip().lower()
+        user_id = self._users_by_email.get(norm_email)
+        if user_id and user_id in self._users_by_id:
+            return self._users_by_id[user_id]
+        admin_id = "50d3d6d2-63c1-445a-8171-bd2a985427e8"
+        now = datetime.now(timezone.utc)
+        admin_user = UserProfile(
+            id=admin_id,
+            google_sub=None,
+            email=norm_email,
+            name=name.strip(),
+            picture=None,
             password_hash=hash_password(password),
+            email_verified=True,
             role="admin",
+            created_at=now,
+            last_login_at=now,
         )
+        self._users_by_id[admin_id] = admin_user
+        self._users_by_email[norm_email] = admin_id
+        return admin_user
+
+    def seed_student_user(
+        self,
+        email: str = "student@campusway.lpu.in",
+        name: str = "Student Member",
+        password: str = "Student@CampusWay2026!",
+    ) -> UserProfile:
+        """Ensure default student user exists in repository."""
+        from app.core.security import hash_password
+        norm_email = email.strip().lower()
+        user_id = self._users_by_email.get(norm_email)
+        if user_id and user_id in self._users_by_id:
+            return self._users_by_id[user_id]
+        student_id = "9f7d52a8-00fc-43d3-bb15-5988682a0063"
+        now = datetime.now(timezone.utc)
+        student_user = UserProfile(
+            id=student_id,
+            google_sub=None,
+            email=norm_email,
+            name=name.strip(),
+            picture=None,
+            password_hash=hash_password(password),
+            email_verified=True,
+            role="student",
+            created_at=now,
+            last_login_at=now,
+        )
+        self._users_by_id[student_id] = student_user
+        self._users_by_email[norm_email] = student_id
+        return student_user
 
     def list_users(
         self,
@@ -312,6 +371,7 @@ class InMemoryUserRepository:
 # Global singleton instance for local runtime / test fallback
 _user_repository = InMemoryUserRepository()
 _user_repository.seed_admin_user()
+_user_repository.seed_student_user()
 
 
 def get_in_memory_user_repository() -> InMemoryUserRepository:
@@ -323,7 +383,7 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
-from app.core.database import get_db
+from app.core.database import _probe_postgres, get_db
 from app.repositories.postgres_user_repository import PostgresUserRepository
 
 
@@ -335,7 +395,9 @@ async def get_db_optional(
         getattr(settings, "ENVIRONMENT", "").lower() == "test"
         or not getattr(settings, "is_database_configured", False)
         or ResilientUserRepository._db_offline
+        or not _probe_postgres(getattr(settings, "DATABASE_URL", ""))
     ):
+        ResilientUserRepository._db_offline = True
         yield None
         return
 
@@ -349,13 +411,14 @@ async def get_db_optional(
     except GeneratorExit:
         raise
     except Exception as exc:
+        if has_yielded:
+            raise
         logging.getLogger("campusway.auth").warning(
             "Database session initialization error (%s). Operating in resilient in-memory mode.",
             exc,
         )
         ResilientUserRepository._db_offline = True
-        if not has_yielded:
-            yield None
+        yield None
 
 
 class ResilientUserRepository:
@@ -448,6 +511,12 @@ class ResilientUserRepository:
 
     async def count_stats(self, *args, **kwargs):
         return await self._execute("count_stats", *args, **kwargs)
+
+    def seed_admin_user(self, *args, **kwargs):
+        return self._mem.seed_admin_user(*args, **kwargs)
+
+    def seed_student_user(self, *args, **kwargs):
+        return self._mem.seed_student_user(*args, **kwargs)
 
 
 def get_user_repository(

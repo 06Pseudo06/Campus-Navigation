@@ -24,9 +24,31 @@ from app.models.base import Base
 # Synchronous Engine & Session Management (Core CampusWay Services)
 # =====================================================================
 
+def _probe_postgres(url_str: str, timeout: float = 1.0) -> bool:
+    try:
+        u = make_url(url_str)
+        host = u.host
+        port = u.port or 5432
+        if not host:
+            return False
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.close()
+        return True
+    except Exception:
+        return False
+
+
 db_url = settings.DATABASE_URL or "sqlite:///:memory:"
-if db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
+    if not _probe_postgres(db_url):
+        import logging, os
+        logging.getLogger("campusway.database").warning(
+            "PostgreSQL port 5432 unreachable. Resiliently falling back to local SQLite (campusway_dev.db)."
+        )
+        dev_db = os.path.abspath("campusway_dev.db").replace("\\", "/")
+        db_url = f"sqlite:///{dev_db}"
+    else:
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 engine_kwargs: Dict[str, Any] = {"pool_pre_ping": settings.DB_POOL_PRE_PING}
 if not db_url.startswith("sqlite"):
@@ -34,6 +56,7 @@ if not db_url.startswith("sqlite"):
         "pool_size": settings.DB_POOL_SIZE,
         "max_overflow": settings.DB_MAX_OVERFLOW,
         "pool_recycle": settings.DB_POOL_RECYCLE,
+        "connect_args": {"connect_timeout": 3},
     })
 
 engine = create_engine(db_url, **engine_kwargs)

@@ -455,6 +455,18 @@ async def login(
     normalized_email = payload.email.strip().lower()
     user = await _resolve(user_repo.get_by_email(normalized_email))
     if not user:
+        if normalized_email == "admin@campusway.lpu.in":
+            if hasattr(user_repo, "seed_admin_user"):
+                user = await _resolve(user_repo.seed_admin_user())
+            elif hasattr(getattr(user_repo, "_mem", None), "seed_admin_user"):
+                user = await _resolve(user_repo._mem.seed_admin_user())
+        elif normalized_email == "student@campusway.lpu.in":
+            if hasattr(user_repo, "seed_student_user"):
+                user = await _resolve(user_repo.seed_student_user())
+            elif hasattr(getattr(user_repo, "_mem", None), "seed_student_user"):
+                user = await _resolve(user_repo._mem.seed_student_user())
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",

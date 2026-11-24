@@ -37,10 +37,13 @@ export function LoginForm() {
   const [forgotEmail, setForgotEmail] = useState<string>("");
   const [forgotNotice, setForgotNotice] = useState<string | null>(null);
 
-  // If already logged in, redirect to the authenticated explore dashboard
+  // If already logged in, redirect to destination or explore dashboard
   React.useEffect(() => {
     if (!authLoading && user) {
-      router.push("/explore");
+      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const redirectParam = params?.get("redirect");
+      const target = redirectParam || (user.role === "admin" ? "/admin" : "/explore");
+      router.push(target);
     }
   }, [user, authLoading, router]);
 
@@ -122,7 +125,12 @@ export function LoginForm() {
       const response = await authService.login(formData);
       if (response.success) {
         await refreshUser();
-        router.push("/explore");
+        const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const redirectParam = params?.get("redirect");
+        const authData = response.data as { user?: { role?: string }; role?: string } | undefined;
+        const role = authData?.user?.role || authData?.role;
+        const target = redirectParam || (role === "admin" ? "/admin" : "/explore");
+        router.push(target);
         return;
       }
       setSystemNotice({
