@@ -181,16 +181,32 @@ export function parseScannedQrPayload(
     };
   }
 
+  // Strip prefix like place: or lpu: (e.g. place:block-32 -> block-32, lpu:gate-1 -> gate-1)
+  let normalizedText = trimmed;
+  if (/^(place|lpu):/i.test(normalizedText)) {
+    normalizedText = normalizedText.replace(/^(place|lpu):/i, "").trim();
+  }
+
   // Case 1: Full URL or Relative URL with query parameters
-  if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+  if (
+    normalizedText.startsWith("http://") ||
+    normalizedText.startsWith("https://") ||
+    normalizedText.startsWith("/") ||
+    normalizedText.startsWith("navigate?") ||
+    normalizedText.startsWith("explore?")
+  ) {
     try {
+      let urlStr = normalizedText;
+      if (urlStr.startsWith("navigate?") || urlStr.startsWith("explore?")) {
+        urlStr = `/${urlStr}`;
+      }
       // If relative, use a dummy base for parsing
-      const url = trimmed.startsWith("/")
-        ? new URL(trimmed, "https://campusway.lpu.in")
-        : new URL(trimmed);
+      const url = urlStr.startsWith("/")
+        ? new URL(urlStr, "https://campusway.lpu.in")
+        : new URL(urlStr);
 
       // Validate trusted host if absolute
-      if (!trimmed.startsWith("/") && !isSafeRedirectTarget(trimmed)) {
+      if (!urlStr.startsWith("/") && !isSafeRedirectTarget(urlStr)) {
         return {
           valid: false,
           destination: null,
@@ -244,8 +260,23 @@ export function parseScannedQrPayload(
     }
   }
 
+  // Case 1b: Identifier with query parameter (e.g. "block-32?from=gate-1")
+  if (normalizedText.includes("?")) {
+    const [rawId, rawQuery] = normalizedText.split("?");
+    const queryParams = new URLSearchParams(rawQuery);
+    const destination = validateLocationIdentifier(rawId, catalog);
+    if (destination) {
+      const fromParam = queryParams.get("from") || queryParams.get("origin") || queryParams.get("start");
+      return {
+        valid: true,
+        destination,
+        origin: fromParam ? fromParam.trim() : null,
+      };
+    }
+  }
+
   // Case 2: Plain text location identifier (slug, code, or UUID)
-  const destination = validateLocationIdentifier(trimmed, catalog);
+  const destination = validateLocationIdentifier(normalizedText, catalog);
   if (destination) {
     return {
       valid: true,
@@ -258,6 +289,6 @@ export function parseScannedQrPayload(
     valid: false,
     destination: null,
     origin: null,
-    error: `Unrecognized campus destination code '${trimmed.substring(0, 30)}'.`,
+    error: `Unknown QR code — not a recognized CampusWay location ('${trimmed.substring(0, 30)}')`,
   };
 }

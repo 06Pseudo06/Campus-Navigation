@@ -20,6 +20,7 @@ interface QrScannerModalProps {
     destination: CampusLocation | BackendLocation,
     origin: string | null
   ) => void;
+  onScanPayload?: (rawPayload: string) => void;
 }
 
 type CameraStatus =
@@ -36,6 +37,7 @@ export function QrScannerModal({
   isOpen,
   onClose,
   onScanSuccess,
+  onScanPayload,
 }: QrScannerModalProps) {
   const titleId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,13 +114,17 @@ export function QrScannerModal({
 
         setTimeout(() => {
           stopCamera();
-          onScanSuccess(result.destination!, result.origin);
+          if (onScanPayload) {
+            onScanPayload(scannedText);
+          } else {
+            onScanSuccess(result.destination!, result.origin);
+          }
         }, 500);
       } else {
-        // Show non-blocking alert and pause for 2s before resuming detection
+        // Show non-blocking alert and pause for 2s before resuming detection (keep scanner open)
         isCooldownRef.current = true;
         setScanAlert(
-          result.error || "Unrecognized QR sign. Please aim at an official CampusWay code."
+          result.error || "Unknown QR code — not a recognized CampusWay location"
         );
         setTimeout(() => {
           setScanAlert(null);
@@ -126,7 +132,7 @@ export function QrScannerModal({
         }, 2200);
       }
     },
-    [catalog, onScanSuccess, stopCamera]
+    [catalog, onScanSuccess, onScanPayload, stopCamera]
   );
 
   // 4. Scanner detection loop (Native BarcodeDetector or jsQR canvas fallback)
@@ -381,9 +387,13 @@ export function QrScannerModal({
     const result = parseScannedQrPayload(manualCode.trim(), catalog);
     if (result.valid && result.destination) {
       stopCamera();
-      onScanSuccess(result.destination, result.origin);
+      if (onScanPayload) {
+        onScanPayload(manualCode.trim());
+      } else {
+        onScanSuccess(result.destination, result.origin);
+      }
     } else {
-      setManualError(result.error || "Location code not recognized.");
+      setManualError(result.error || "Unknown QR code — not a recognized CampusWay location");
     }
   };
 

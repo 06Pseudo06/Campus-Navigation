@@ -71,6 +71,7 @@ export const iconMap = {
   compass: Compass,
   stairs: AlertTriangle,
   warning: AlertTriangle,
+  alertTriangle: AlertTriangle,
   hint: Lightbulb,
 
   // Map controls & Engine

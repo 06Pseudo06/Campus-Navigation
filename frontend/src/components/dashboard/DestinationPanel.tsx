@@ -57,6 +57,7 @@ interface DestinationPanelProps {
   onSelectNearestPlace?: (location: CampusLocation) => void;
   isOutsideCampusBanner?: boolean;
   onDismissOutsideCampusBanner?: () => void;
+  onTestScan?: (payload: string) => void;
 }
 
 export function DestinationPanel({
@@ -87,6 +88,7 @@ export function DestinationPanel({
   onSelectNearestPlace,
   isOutsideCampusBanner = false,
   onDismissOutsideCampusBanner,
+  onTestScan,
 }: DestinationPanelProps) {
   const [panelSearch, setPanelSearch] = useState<string>("");
   const debouncedPanelSearch = useDebounce(panelSearch, 250);
@@ -1074,6 +1076,10 @@ export function DestinationPanel({
           destination={selectedLocation}
           origin={originLocation}
           isOriginCurrentLocation={isOriginCurrentLocation}
+          onTestScan={(payload) => {
+            setShowQrModal(false);
+            onTestScan?.(payload);
+          }}
         />
       )}
     </aside>

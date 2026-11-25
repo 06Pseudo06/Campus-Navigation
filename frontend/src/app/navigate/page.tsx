@@ -73,9 +73,11 @@ function NavigateContent() {
         ? "gps"
         : origin && typeof origin === "object"
         ? origin.slug || origin.id
-        : "gate-1";
+        : fromParam || null;
 
-    const targetUrl = `/explore?to=${encodeURIComponent(targetSlug)}&from=${encodeURIComponent(originSlug)}`;
+    const targetUrl = originSlug
+      ? `/explore?to=${encodeURIComponent(targetSlug)}&from=${encodeURIComponent(originSlug)}`
+      : `/explore?to=${encodeURIComponent(targetSlug)}`;
 
     const interval = setInterval(() => {
       setRedirectCountdown((prev) => {
@@ -135,9 +137,11 @@ function NavigateContent() {
         ? "gps"
         : origin && typeof origin === "object"
         ? origin.slug || origin.id
-        : "gate-1";
+        : fromParam || null;
 
-    const exploreUrl = `/explore?to=${encodeURIComponent(targetSlug)}&from=${encodeURIComponent(originSlug)}`;
+    const exploreUrl = originSlug
+      ? `/explore?to=${encodeURIComponent(targetSlug)}&from=${encodeURIComponent(originSlug)}`
+      : `/explore?to=${encodeURIComponent(targetSlug)}`;
 
     return (
       <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center p-6 text-zinc-200 font-sans">

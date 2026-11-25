@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
   QrCodeIcon,
 } from "./DashboardIcons";
+import { Icon } from "@/components/ui/Icon";
 import Link from "next/link";
 
 interface QrCodeModalProps {
@@ -20,6 +21,7 @@ interface QrCodeModalProps {
   destination: CampusLocation | null;
   origin?: CampusLocation | null;
   isOriginCurrentLocation?: boolean;
+  onTestScan?: (payload: string) => void;
 }
 
 export function QrCodeModal({
@@ -28,6 +30,7 @@ export function QrCodeModal({
   destination,
   origin,
   isOriginCurrentLocation = false,
+  onTestScan,
 }: QrCodeModalProps) {
   const titleId = useId();
   const descId = useId();
@@ -346,6 +349,22 @@ export function QrCodeModal({
               <span>Share</span>
             </button>
           </div>
+
+          {/* In-App Simulation: Test this QR */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              if (onTestScan) {
+                onTestScan(fullUrl || targetPath);
+              }
+            }}
+            data-testid="test-qr-button"
+            className="w-full py-2.5 px-3 rounded-xl bg-[#E8452C] hover:bg-[#D43B23] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
+          >
+            <Icon name="route" size={16} />
+            <span>Test this QR in App (Simulate Scan)</span>
+          </button>
         </div>
 
         {/* Footer / Printable Sheet Link */}
