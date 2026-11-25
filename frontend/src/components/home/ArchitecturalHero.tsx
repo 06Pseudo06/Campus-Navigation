@@ -561,7 +561,7 @@ export function ArchitecturalHero() {
     <section
       id="section-01"
       ref={containerRef}
-      className="relative w-full min-h-[92svh] lg:min-h-[96svh] bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 overflow-hidden [overflow:clip] flex flex-col justify-between pt-12 sm:pt-16 pb-0 select-none transition-colors duration-200 border-b border-[#0E1118]/10 dark:border-white/10"
+      className="relative w-full min-h-[92svh] lg:min-h-[96svh] bg-[#F6F4EF] dark:bg-[#070B14] text-[#111318] dark:text-[#F4F6FA] overflow-hidden [overflow:clip] flex flex-col justify-between pt-12 sm:pt-16 pb-0 select-none transition-colors duration-200 border-b border-[#111318]/10 dark:border-white/10"
       aria-label="Campus Wayfinding Reimagined"
     >
       {/* =================================================================== */}
@@ -887,7 +887,7 @@ export function ArchitecturalHero() {
         {/* Subtle backdrop gradient scrim (transparent to bg with 60% opacity over 48px) */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 h-12 bg-gradient-to-t from-[#F7F3EC]/60 to-transparent dark:from-[#070B14]/60 dark:to-transparent pointer-events-none"
+          className="absolute inset-0 h-12 bg-gradient-to-t from-[#F6F4EF]/60 to-transparent dark:from-[#070B14]/60 dark:to-transparent pointer-events-none"
         />
         <div
           ref={metaRowRef}

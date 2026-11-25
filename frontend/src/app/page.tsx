@@ -26,7 +26,7 @@ export default function Home() {
       {/* Unified Lenis Smooth-Scroll instance wired to GSAP ScrollTrigger */}
       <SmoothScroll />
 
-      <div className="relative w-full min-h-screen flex flex-col bg-[#F7F3EC] dark:bg-[#070B14] text-[#0E1118] dark:text-zinc-100 overflow-x-hidden selection:bg-[#DE4B31] selection:text-white transition-colors duration-200">
+      <div className="relative w-full min-h-screen flex flex-col bg-[#F6F4EF] dark:bg-[#070B14] text-[#111318] dark:text-[#F4F6FA] overflow-x-hidden selection:bg-[#DE4B31] selection:text-white transition-colors duration-200">
         {/* Custom Terracotta Interactive Cursor */}
         <CustomCursor />
 

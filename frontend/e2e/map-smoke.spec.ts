@@ -762,4 +762,52 @@ test.describe("map smoke", () => {
     expect(transform === "none" || transform.startsWith("matrix(1, 0, 0, 1")).toBeTruthy();
     expect(consoleErrors).toEqual([]);
   });
+
+  test("theme toggle correctly switches to light mode and persists in localStorage with light semantic tokens", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    // Open Theme dropdown in navbar
+    const themeBtn = page.getByRole("button", { name: /Change theme/i });
+    await expect(themeBtn).toBeVisible({ timeout: 15_000 });
+    await themeBtn.click();
+
+    // Click "Light Mode"
+    const lightOption = page.getByRole("button", { name: /Light Mode/i });
+    await expect(lightOption).toBeVisible();
+    await lightOption.click();
+
+    // Verify localStorage has 'light'
+    const storedTheme = await page.evaluate(() => localStorage.getItem("campusway-theme"));
+    expect(storedTheme).toBe("light");
+
+    // Verify document.documentElement has 'light' class and does NOT have 'dark'
+    const htmlClasses = await page.evaluate(() => {
+      const root = document.documentElement;
+      return {
+        hasLight: root.classList.contains("light"),
+        hasDark: root.classList.contains("dark"),
+        dataTheme: root.getAttribute("data-theme"),
+      };
+    });
+    expect(htmlClasses.hasLight).toBe(true);
+    expect(htmlClasses.hasDark).toBe(false);
+    expect(htmlClasses.dataTheme).toBe("light");
+
+    // Verify body computed background color matches #F6F4EF (rgb(246, 244, 239))
+    const bodyBg = await page.evaluate(() => {
+      return window.getComputedStyle(document.body).backgroundColor;
+    });
+    expect(bodyBg).toBe("rgb(246, 244, 239)");
+
+    // Verify hero section computed background color matches #F6F4EF (rgb(246, 244, 239))
+    const heroBg = await page.evaluate(() => {
+      const hero = document.getElementById("section-01");
+      return hero ? window.getComputedStyle(hero).backgroundColor : null;
+    });
+    expect(heroBg).toBe("rgb(246, 244, 239)");
+  });
 });
