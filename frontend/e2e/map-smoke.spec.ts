@@ -810,4 +810,31 @@ test.describe("map smoke", () => {
     });
     expect(heroBg).toBe("rgb(246, 244, 239)");
   });
+
+  test("help page emergency callout renders Lucide icon, semantic tokens, and verified contact links", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/help", { waitUntil: "domcontentloaded" });
+
+    const callout = page.locator("#emergency-callout");
+    await expect(callout).toBeVisible({ timeout: 15_000 });
+
+    // Assert emergency station heading
+    await expect(callout.getByRole("heading", { name: /Emergency Call Stations/i })).toBeVisible();
+
+    // Assert Lucide ShieldAlert icon SVG is rendered
+    const icon = callout.locator("svg.lucide-shield-alert");
+    await expect(icon).toBeVisible();
+
+    // Assert verified click-to-call tel links
+    const securityLink = callout.locator('a[href="tel:+911824517000"]');
+    await expect(securityLink).toBeVisible();
+
+    const hospitalLink = callout.locator('a[href="tel:+911824517108"]');
+    await expect(hospitalLink).toBeVisible();
+
+    const nationalLink = callout.locator('a[href="tel:112"]');
+    await expect(nationalLink).toBeVisible();
+  });
 });

@@ -17,6 +17,8 @@ import {
   RouteIcon,
 } from "@/components/dashboard/DashboardIcons";
 import { Spinner } from "@/components/icons/Icons";
+import { ShieldAlert, PhoneCall } from "lucide-react";
+import { CAMPUS_EMERGENCY_CONTACTS, EMERGENCY_STATION_INFO } from "@/lib/safety";
 
 export default function HelpPage() {
   const { user } = useAuth();
@@ -78,32 +80,9 @@ export default function HelpPage() {
     setSubmitError(null);
   };
 
-  const campusSupportDirectory = [
-    {
-      label: "Campus Safety & Security Operations",
-      facility: "Main Gate 1 Security Kiosk",
-      hours: "24/7 Dispatch",
-      phone: "+91 1824 517000",
-    },
-    {
-      label: "Student Health & Wellness / Hospital",
-      facility: "Shanti Devi Mittal Hospital",
-      hours: "24/7 Emergency Care",
-      phone: "+91 1824 517108",
-    },
-    {
-      label: "Disability & Step-Free Accessibility Support",
-      facility: "Central Spine & Admin Block 34",
-      hours: "Mon–Fri, 8:30–17:00",
-      phone: "+91 1824 517050",
-    },
-    {
-      label: "Campus Information & Visitor Welcome Desk",
-      facility: "Uni-Mall Ground Floor Atrium",
-      hours: "Daily, 8:00–20:00",
-      phone: "+91 1824 517111",
-    },
-  ];
+  const campusSupportDirectory = CAMPUS_EMERGENCY_CONTACTS.filter(
+    (c) => c.id !== "national-emergency"
+  );
 
   const faqs = [
     {
@@ -422,10 +401,10 @@ export default function HelpPage() {
               <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between">
                 <span className="text-[11px] font-mono text-slate-400">Direct Helpline:</span>
                 <a
-                  href={`tel:${desk.phone.replace(/[^0-9+]/g, "")}`}
+                  href={`tel:${desk.phone}`}
                   className="text-xs font-mono font-bold text-[#E8452C] hover:underline"
                 >
-                  {desk.phone}
+                  {desk.formattedPhone}
                 </a>
               </div>
             </div>
@@ -433,18 +412,55 @@ export default function HelpPage() {
         </div>
       </section>
 
-      {/* SECTION 3: EMERGENCY BLUE LIGHT STATIONS */}
-      <section className="py-8 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto">
-        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-blue-600/10 via-indigo-600/5 to-slate-900/10 border border-blue-500/30 space-y-3">
-          <div className="flex items-center gap-2.5 text-blue-700 dark:text-blue-400">
-            <span className="w-3 h-3 rounded-full bg-blue-500 animate-ping inline-block" />
-            <h3 className="text-base font-bold uppercase tracking-wider font-mono">
-              Blue Light Emergency Call Stations
-            </h3>
+      {/* SECTION 3: EMERGENCY CALL STATIONS & IMMEDIATE DIRECTORY */}
+      <section id="emergency-callout" className="py-8 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto">
+        <div className="rounded-3xl border border-[#0E1118]/15 dark:border-white/10 bg-white/80 dark:bg-[#0E1422] p-6 sm:p-8 shadow-sm relative overflow-hidden transition-colors duration-200 border-l-4 border-l-[#E8452C] space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {/* 20px Lucide ShieldAlert inside 32px tinted tile */}
+              <div className="w-8 h-8 rounded-lg bg-[#E8452C]/10 dark:bg-[#E8452C]/20 border border-[#E8452C]/30 flex items-center justify-center shrink-0 text-[#E8452C]">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold uppercase tracking-wider font-mono text-[#0E1118] dark:text-white">
+                  {EMERGENCY_STATION_INFO.title}
+                </h3>
+                <p className="text-[11px] font-mono text-[#5B5750] dark:text-zinc-400">
+                  Direct Two-Way Voice Intercom &bull; 24/7 Security Operations
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                Corridors Ground-Truth Surveyed
+              </span>
+            </div>
           </div>
-          <p className="text-xs sm:text-sm text-slate-700 dark:text-zinc-300 leading-relaxed max-w-3xl">
-            Throughout LPU main promenades, Central Spine, and residential blocks, prominent emergency towers marked with blue beacon lights connect directly to Campus Security Dispatch at the push of a red button.
+
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-300 leading-relaxed max-w-3xl">
+            {EMERGENCY_STATION_INFO.description}
           </p>
+
+          {/* Quick-Dial Urgent Contacts Row */}
+          <div className="pt-3 border-t border-[#0E1118]/10 dark:border-white/10 flex flex-wrap items-center gap-3 sm:gap-4">
+            <span className="text-[11px] font-mono uppercase font-bold text-slate-500 dark:text-zinc-400">
+              Immediate Helplines:
+            </span>
+            {CAMPUS_EMERGENCY_CONTACTS.filter((c) => c.priority === "urgent").map((contact) => (
+              <a
+                key={contact.id}
+                href={`tel:${contact.phone}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-zinc-800/80 dark:hover:bg-zinc-700/80 border border-slate-200 dark:border-zinc-700/80 text-xs font-mono font-bold text-slate-900 dark:text-zinc-100 hover:text-[#E8452C] dark:hover:text-[#E8452C] transition-colors shadow-2xs"
+                title={`Call ${contact.label}`}
+              >
+                <PhoneCall className="w-3.5 h-3.5 text-[#E8452C]" />
+                <span>{contact.label.split("&")[0].trim()}:</span>
+                <span className="text-[#E8452C]">{contact.formattedPhone}</span>
+              </a>
+            ))}
+          </div>
         </div>
       </section>
 
