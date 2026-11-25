@@ -92,11 +92,13 @@ class GoogleOAuthService:
             raise ValueError("Google ID token missing required 'sub' claim.")
         if not email:
             raise ValueError("Google ID token missing required 'email' claim.")
+        if payload.get("email_verified") is not True:
+            raise ValueError("Google account email is not verified.")
 
         return GoogleUserInfo(
             sub=str(sub),
             email=str(email),
-            email_verified=bool(payload.get("email_verified", False)),
+            email_verified=True,
             name=payload.get("name"),
             picture=payload.get("picture"),
         )

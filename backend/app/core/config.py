@@ -4,6 +4,8 @@ from typing import List, Union
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_DEFAULT_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/campusway_db"
+
 _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 _ROOT_DIR = _BACKEND_DIR.parent
 
@@ -18,7 +20,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
     # Database Settings
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/campusway_db"
+    DATABASE_URL: str = _DEFAULT_DATABASE_URL
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE: int = 3600
@@ -58,12 +60,20 @@ class Settings(BaseSettings):
 
     @property
     def is_database_configured(self) -> bool:
-        if not self.DATABASE_URL or not self.DATABASE_URL.strip():
+        url = self.DATABASE_URL.strip()
+        if not url or url == _DEFAULT_DATABASE_URL:
             return False
-        raw = self.DATABASE_URL.strip().lower()
-        if raw.startswith("sqlite") or raw == ":memory:":
+        raw = url.lower()
+        if any(marker in raw for marker in ("user:password", "your-database-url", "<host>", "<password>")):
             return False
-        return raw.startswith("postgresql") or raw.startswith("postgres")
+        supported_schemes = (
+            "postgresql://",
+            "postgres://",
+            "postgresql+asyncpg://",
+            "postgresql+psycopg://",
+            "postgresql+psycopg2://",
+        )
+        return raw.startswith(supported_schemes)
 
     @property
     def is_google_configured(self) -> bool:

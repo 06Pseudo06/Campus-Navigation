@@ -39,6 +39,11 @@ from app.services.user_store import get_user_repository
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+def _session_cookie_samesite(settings: Settings) -> str:
+    """Allow credentialed frontend requests when production apps use different sites."""
+    return "none" if settings.is_production else "lax"
+
+
 def _build_user_response(
     user: Any,
     session_record: Any = None,
@@ -330,7 +335,7 @@ async def google_callback(
         value=session_token,
         max_age=session_max_age,
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
         path="/",
     )
@@ -416,7 +421,7 @@ async def register(
         value=session_token,
         max_age=session_max_age,
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
         path="/",
     )
@@ -526,7 +531,7 @@ async def login(
         value=session_token,
         max_age=session_max_age,
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
         path="/",
     )
@@ -659,7 +664,7 @@ async def google_id_token_sign_in(
         value=session_token,
         max_age=session_max_age,
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
         path="/",
     )
@@ -747,7 +752,7 @@ async def verify_phone_otp(
         value=session_token,
         max_age=session_max_age,
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
         path="/",
     )
@@ -905,7 +910,7 @@ async def delete_account(
         key=settings.SESSION_COOKIE_NAME,
         path="/",
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
     )
 
@@ -939,7 +944,7 @@ async def logout(
         key=settings.SESSION_COOKIE_NAME,
         path="/",
         httponly=True,
-        samesite="lax",
+        samesite=_session_cookie_samesite(settings),
         secure=settings.is_production,
     )
     return LogoutResponse(success=True, message="Logged out successfully")
