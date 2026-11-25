@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { CampusLocation, CampusRoute, LocationCategory } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -98,6 +98,21 @@ export function DestinationPanel({
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [navigationMode, setNavigationMode] = useState<"walking" | "accessible">("walking");
   const [isNavigating, setIsNavigating] = useState(false);
+  const panelSearchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === "/" &&
+        !["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)
+      ) {
+        e.preventDefault();
+        panelSearchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const isSameLocation = Boolean(
     originLocation && selectedLocation && originLocation.id === selectedLocation.id
@@ -517,14 +532,14 @@ export function DestinationPanel({
             </p>
           </div>
 
-          {/* ──── Primary Route Action Button ──── */}
+          {/* ──── Primary Route Action Button (44px min height, solid #E8452C, left Route icon) ──── */}
           <div className="pt-1">
             <button
               type="button"
               data-testid="get-directions-button"
               onClick={onCalculateRoute}
               disabled={!canCalculateRoute || isCalculatingRoute}
-              className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+              className={`w-full h-11 min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
                 !canCalculateRoute
                   ? "bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed shadow-none"
                   : isCalculatingRoute
@@ -537,15 +552,10 @@ export function DestinationPanel({
                   <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   <span>Calculating Route…</span>
                 </>
-              ) : hasActiveRouteForSelection ? (
-                <>
-                  <RouteIcon className="w-4 h-4" />
-                  <span>Recalculate</span>
-                </>
               ) : (
                 <>
-                  <RouteIcon className="w-4 h-4" />
-                  <span>Get directions</span>
+                  <Icon name="route" size={16} className="text-white shrink-0" />
+                  <span>{hasActiveRouteForSelection ? "Recalculate Route" : "Get Directions"}</span>
                 </>
               )}
             </button>
@@ -830,33 +840,40 @@ export function DestinationPanel({
                 : "Explore Campus Places"}
             </span>
             <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
-              {filteredLocations.length} surveyed places
+              {filteredLocations.length} places
             </span>
           </div>
 
           {/* Search Input inside panel */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-400">
-              <SearchIcon className="w-4 h-4" />
+          <div className="relative flex items-center rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700/80 focus-within:ring-2 focus-within:ring-[#E8452C]/30 focus-within:border-[#E8452C] transition-all">
+            <div className="pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500">
+              <Icon name="search" size={15} />
             </div>
             <input
+              ref={panelSearchInputRef}
               type="text"
               value={panelSearch}
               onChange={(e) => setPanelSearch(e.target.value)}
               placeholder="Search blocks, gates, food courts..."
-              className="w-full h-9 pl-9 pr-8 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700/80 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#E8452C] transition-all"
+              className="w-full h-9 pl-2.5 pr-8 bg-transparent text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none"
               data-testid="destination-search"
               aria-label="Search destination list"
             />
-            {panelSearch && (
+            {panelSearch ? (
               <button
                 type="button"
                 onClick={() => setPanelSearch("")}
-                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                className="pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
                 aria-label="Clear search"
               >
-                <CloseIcon className="w-4 h-4" />
+                <Icon name="close" size={14} />
               </button>
+            ) : (
+              <div className="pr-2.5 flex items-center pointer-events-none">
+                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-zinc-700/80 bg-slate-100 dark:bg-zinc-800 font-mono text-[9px] text-slate-400 dark:text-zinc-500">
+                  /
+                </kbd>
+              </div>
             )}
           </div>
 
@@ -955,7 +972,7 @@ export function DestinationPanel({
               </div>
             )}
 
-            {filteredLocations.map((loc) => {
+            {filteredLocations.map((loc, idx) => {
               const isOrig = originLocation?.id === loc.id;
               const isDest = selectedLocation?.id === loc.id;
               const catConfig = getCategoryConfig(loc.category);
@@ -964,7 +981,8 @@ export function DestinationPanel({
                 <div
                   key={loc.id}
                   data-testid={`location-item-${loc.slug || loc.id}`}
-                  className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2.5 cursor-pointer ${
+                  style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}
+                  className={`p-2.5 rounded-xl border text-xs transition-all duration-200 motion-safe:animate-in motion-safe:fade-in flex items-center justify-between gap-2.5 cursor-pointer ${
                     isDest
                       ? "bg-[#E8452C]/10 border-[#E8452C] text-slate-900 dark:text-white"
                       : isOrig
