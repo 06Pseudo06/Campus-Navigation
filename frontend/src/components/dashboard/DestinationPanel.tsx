@@ -102,20 +102,6 @@ export function DestinationPanel({
   const [isNavigating, setIsNavigating] = useState(false);
   const panelSearchInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key === "/" &&
-        !["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)
-      ) {
-        e.preventDefault();
-        panelSearchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   const isSameLocation = Boolean(
     originLocation && selectedLocation && originLocation.id === selectedLocation.id
   );

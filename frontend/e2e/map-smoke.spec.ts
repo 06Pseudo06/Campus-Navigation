@@ -374,14 +374,14 @@ test.describe("map smoke", () => {
     await page.goto("/explore");
 
     // 1. Verify Card A Mode Switcher
-    const walkingMode = page.getByRole("button", { name: /Walking/ });
-    const accessibleMode = page.getByRole("button", { name: /Accessible/ });
+    const walkingMode = page.getByRole("radio", { name: /Walking/ });
+    const accessibleMode = page.getByRole("radio", { name: /Step-Free|Accessible/ });
     await expect(walkingMode).toBeVisible({ timeout: 15_000 });
     await expect(accessibleMode).toBeVisible();
 
     // Click Accessible Mode
     await accessibleMode.click();
-    await expect(accessibleMode).toHaveClass(/text-emerald/);
+    await expect(accessibleMode).toHaveAttribute("aria-checked", "true");
 
     // 2. Select a location without calculating route to verify Card D (Place details card)
     const block1Item = page.getByTestId("location-item-block-1");
@@ -596,11 +596,11 @@ test.describe("map smoke", () => {
     await expect(page.getByRole("heading", { name: /Help & Navigation Support/i })).toBeVisible();
 
     // Assert support directory
-    await expect(page.getByText("Campus Safety & Security Operations")).toBeVisible();
+    await expect(page.getByText("Campus Security & Quick Response")).toBeVisible();
     await expect(page.getByText("Shanti Devi Mittal Hospital")).toBeVisible();
 
-    // Assert Blue Light Call Stations
-    await expect(page.getByText(/Blue Light Emergency Call Stations/i)).toBeVisible();
+    // Assert Emergency Call Stations
+    await expect(page.getByRole("heading", { name: "Emergency Call Stations" })).toBeVisible();
 
     // Fill and submit live assistance ticket
     await page.locator("#contact-phone").fill("+91 98765 43210");
@@ -809,6 +809,24 @@ test.describe("map smoke", () => {
       return hero ? window.getComputedStyle(hero).backgroundColor : null;
     });
     expect(heroBg).toBe("rgb(246, 244, 239)");
+
+    // Reload page and assert light theme persists across reload
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    const reloadedClasses = await page.evaluate(() => {
+      const root = document.documentElement;
+      return {
+        hasLight: root.classList.contains("light"),
+        hasDark: root.classList.contains("dark"),
+        dataTheme: root.getAttribute("data-theme"),
+        bodyBg: window.getComputedStyle(document.body).backgroundColor,
+      };
+    });
+    expect(reloadedClasses.hasLight).toBe(true);
+    expect(reloadedClasses.hasDark).toBe(false);
+    expect(reloadedClasses.dataTheme).toBe("light");
+    expect(reloadedClasses.bodyBg).toBe("rgb(246, 244, 239)");
   });
 
   test("help page emergency callout renders Lucide icon, semantic tokens, and verified contact links", async ({
