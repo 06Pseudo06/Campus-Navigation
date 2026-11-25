@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { isReducedMotion, GSAP_EASE_EXPO, MOTION_THEME } from "@/lib/motion";
+import { isReducedMotion, GSAP_EASE_EXPO, MOTION_THEME, useScrollReveal } from "@/lib/motion";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger);
@@ -67,6 +67,8 @@ const FEATURES_DATA: FeatureCardItem[] = [
 export function InteractiveFeaturesSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const statsBoxRef = useRef<HTMLDivElement>(null);
+  const statColsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
   const topAccentLineRef = useRef<HTMLDivElement>(null);
   const dividersRef = useRef<(HTMLDivElement | null)[]>([]);
   const suffixesRef = useRef<(HTMLSpanElement | null)[]>([]);
@@ -78,7 +80,18 @@ export function InteractiveFeaturesSection() {
   // statIdx -> array of digit refs
   const digitStripsRef = useRef<HTMLDivElement[][]>([[], [], [], []]);
 
-  const [hasCounted, setHasCounted] = useState(false);
+  // Hook into reusable scroll-scrubbed reveal for feature cards
+  useScrollReveal({
+    containerRef: cardsContainerRef,
+    cardRefs: featureCardsRef,
+    scrub: 0.8,
+    start: "top 88%",
+    end: "top 48%",
+    offsets: [0, 0.08, 0.16],
+    mobileBreakpoint: 768,
+    mobileStart: "top 90%",
+    mobileEnd: "top 60%",
+  });
 
   // Mousemove handler for card spotlight effect (sets CSS variables --mx, --my)
   const handleCardMouseMove = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -96,132 +109,185 @@ export function InteractiveFeaturesSection() {
     if (isReducedMotion()) {
       // Instantly set final resting states for reduced motion
       if (topAccentLineRef.current) topAccentLineRef.current.style.transform = "scaleX(1)";
-      dividersRef.current.forEach((d) => d && (d.style.opacity = "1"));
+      dividersRef.current.forEach((d) => d && (d.style.opacity = "1", d.style.transform = "none"));
       suffixesRef.current.forEach((s) => s && (s.style.opacity = "1", s.style.transform = "scale(1)"));
       labelsRef.current.forEach((l) => l && (l.style.opacity = "1", l.style.transform = "none"));
+      statColsRef.current.forEach((col) => col && (col.style.opacity = "1", col.style.transform = "none"));
+      STATS_DATA.forEach((stat, sIdx) => {
+        const digits = String(stat.value).split("");
+        digits.forEach((dChar, dIdx) => {
+          const targetDigit = parseInt(dChar, 10);
+          const strip = digitStripsRef.current[sIdx]?.[dIdx];
+          if (strip) strip.style.transform = `translateY(${-targetDigit * 10}%)`;
+        });
+      });
       featureCardsRef.current.forEach((c) => c && (c.style.opacity = "1", c.style.transform = "none"));
-      setHasCounted(true);
       return;
     }
 
+    const isMobile = window.innerWidth < 768;
+
     const ctx = gsap.context(() => {
-      // 1. STATS STRIP: Trigger once at 35% in view
-      ScrollTrigger.create({
-        trigger: statsBoxRef.current,
-        start: "top 65%", // 35% into the viewport
-        once: true,
-        onEnter: () => {
-          // A. Draw 1px top-edge accent line from left to right (1s)
+      // Draw icon strokes smoothly as cards scroll into view
+      featureCardsRef.current.forEach((card, cIdx) => {
+        if (!card) return;
+        const path = iconPathsRef.current[cIdx];
+        if (path) {
+          const len = path.getTotalLength() || 60;
+          gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
+          ScrollTrigger.create({
+            trigger: card,
+            start: "top 88%",
+            once: true,
+            onEnter: () => {
+              gsap.to(path, {
+                strokeDashoffset: 0,
+                duration: 0.9,
+                ease: "power2.out",
+                delay: 0.1 + cIdx * 0.08,
+              });
+            },
+          });
+        }
+      });
+
+      // Stats Strip: Scroll-scrubbed entrance
+      if (statsBoxRef.current) {
+        if (isMobile) {
+          // Mobile: each stat column gets its own individual ScrollTrigger
+          statColsRef.current.forEach((col, sIdx) => {
+            if (!col) return;
+            const stat = STATS_DATA[sIdx];
+            const digits = String(stat.value).split("");
+            const colTl = gsap.timeline({
+              scrollTrigger: {
+                trigger: col,
+                start: "top 90%",
+                end: "top 60%",
+                scrub: 0.8,
+              },
+            });
+
+            colTl.fromTo(
+              col,
+              { opacity: 0, y: 25 },
+              { opacity: 1, y: 0, ease: "power2.out", duration: 0.4 },
+              0
+            );
+
+            digits.forEach((dChar, dIdx) => {
+              const targetDigit = parseInt(dChar, 10);
+              const strip = digitStripsRef.current[sIdx]?.[dIdx];
+              if (strip) {
+                colTl.fromTo(
+                  strip,
+                  { yPercent: 0 },
+                  { yPercent: -targetDigit * 10, ease: "none", duration: 0.5 },
+                  0.05 + dIdx * 0.04
+                );
+              }
+            });
+
+            const suffixEl = suffixesRef.current[sIdx];
+            if (suffixEl) {
+              colTl.fromTo(
+                suffixEl,
+                { scale: 0.4, opacity: 0 },
+                { scale: 1, opacity: 1, ease: "power2.out", duration: 0.3 },
+                0.2
+              );
+            }
+
+            const labelEl = labelsRef.current[sIdx];
+            if (labelEl) {
+              colTl.fromTo(
+                labelEl,
+                { y: 12, opacity: 0 },
+                { y: 0, opacity: 1, ease: "power2.out", duration: 0.3 },
+                0.25
+              );
+            }
+          });
+        } else {
+          // Desktop: unified scroll-scrubbed timeline on statsBoxRef
+          const statsTl = gsap.timeline({
+            scrollTrigger: {
+              trigger: statsBoxRef.current,
+              start: "top 88%",
+              end: "top 52%",
+              scrub: 0.8,
+            },
+          });
+
+          // Top accent line draws from left to right
           if (topAccentLineRef.current) {
-            gsap.fromTo(
+            statsTl.fromTo(
               topAccentLineRef.current,
               { scaleX: 0 },
-              { scaleX: 1, duration: 1.0, ease: GSAP_EASE_EXPO }
+              { scaleX: 1, ease: "none", duration: 0.3 },
+              0
             );
           }
 
-          // B. Faint vertical dividers fade in staggered
+          // Vertical dividers fade in
           const validDividers = dividersRef.current.filter(Boolean);
           if (validDividers.length > 0) {
-            gsap.fromTo(
+            statsTl.fromTo(
               validDividers,
               { opacity: 0, scaleY: 0.4 },
-              { opacity: 1, scaleY: 1, duration: 0.8, stagger: 0.08, ease: "power2.out" }
+              { opacity: 1, scaleY: 1, ease: "none", duration: 0.25 },
+              0.05
             );
           }
 
-          // C. Odometer rolling digits (1.4s, expo.out, stagger 0.08 per digit)
+          // Each stat column enters sequentially
           STATS_DATA.forEach((stat, sIdx) => {
+            const statOffset = sIdx * 0.08;
+            const col = statColsRef.current[sIdx];
+            if (col) {
+              statsTl.fromTo(
+                col,
+                { opacity: 0, y: 20 },
+                { opacity: 1, y: 0, ease: "power2.out", duration: 0.3 },
+                statOffset
+              );
+            }
+
             const digits = String(stat.value).split("");
             digits.forEach((dChar, dIdx) => {
               const targetDigit = parseInt(dChar, 10);
               const strip = digitStripsRef.current[sIdx]?.[dIdx];
               if (strip) {
-                // Height of each digit item is 100% / 10 = 10%
-                gsap.fromTo(
+                statsTl.fromTo(
                   strip,
                   { yPercent: 0 },
-                  {
-                    yPercent: -targetDigit * 10,
-                    duration: 1.4,
-                    ease: GSAP_EASE_EXPO,
-                    delay: dIdx * 0.08 + sIdx * 0.05,
-                  }
+                  { yPercent: -targetDigit * 10, ease: "none", duration: 0.4 },
+                  statOffset + dIdx * 0.03
                 );
               }
             });
 
-            // D. Pop in suffix (+ or %) after number finishes (scale 0 -> 1, back.out)
             const suffixEl = suffixesRef.current[sIdx];
             if (suffixEl) {
-              gsap.fromTo(
+              statsTl.fromTo(
                 suffixEl,
-                { scale: 0, opacity: 0 },
-                {
-                  scale: 1,
-                  opacity: 1,
-                  duration: 0.5,
-                  ease: "back.out(2)",
-                  delay: 1.3 + sIdx * 0.05,
-                }
+                { scale: 0.4, opacity: 0 },
+                { scale: 1, opacity: 1, ease: "power2.out", duration: 0.25 },
+                statOffset + 0.12
               );
             }
 
-            // E. Labels and descriptions fade up 0.15s after each number
             const labelEl = labelsRef.current[sIdx];
             if (labelEl) {
-              gsap.fromTo(
+              statsTl.fromTo(
                 labelEl,
                 { y: 12, opacity: 0 },
-                {
-                  y: 0,
-                  opacity: 1,
-                  duration: 0.6,
-                  ease: "power2.out",
-                  delay: 1.45 + sIdx * 0.05,
-                }
+                { y: 0, opacity: 1, ease: "power2.out", duration: 0.25 },
+                statOffset + 0.16
               );
             }
           });
-        },
-      });
-
-      // 2. FEATURE SECTION: Staggered fade-up & Icon stroke-dashoffset draw
-      const cards = featureCardsRef.current.filter(Boolean);
-      if (cards.length > 0) {
-        ScrollTrigger.create({
-          trigger: cards[0],
-          start: "top 80%",
-          once: true,
-          onEnter: () => {
-            // Cards entrance: staggered fade-up (y 40 -> 0, 0.8s, 0.12 stagger)
-            gsap.fromTo(
-              cards,
-              { y: 40, opacity: 0 },
-              {
-                y: 0,
-                opacity: 1,
-                duration: 0.8,
-                stagger: 0.12,
-                ease: GSAP_EASE_EXPO,
-              }
-            );
-
-            // Icon stroke-dashoffset draw on enter
-            iconPathsRef.current.forEach((path, pIdx) => {
-              if (path) {
-                const len = path.getTotalLength() || 60;
-                gsap.set(path, { strokeDasharray: len, strokeDashoffset: len });
-                gsap.to(path, {
-                  strokeDashoffset: 0,
-                  duration: 1.0,
-                  delay: 0.2 + pIdx * 0.12,
-                  ease: "power2.out",
-                });
-              }
-            });
-          },
-        });
+        }
       }
     }, sectionRef);
 
@@ -260,7 +326,10 @@ export function InteractiveFeaturesSection() {
               return (
                 <div
                   key={sIdx}
-                  className="group/stat relative p-6 sm:p-8 lg:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-transform duration-300 hover:-translate-y-1 select-none"
+                  ref={(el) => {
+                    statColsRef.current[sIdx] = el;
+                  }}
+                  className="group/stat relative p-6 sm:p-8 lg:p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-transform duration-300 hover:-translate-y-1 select-none will-change-transform"
                 >
                   {/* Soft radial accent glow behind each number that brightens on hover */}
                   <div
@@ -366,7 +435,7 @@ export function InteractiveFeaturesSection() {
         {/* =================================================================== */}
         {/* 3. 3-FEATURE EDITORIAL CARDS (Spotlight Hover & Stroke-Dashoffset)  */}
         {/* =================================================================== */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+        <div ref={cardsContainerRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {FEATURES_DATA.map((feature, idx) => (
             <Link
               key={feature.id}
@@ -376,7 +445,7 @@ export function InteractiveFeaturesSection() {
               }}
               onMouseMove={handleCardMouseMove}
               data-cursor="EXPLORE"
-              className="group relative p-8 rounded-3xl border border-[#0E1118]/15 dark:border-white/10 bg-white/80 dark:bg-[#0D1322] flex flex-col justify-between overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8452C]"
+              className="group relative p-8 rounded-3xl border border-[#0E1118]/15 dark:border-white/10 bg-white/80 dark:bg-[#0D1322] flex flex-col justify-between overflow-hidden shadow-sm transition-all duration-300 hover:-translate-y-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E8452C] will-change-transform"
             >
               {/* Cursor Spotlight Gradient (Accent at 12% opacity, 300px circle) */}
               <div
@@ -391,7 +460,7 @@ export function InteractiveFeaturesSection() {
               {/* Upper Content */}
               <div className="relative z-10 space-y-6">
                 {/* Icon Tile with Subtle Accent Gradient Border */}
-                <div className="w-14 h-14 rounded-2xl p-[1px] bg-gradient-to-br from-[#E8452C]/40 via-[#E8452C]/15 to-transparent transition-transform duration-300 group-hover:scale-105">
+                <div data-reveal-child className="w-14 h-14 rounded-2xl p-[1px] bg-gradient-to-br from-[#E8452C]/40 via-[#E8452C]/15 to-transparent transition-transform duration-300 group-hover:scale-105 will-change-transform">
                   <div className="w-full h-full bg-[#F7F3EC] dark:bg-[#070B14] rounded-2xl flex items-center justify-center">
                     <svg
                       className="w-7 h-7 text-[#E8452C]"
@@ -413,7 +482,7 @@ export function InteractiveFeaturesSection() {
                 </div>
 
                 {/* Index Numeral & Title */}
-                <div className="space-y-2">
+                <div data-reveal-child className="space-y-2 will-change-transform">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-mono text-[#5B5750] dark:text-zinc-500 uppercase tracking-wider group-hover:text-[#E8452C] transition-colors duration-200">
                       {feature.num}
@@ -429,7 +498,7 @@ export function InteractiveFeaturesSection() {
               </div>
 
               {/* Bottom "→ Try it" Text Link that Underlines from the Left on Hover */}
-              <div className="relative z-10 pt-8 mt-auto flex items-center justify-between border-t border-[#0E1118]/10 dark:border-white/10">
+              <div data-reveal-child className="relative z-10 pt-8 mt-auto flex items-center justify-between border-t border-[#0E1118]/10 dark:border-white/10 will-change-transform">
                 <span className="relative inline-flex items-center gap-1.5 text-xs font-mono font-bold tracking-wider text-[#0E1118] dark:text-[#F4F6FA] group-hover:text-[#E8452C] transition-colors duration-200">
                   <span>&rarr; Try it</span>
                   {/* Underline expanding from left on hover */}

@@ -667,6 +667,32 @@ test.describe("map smoke", () => {
     }
   });
 
+  test("feature cards and stats strip entrance is scroll-scrubbed and visible when scrolled into view", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    const section02 = page.locator("#section-02");
+    await expect(section02).toBeAttached();
+
+    // Scroll into section-02
+    await section02.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+
+    // Verify stats items and labels are visible
+    await expect(section02.getByText("BLOCKS INDEXED", { exact: true })).toBeVisible();
+    await expect(section02.getByText("SURVEYED NODES", { exact: true })).toBeVisible();
+    await expect(section02.getByText("PEDESTRIAN EDGES", { exact: true })).toBeVisible();
+    await expect(section02.getByText("ACCESSIBLE", { exact: true })).toBeVisible();
+
+    // Verify 3 feature cards
+    await expect(section02.getByRole("heading", { name: "Discover" })).toBeVisible();
+    await expect(section02.getByRole("heading", { name: "Navigate" })).toBeVisible();
+    await expect(section02.getByRole("heading", { name: "Save" })).toBeVisible();
+  });
+
   test("full multi-viewport responsive matrix (360x740, 768x1024, 1280x800, 1920x1080)", async ({
     page,
   }) => {
