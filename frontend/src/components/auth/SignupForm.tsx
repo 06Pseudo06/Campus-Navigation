@@ -12,6 +12,7 @@ import {
 import { GoogleButton } from "./GoogleButton";
 import { authService } from "@/services/authService";
 import { SignupFormData, FormErrors } from "@/types/auth";
+import { signupSchema, formatZodErrors } from "@/lib/validations/authSchema";
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -42,45 +43,20 @@ export function SignupForm() {
     }
   }, [user, authLoading, router]);
 
-  const validate = (): boolean => {
-    const errs: FormErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!formData.fullName.trim()) {
-      errs.fullName = "Full name is required.";
-    }
-
-    if (!formData.email.trim()) {
-      errs.email = "Email address is required.";
-    } else if (!emailRegex.test(formData.email.trim())) {
-      errs.email = "Please enter a valid email address.";
-    }
-
-    if (!formData.password) {
-      errs.password = "Password is required.";
-    } else if (formData.password.length < 8) {
-      errs.password = "Password must be at least 8 characters.";
-    }
-
-    if (!formData.confirmPassword) {
-      errs.confirmPassword = "Confirm password is required.";
-    } else if (formData.confirmPassword !== formData.password) {
-      errs.confirmPassword = "Passwords do not match.";
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSystemNotice(null);
 
-    if (!validate()) return;
+    const validationResult = signupSchema.safeParse(formData);
+    if (!validationResult.success) {
+      setErrors(formatZodErrors(validationResult.error));
+      return;
+    }
 
+    setErrors({});
     setLoading(true);
     try {
-      const response = await authService.signup(formData);
+      const response = await authService.signup(validationResult.data);
       if (response.success) {
         await refreshUser();
         router.push("/explore");

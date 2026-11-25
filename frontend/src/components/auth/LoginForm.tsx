@@ -11,6 +11,7 @@ import {
 import { GoogleButton } from "./GoogleButton";
 import { authService } from "@/services/authService";
 import { LoginFormData, FormErrors } from "@/types/auth";
+import { loginSchema, formatZodErrors } from "@/lib/validations/authSchema";
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
@@ -94,35 +95,20 @@ export function LoginForm() {
     });
   }, []);
 
-  const validate = (): boolean => {
-    const errs: FormErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!formData.email.trim()) {
-      errs.email = "Email address is required.";
-    } else if (!emailRegex.test(formData.email.trim())) {
-      errs.email = "Please enter a valid email address.";
-    }
-
-    if (!formData.password) {
-      errs.password = "Password is required.";
-    } else if (formData.password.length < 6) {
-      errs.password = "Password must be at least 6 characters.";
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSystemNotice(null);
 
-    if (!validate()) return;
+    const validationResult = loginSchema.safeParse(formData);
+    if (!validationResult.success) {
+      setErrors(formatZodErrors(validationResult.error));
+      return;
+    }
 
+    setErrors({});
     setLoading(true);
     try {
-      const response = await authService.login(formData);
+      const response = await authService.login(validationResult.data);
       if (response.success) {
         await refreshUser();
         const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
