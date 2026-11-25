@@ -628,10 +628,43 @@ test.describe("map smoke", () => {
     const heroHeadline = page.getByRole("heading", { name: /Navigate Further/i });
     await expect(heroHeadline).toBeVisible({ timeout: 15_000 });
 
+    const hero = page.locator("#section-01");
     // Assert bottom meta row is rendered with legible text
-    await expect(page.getByText(/SCROLL TO EXPLORE/i)).toBeVisible();
-    await expect(page.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
-    await expect(page.getByText(/31.2536° N, 75.7037° E/i)).toBeVisible();
+    await expect(hero.getByText(/SCROLL TO EXPLORE/i)).toBeVisible();
+    await expect(hero.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
+    await expect(hero.getByText("LPU CAMPUS", { exact: true })).toBeVisible();
+  });
+
+  test("hero bottom boundary and consolidated meta row render cleanly across viewports without overflow", async ({
+    page,
+  }) => {
+    const viewports = [
+      { name: "360px", width: 360, height: 740 },
+      { name: "768px", width: 768, height: 1024 },
+      { name: "1280px", width: 1280, height: 800 },
+      { name: "1920px", width: 1920, height: 1080 },
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.keyboard.press("Escape");
+
+      const hero = page.locator("#section-01");
+      await expect(hero).toBeVisible({ timeout: 15_000 });
+
+      // Verify consolidated single-line metadata elements
+      await expect(hero.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
+      await expect(hero.getByText("LPU CAMPUS", { exact: true })).toBeVisible();
+
+      // Check overflow style is clip/hidden on hero section
+      const overflowStyle = await hero.evaluate((el) => {
+        const computed = window.getComputedStyle(el);
+        return { overflowX: computed.overflowX, overflowY: computed.overflowY };
+      });
+      expect(["hidden", "clip"]).toContain(overflowStyle.overflowX);
+      expect(["hidden", "clip"]).toContain(overflowStyle.overflowY);
+    }
   });
 
   test("full multi-viewport responsive matrix (360x740, 768x1024, 1280x800, 1920x1080)", async ({
