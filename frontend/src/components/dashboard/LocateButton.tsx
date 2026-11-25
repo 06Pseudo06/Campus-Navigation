@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { CrosshairIcon } from "./DashboardIcons";
+import { Icon } from "@/components/ui/Icon";
 import { GeolocationStatus, GeolocationPermission } from "@/hooks/useGeolocation";
 
 interface LocateButtonProps {
@@ -79,8 +80,9 @@ export function LocateButton({
         >
           {isDenied && (
             <div>
-              <p className="font-bold text-rose-600 dark:text-rose-400 mb-1 flex items-center gap-1">
-                <span>⚠️</span> Location Blocked
+              <p className="font-bold text-rose-600 dark:text-rose-400 mb-1 flex items-center gap-1.5">
+                <Icon name="warning" size={14} className="text-rose-500 shrink-0" />
+                <span>Location Blocked</span>
               </p>
               <p className="text-slate-600 dark:text-zinc-300 leading-tight">
                 {errorMessage || "Click the lock icon in your browser address bar to allow location access for CampusWay."}
@@ -89,8 +91,9 @@ export function LocateButton({
           )}
           {isWatching && !isInsideCampus && (
             <div>
-              <p className="font-bold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1">
-                <span>📍</span> Outside LPU Campus
+              <p className="font-bold text-amber-600 dark:text-amber-400 mb-1 flex items-center gap-1.5">
+                <Icon name="pinOff" size={14} className="text-amber-500 shrink-0" />
+                <span>Outside LPU Campus</span>
               </p>
               <p className="text-slate-600 dark:text-zinc-300 leading-tight">
                 Your GPS fix is outside the campus boundary. You can select a campus start point manually.

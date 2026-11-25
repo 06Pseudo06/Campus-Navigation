@@ -43,6 +43,8 @@ import {
   formatSteps,
   getAccessibilityBadge,
 } from "@/lib/routeFormatting";
+import { Icon } from "@/components/ui/Icon";
+import { getCategoryConfig, CATEGORY_COLOR_MAP } from "@/lib/categories";
 import { LocateButton } from "./LocateButton";
 import { MockLocationDrawer } from "./MockLocationPanel";
 import { FEATURE_GPS, IS_DEV } from "@/lib/featureFlags";
@@ -678,7 +680,7 @@ export function CampusMap({
                   }`}
                 >
                   <span>{mode.label}</span>
-                  {layer === mode.id && <span className="text-[10px]">✓</span>}
+                  {layer === mode.id && <Icon name="check" size={12} className="text-white" />}
                 </button>
               ))}
 
@@ -728,7 +730,7 @@ export function CampusMap({
               title={isMocked ? "Mock GPS: Active" : "Dev GPS Mock"}
               aria-label="Dev GPS Mock"
             >
-              <span>🧪</span>
+              <Icon name="test" size={16} />
             </button>
 
             {/* Dev GPS Mock Flyout Drawer */}
@@ -768,7 +770,7 @@ export function CampusMap({
             title={`Switch to ${engine === "mapbox" ? "Vector Canvas" : "Mapbox 3D"}`}
             aria-label="Switch Map Engine"
           >
-            <span>{engine === "mapbox" ? "🗺️" : "📐"}</span>
+            <Icon name={engine === "mapbox" ? "map" : "ruler"} size={16} className="text-slate-600 dark:text-zinc-300" />
           </button>
         )}
       </div>
@@ -993,11 +995,12 @@ export function CampusMap({
               .map((loc) => {
                 const isOrigin = originLocation?.id === loc.id;
                 const isDestination = selectedLocation?.id === loc.id;
+                const catConfig = getCategoryConfig(loc.category);
                 const pinColor = isOrigin
                   ? "#10b981"
                   : isDestination
                   ? "#DE4B31"
-                  : CATEGORY_COLORS[loc.category] || "#6366F1";
+                  : catConfig.color;
 
                 return (
                   <Marker
@@ -1025,17 +1028,13 @@ export function CampusMap({
                         }`}
                         style={{ backgroundColor: pinColor }}
                       >
-                        <span className="text-[10px] text-white font-bold">
-                          {loc.category === "gate"
-                            ? "🚪"
-                            : loc.category === "hostel"
-                            ? "🏠"
-                            : loc.category === "service"
-                            ? "🍴"
-                            : loc.category === "landmark"
-                            ? "📍"
-                            : "🏛️"}
-                        </span>
+                        {isOrigin ? (
+                          <Icon name="startPin" size={13} className="text-white" />
+                        ) : isDestination ? (
+                          <Icon name="destPin" size={13} className="text-white" />
+                        ) : (
+                          <Icon name={catConfig.iconName} size={13} className="text-white" />
+                        )}
                       </div>
 
                       {/* Badge Label */}
@@ -1049,10 +1048,10 @@ export function CampusMap({
                         }`}
                       >
                         {isOrigin
-                          ? `START • ${loc.code || loc.name}`
+                          ? `START · ${loc.code || loc.name.substring(0, 10)}`
                           : isDestination
-                          ? `DEST • ${loc.code || loc.name}`
-                          : loc.code || loc.name}
+                          ? `DEST · ${loc.code || loc.name.substring(0, 10)}`
+                          : loc.code || loc.name.substring(0, 12)}
                       </div>
                     </div>
                   </Marker>
@@ -1187,9 +1186,10 @@ export function CampusMap({
                             onSetOrigin(popupLocation);
                             setPopupLocation(null);
                           }}
-                          className="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          className="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                         >
-                          <span>📍 Start Here</span>
+                          <Icon name="startPin" size={13} className="shrink-0 text-white" />
+                          <span>Start Here</span>
                         </button>
                       )}
                       {onSetDestination && (
@@ -1199,9 +1199,10 @@ export function CampusMap({
                             onSetDestination(popupLocation);
                             setPopupLocation(null);
                           }}
-                          className="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold bg-[#DE4B31] hover:bg-[#b83821] text-white transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                          className="flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold bg-[#DE4B31] hover:bg-[#b83821] text-white transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                         >
-                          <span>🏁 Go Here</span>
+                          <Icon name="destPin" size={13} className="shrink-0 text-white" />
+                          <span>Go Here</span>
                         </button>
                       )}
                     </div>

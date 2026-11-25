@@ -13,6 +13,7 @@ import {
   ArrowRightIcon,
   CompassIcon,
 } from "@/components/dashboard/DashboardIcons";
+import { Icon } from "@/components/ui/Icon";
 
 function NavigateContent() {
   const router = useRouter();
@@ -223,7 +224,7 @@ function NavigateContent() {
       <div className="w-full max-w-xl p-6 sm:p-8 rounded-3xl bg-[#0B1220] border border-zinc-800 shadow-2xl space-y-6">
         {/* Warning Banner */}
         <div className="flex items-start gap-3.5 p-4 rounded-2xl bg-amber-950/30 border border-amber-800/60 text-amber-200">
-          <div className="text-xl">⚠️</div>
+          <Icon name="warning" size={24} className="text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1 min-w-0">
             <h1 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
               Destination Not Found

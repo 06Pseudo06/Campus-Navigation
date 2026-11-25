@@ -85,11 +85,29 @@ describe("Icon System & Central Category Configuration", () => {
     expect(iconMap.route).toBeDefined();
   });
 
-  it("newly introduced Icon component and category definitions contain no UI emojis", () => {
-    const iconFilePath = path.resolve(__dirname, "../components/ui/Icon.tsx");
-    const catFilePath = path.resolve(__dirname, "./categories.ts");
+  it("scans all codebase UI components under frontend/src and asserts zero raw emojis", () => {
+    const srcDir = path.resolve(__dirname, "..");
+    const violations: { file: string; line: number; match: string; text: string }[] = [];
 
-    expect(scanFileForEmojis(iconFilePath)).toEqual([]);
-    expect(scanFileForEmojis(catFilePath)).toEqual([]);
+    function walkDir(dir: string) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walkDir(fullPath);
+        } else if (entry.isFile() && (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts"))) {
+          const fileViolations = scanFileForEmojis(fullPath);
+          for (const v of fileViolations) {
+            violations.push({
+              file: path.relative(srcDir, fullPath),
+              ...v,
+            });
+          }
+        }
+      }
+    }
+
+    walkDir(srcDir);
+    expect(violations).toEqual([]);
   });
 });

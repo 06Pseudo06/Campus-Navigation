@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { GeoCoordinates } from "@/hooks/useGeolocation";
 import { IS_DEV } from "@/lib/featureFlags";
+import { Icon } from "@/components/ui/Icon";
 
 export interface MockPreset {
   id: string;
@@ -136,7 +137,7 @@ export function MockLocationDrawer({
               className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 text-xs cursor-pointer p-0.5"
               aria-label="Close"
             >
-              ✕
+              <Icon name="close" size={14} />
             </button>
           )}
         </div>
@@ -277,7 +278,7 @@ export function MockLocationPanel(props: MockLocationPanelProps) {
             : "bg-white/90 dark:bg-[#111827]/90 text-slate-700 dark:text-zinc-400 border-slate-200 dark:border-zinc-700/80 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800"
         }`}
       >
-        <span>🧪</span>
+        <Icon name="test" size={14} className={props.isMocked ? "text-amber-500" : "text-slate-500 dark:text-zinc-400"} />
         <span>{props.isMocked ? "Mock GPS: Active" : "Dev GPS Mock"}</span>
         <span className="text-[9px] opacity-70">
           {isOpen ? "▲" : "▼"}

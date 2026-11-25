@@ -53,7 +53,7 @@ describe("routeFormatting utilities", () => {
       expect(getDirectionIcon("Left")).toBe("↰");
       expect(getDirectionIcon("right")).toBe("↱");
       expect(getDirectionIcon("Right")).toBe("↱");
-      expect(getDirectionIcon("enter")).toBe("🚪");
+      expect(getDirectionIcon("enter")).toBe("↳");
       expect(getDirectionIcon("straight")).toBe("↑");
       expect(getDirectionIcon()).toBe("↑");
       expect(getDirectionIcon("unknown")).toBe("↑");
@@ -64,15 +64,15 @@ describe("routeFormatting utilities", () => {
     it("returns step-free metadata for accessible routes", () => {
       const badge = getAccessibilityBadge(true);
       expect(badge.isAccessible).toBe(true);
-      expect(badge.icon).toBe("♿");
-      expect(badge.badgeText).toBe("♿ Step-Free Route");
+      expect(badge.iconName).toBe("accessible");
+      expect(badge.badgeText).toBe("Step-Free Route");
     });
 
     it("returns warning metadata for routes that may include stairs", () => {
       const badge = getAccessibilityBadge(false);
       expect(badge.isAccessible).toBe(false);
-      expect(badge.icon).toBe("⚠️");
-      expect(badge.badgeText).toBe("⚠️ Stairs");
+      expect(badge.iconName).toBe("warning");
+      expect(badge.badgeText).toBe("Stairs / Curbs");
     });
   });
 });
