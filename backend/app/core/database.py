@@ -24,8 +24,9 @@ from app.models.base import Base
 # Synchronous Engine & Session Management (Core CampusWay Services)
 # =====================================================================
 
-def _probe_postgres(url_str: str, timeout: float = 2.5) -> bool:
+def _probe_postgres(url_str: str, timeout: float = 2.0) -> bool:
     try:
+        import psycopg2
         u = make_url(url_str)
         host = u.host
         port = u.port or 5432
@@ -33,6 +34,16 @@ def _probe_postgres(url_str: str, timeout: float = 2.5) -> bool:
             return False
         sock = socket.create_connection((host, port), timeout=timeout)
         sock.close()
+        conn = psycopg2.connect(
+            dbname=u.database,
+            user=u.username,
+            password=u.password,
+            host=host,
+            port=port,
+            connect_timeout=int(timeout),
+            sslmode="require",
+        )
+        conn.close()
         return True
     except Exception:
         return False
