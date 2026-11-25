@@ -658,4 +658,49 @@ test.describe("map smoke", () => {
       }
     }
   });
+
+  test("hero orange disc transform stabilises and returns to resting state across 5 scroll cycles", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        const text = msg.text();
+        // Exclude backend network connection failures when backend is offline
+        if (!text.includes("ERR_CONNECTION_REFUSED") && !text.includes("Failed to load resource")) {
+          consoleErrors.push(text);
+        }
+      }
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/?intro=1", { waitUntil: "domcontentloaded" });
+
+    // Wait for hero intro to complete or skip it
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+
+    const scrollLayer = page.locator("#hero-sun-disc-scroll-layer");
+    await expect(scrollLayer).toBeAttached();
+
+    // Scroll 1000px down and back up 5 times
+    for (let i = 0; i < 5; i++) {
+      await page.evaluate(() => window.scrollTo(0, 1000));
+      await page.waitForTimeout(200);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(200);
+    }
+
+    // Allow GSAP scrub 0.4s to settle to 0
+    await page.waitForTimeout(600);
+
+    // Assert resting state computed transform
+    const transform = await scrollLayer.evaluate((el) => {
+      return window.getComputedStyle(el).transform;
+    });
+
+    // Resting state is either 'none' or 'matrix(1, 0, 0, 1, 0, 0)'
+    expect(transform === "none" || transform.startsWith("matrix(1, 0, 0, 1")).toBeTruthy();
+    expect(consoleErrors).toEqual([]);
+  });
 });

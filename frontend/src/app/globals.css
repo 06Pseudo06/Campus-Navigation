@@ -268,6 +268,26 @@ input:-webkit-autofill:active {
   animation: heroSunDisc 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Hero Disc Breathing Layer Keyframes */
+@keyframes heroDiscBreathe {
+  0%, 100% {
+    transform: scale3d(1, 1, 1);
+  }
+  50% {
+    transform: scale3d(1.03, 1.03, 1);
+  }
+}
+
+.hero-disc-breathing {
+  animation: heroDiscBreathe 6s ease-in-out infinite;
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
+.hero-breathing-paused {
+  animation-play-state: paused !important;
+}
+
 .animate-hero-building {
   animation: heroBuilding 1.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }

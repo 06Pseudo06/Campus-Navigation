@@ -8,7 +8,7 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 20_000 },
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000",
     trace: "on-first-retry",
     viewport: { width: 1280, height: 800 },
   },

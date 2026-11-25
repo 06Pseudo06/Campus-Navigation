@@ -45,6 +45,9 @@ export function ArchitecturalHero() {
   const logoInnerRef = useRef<SVGPathElement>(null);
 
   // Stage 1: Background refs
+  const discScrollLayerRef = useRef<HTMLDivElement>(null);
+  const discParallaxLayerRef = useRef<HTMLDivElement>(null);
+  const discBreathingLayerRef = useRef<HTMLDivElement>(null);
   const sunDiscRef = useRef<HTMLDivElement>(null);
   const orbitRingRef = useRef<SVGCircleElement>(null);
   const sparkleRef = useRef<SVGGElement>(null);
@@ -92,9 +95,9 @@ export function ArchitecturalHero() {
   const initIdleEffects = useCallback(() => {
     if (isReducedMotion() || !containerRef.current) return;
 
-    // 1. Mouse Parallax (Sphere ±15px, Building ±8px with duration 0.8 quickTo)
-    const xSphereTo = gsap.quickTo(sunDiscRef.current, "x", { duration: 0.8, ease: "power2.out" });
-    const ySphereTo = gsap.quickTo(sunDiscRef.current, "y", { duration: 0.8, ease: "power2.out" });
+    // 1. Mouse Parallax (Sphere on parallax layer ±15px, Building ±8px with duration 0.8 quickTo)
+    const xSphereTo = gsap.quickTo(discParallaxLayerRef.current, "x", { duration: 0.8, ease: "power2.out" });
+    const ySphereTo = gsap.quickTo(discParallaxLayerRef.current, "y", { duration: 0.8, ease: "power2.out" });
     const xBldgTo = gsap.quickTo(buildingLayerRef.current, "x", { duration: 0.8, ease: "power2.out" });
     const yBldgTo = gsap.quickTo(buildingLayerRef.current, "y", { duration: 0.8, ease: "power2.out" });
 
@@ -112,61 +115,95 @@ export function ArchitecturalHero() {
 
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
-    // 2. Slow breathing scale on orange sphere (1 <-> 1.03, 6s, yoyo)
-    const breathingAnim = gsap.to(sunDiscRef.current, {
-      scale: 1.03,
-      duration: 6,
-      repeat: -1,
-      yoyo: true,
-      ease: "sine.inOut",
-    });
+    // 2. Pure CSS breathing animation runs on discBreathingLayerRef via .hero-disc-breathing class.
+    // Breathing is paused during scroll-out scrub to prevent compounding scales.
 
-    // 3. Scroll-out scrub (headline 0.6x speed, building 0.9x speed, sphere scale 1.1)
+    // 3. Scroll-out scrub: single reversible deterministic ScrollTrigger
     const scrollOutCtx = gsap.context(() => {
-      if (headlineRef.current) {
-        gsap.to(headlineRef.current, {
-          yPercent: -35,
-          ease: "none",
-          scrollTrigger: {
-            trigger: containerRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: true,
+      const heroScrollTl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "bottom top",
+          scrub: 0.4,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            if (discBreathingLayerRef.current) {
+              if (self.progress > 0.005) {
+                discBreathingLayerRef.current.classList.add("hero-breathing-paused");
+              } else {
+                discBreathingLayerRef.current.classList.remove("hero-breathing-paused");
+              }
+            }
           },
-        });
+          onLeave: () => {
+            if (discBreathingLayerRef.current) {
+              discBreathingLayerRef.current.classList.add("hero-breathing-paused");
+            }
+          },
+          onLeaveBack: () => {
+            if (discBreathingLayerRef.current) {
+              discBreathingLayerRef.current.classList.remove("hero-breathing-paused");
+            }
+          },
+        },
+      });
+
+      if (discScrollLayerRef.current) {
+        heroScrollTl.fromTo(
+          discScrollLayerRef.current,
+          { scale: 1 },
+          { scale: 1.1, ease: "none", immediateRender: false },
+          0
+        );
+      }
+
+      if (headlineRef.current) {
+        heroScrollTl.fromTo(
+          headlineRef.current,
+          { yPercent: 0 },
+          { yPercent: -35, ease: "none", immediateRender: false },
+          0
+        );
       }
 
       if (buildingLayerRef.current) {
-        gsap.to(buildingLayerRef.current, {
-          yPercent: -15,
-          ease: "none",
-          scrollTrigger: {
-            trigger: containerRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-      }
-
-      if (sunDiscRef.current) {
-        gsap.to(sunDiscRef.current, {
-          scale: 1.1,
-          ease: "none",
-          scrollTrigger: {
-            trigger: containerRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
+        heroScrollTl.fromTo(
+          buildingLayerRef.current,
+          { yPercent: 0 },
+          { yPercent: -15, ease: "none", immediateRender: false },
+          0
+        );
       }
     }, containerRef);
 
+    // 4. IntersectionObserver: toggle willChange and pause breathing when offscreen
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const inView = entry.isIntersecting;
+        if (discScrollLayerRef.current) {
+          discScrollLayerRef.current.style.willChange = inView ? "transform" : "auto";
+        }
+        if (discParallaxLayerRef.current) {
+          discParallaxLayerRef.current.style.willChange = inView ? "transform" : "auto";
+        }
+        if (buildingLayerRef.current) {
+          buildingLayerRef.current.style.willChange = inView ? "transform" : "auto";
+        }
+        if (discBreathingLayerRef.current && !inView) {
+          discBreathingLayerRef.current.classList.add("hero-breathing-paused");
+        }
+      },
+      { threshold: 0 }
+    );
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      breathingAnim.kill();
       scrollOutCtx.revert();
+      observer.disconnect();
     };
   }, []);
 
@@ -183,6 +220,10 @@ export function ArchitecturalHero() {
     gsap.set(".hero-p-line", { opacity: 1, y: 0, clearProps: "all" });
     if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 1, y: 0, scale: 1, clearProps: "all" });
     if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 1, clipPath: "inset(0 0% 0 0)", clearProps: "all" });
+    if (sunDiscRef.current) gsap.set(sunDiscRef.current, { clearProps: "filter,transform", filter: "none", opacity: 0.95 });
+    if (orbitRingRef.current) gsap.set(orbitRingRef.current, { clearProps: "strokeDasharray,strokeDashoffset" });
+    if (sparkleRef.current) gsap.set(sparkleRef.current, { clearProps: "transform", opacity: 1 });
+    if (buildingImgRef.current) gsap.set(buildingImgRef.current, { clearProps: "clipPath,transform" });
     introPlayed = true;
     setIsIntroActive(false);
     unlockScroll();
@@ -231,6 +272,10 @@ export function ArchitecturalHero() {
       gsap.set(".hero-p-line", { opacity: 1, y: 0, clearProps: "all" });
       if (ctaRef.current) gsap.set(ctaRef.current, { opacity: 1, y: 0, scale: 1, clearProps: "all" });
       if (metaRowRef.current) gsap.set(metaRowRef.current, { opacity: 1, clipPath: "inset(0 0% 0 0)", clearProps: "all" });
+      if (sunDiscRef.current) gsap.set(sunDiscRef.current, { clearProps: "filter,transform", filter: "none", opacity: 0.95 });
+      if (orbitRingRef.current) gsap.set(orbitRingRef.current, { clearProps: "strokeDasharray,strokeDashoffset" });
+      if (sparkleRef.current) gsap.set(sparkleRef.current, { clearProps: "transform", opacity: 1 });
+      if (buildingImgRef.current) gsap.set(buildingImgRef.current, { clearProps: "clipPath,transform" });
       initIdleEffects();
       return;
     }
@@ -267,6 +312,10 @@ export function ArchitecturalHero() {
         onComplete: () => {
           gsap.set(".hero-headline-line", { clearProps: "transform" });
           gsap.set(".hero-headline-accent", { clearProps: "transform" });
+          if (sunDiscRef.current) gsap.set(sunDiscRef.current, { clearProps: "filter,transform", filter: "none", opacity: 0.95 });
+          if (orbitRingRef.current) gsap.set(orbitRingRef.current, { clearProps: "strokeDasharray,strokeDashoffset" });
+          if (sparkleRef.current) gsap.set(sparkleRef.current, { clearProps: "transform", opacity: 1 });
+          if (buildingImgRef.current) gsap.set(buildingImgRef.current, { clearProps: "clipPath,transform" });
           introPlayed = true;
           setIsIntroActive(false);
           unlockScroll();
@@ -628,44 +677,71 @@ export function ArchitecturalHero() {
       {/* 2. BACKGROUND ARCHITECTURAL BLUEPRINT GRID */}
       <div className="absolute inset-0 blueprint-grid pointer-events-none z-0" aria-hidden="true" />
 
-      {/* 3. SUN DISC & CONCENTRIC OUTLINE ARC (Behind Building) */}
+      {/* 3. SUN DISC & CONCENTRIC OUTLINE ARC (Behind Building) - Split into Layered Transforms */}
       <div
-        ref={sunDiscRef}
-        id="hero-sun-disc"
-        className="hidden lg:block absolute right-[4vw] top-[14%] w-[clamp(440px,50vw,720px)] aspect-square pointer-events-none z-[1] will-change-transform"
+        id="hero-sun-disc-container"
+        className="hidden lg:block absolute right-[4vw] top-[14%] w-[clamp(440px,50vw,720px)] aspect-square pointer-events-none z-[1] [contain:layout_paint] [backface-visibility:hidden]"
         aria-hidden="true"
       >
-        <svg className="w-full h-full" viewBox="0 0 600 600" fill="none">
-          <defs>
-            <radialGradient id="heroSunGrad" cx="50%" cy="45%" r="50%" fx="45%" fy="40%">
-              <stop offset="0%" stopColor="#F2793A" />
-              <stop offset="60%" stopColor="#DE4B31" />
-              <stop offset="100%" stopColor="#B23E27" />
-            </radialGradient>
-          </defs>
+        {/* Layer 1 (Outer): Scroll Scrub (scale 1 -> 1.1) */}
+        <div
+          ref={discScrollLayerRef}
+          id="hero-sun-disc-scroll-layer"
+          className="w-full h-full [transform-origin:center_center] [backface-visibility:hidden]"
+        >
+          {/* Layer 2 (Middle): Mouse Parallax (translate x/y ±15px) */}
+          <div
+            ref={discParallaxLayerRef}
+            id="hero-sun-disc-parallax-layer"
+            className="w-full h-full [transform-origin:center_center] [backface-visibility:hidden]"
+          >
+            {/* Layer 3 (Inner): Breathing Scale (pure CSS keyframe 1 <-> 1.03) */}
+            <div
+              ref={discBreathingLayerRef}
+              id="hero-sun-disc-breathing-layer"
+              className="w-full h-full [transform-origin:center_center] [backface-visibility:hidden] hero-disc-breathing"
+            >
+              {/* Innermost Visual Target: intro scale & blur, cleared on complete */}
+              <div
+                ref={sunDiscRef}
+                id="hero-sun-disc"
+                className="w-full h-full [transform-origin:center_center] [backface-visibility:hidden]"
+              >
+                <svg className="w-full h-full" viewBox="0 0 600 600" fill="none">
+                  <defs>
+                    <radialGradient id="heroSunGrad" cx="50%" cy="45%" r="50%" fx="45%" fy="40%">
+                      <stop offset="0%" stopColor="#F2793A" />
+                      <stop offset="60%" stopColor="#DE4B31" />
+                      <stop offset="100%" stopColor="#B23E27" />
+                    </radialGradient>
+                  </defs>
 
-          {/* Thin Outer Concentric Arc (Orbit Ring) */}
-          <circle
-            ref={orbitRingRef}
-            id="hero-orbit-ring"
-            cx="300"
-            cy="300"
-            r="285"
-            stroke="currentColor"
-            className="text-black/10 dark:text-white/10"
-            strokeWidth="1.2"
-          />
+                  {/* Thin Outer Concentric Arc (Orbit Ring) */}
+                  <circle
+                    ref={orbitRingRef}
+                    id="hero-orbit-ring"
+                    cx="300"
+                    cy="300"
+                    r="285"
+                    stroke="currentColor"
+                    className="text-black/10 dark:text-white/10"
+                    strokeWidth="1.2"
+                  />
 
-          {/* Luminous Orange Sun Disc */}
-          <circle cx="300" cy="300" r="235" fill="url(#heroSunGrad)" opacity="0.95" />
+                  {/* Luminous Orange Sun Disc */}
+                  <circle cx="300" cy="300" r="235" fill="url(#heroSunGrad)" opacity="0.95" />
 
-          {/* Crosshair Sparkle Marker */}
-          <g ref={sparkleRef} id="hero-sun-crosshair">
-            <line x1="300" y1="215" x2="300" y2="385" stroke="#FFFFFF" strokeOpacity="0.4" strokeWidth="1.2" />
-            <line x1="215" y1="300" x2="385" y2="300" stroke="#FFFFFF" strokeOpacity="0.4" strokeWidth="1.2" />
-            <circle cx="300" cy="300" r="2.5" fill="#FFFFFF" />
-          </g>
-        </svg>
+                  {/* Crosshair Sparkle Marker */}
+                  <g ref={sparkleRef} id="hero-sun-crosshair">
+                    <line x1="300" y1="215" x2="300" y2="385" stroke="#FFFFFF" strokeOpacity="0.4" strokeWidth="1.2" />
+                    <line x1="215" y1="300" x2="385" y2="300" stroke="#FFFFFF" strokeOpacity="0.4" strokeWidth="1.2" />
+                    <circle cx="300" cy="300" r="2.5" fill="#FFFFFF" />
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 4. MONUMENTAL FULL-BLEED CURVED UNIVERSITY BUILDING */}
