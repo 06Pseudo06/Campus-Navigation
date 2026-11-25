@@ -70,7 +70,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: themeAntiFlashScript }}
         />
       </head>
-      <body className="min-h-full flex flex-col bg-[#F5F7FB] dark:bg-[#070B14] text-[#172033] dark:text-[#EDEDED] font-sans antialiased transition-colors duration-200">
+      <body className="min-h-full flex flex-col bg-[#F6F4EF] dark:bg-[#070B14] text-[#111318] dark:text-[#F4F6FA] font-sans antialiased transition-colors duration-200">
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>

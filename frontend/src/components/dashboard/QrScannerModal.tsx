@@ -5,6 +5,7 @@ import { CampusLocation } from "@/types/campus";
 import { BackendLocation, locationService } from "@/services/locationService";
 import { VERIFIED_DATASET_C_LOCATIONS } from "@/data/campusData";
 import { parseScannedQrPayload } from "@/lib/qrNavigation";
+import { Icon } from "@/components/ui/Icon";
 import {
   CloseIcon,
   QrCodeIcon,
@@ -19,6 +20,7 @@ interface QrScannerModalProps {
     destination: CampusLocation | BackendLocation,
     origin: string | null
   ) => void;
+  onScanPayload?: (rawPayload: string) => void;
 }
 
 type CameraStatus =
@@ -35,6 +37,7 @@ export function QrScannerModal({
   isOpen,
   onClose,
   onScanSuccess,
+  onScanPayload,
 }: QrScannerModalProps) {
   const titleId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -111,13 +114,17 @@ export function QrScannerModal({
 
         setTimeout(() => {
           stopCamera();
-          onScanSuccess(result.destination!, result.origin);
+          if (onScanPayload) {
+            onScanPayload(scannedText);
+          } else {
+            onScanSuccess(result.destination!, result.origin);
+          }
         }, 500);
       } else {
-        // Show non-blocking alert and pause for 2s before resuming detection
+        // Show non-blocking alert and pause for 2s before resuming detection (keep scanner open)
         isCooldownRef.current = true;
         setScanAlert(
-          result.error || "Unrecognized QR sign. Please aim at an official CampusWay code."
+          result.error || "Unknown QR code — not a recognized CampusWay location"
         );
         setTimeout(() => {
           setScanAlert(null);
@@ -125,7 +132,7 @@ export function QrScannerModal({
         }, 2200);
       }
     },
-    [catalog, onScanSuccess, stopCamera]
+    [catalog, onScanSuccess, onScanPayload, stopCamera]
   );
 
   // 4. Scanner detection loop (Native BarcodeDetector or jsQR canvas fallback)
@@ -380,9 +387,13 @@ export function QrScannerModal({
     const result = parseScannedQrPayload(manualCode.trim(), catalog);
     if (result.valid && result.destination) {
       stopCamera();
-      onScanSuccess(result.destination, result.origin);
+      if (onScanPayload) {
+        onScanPayload(manualCode.trim());
+      } else {
+        onScanSuccess(result.destination, result.origin);
+      }
     } else {
-      setManualError(result.error || "Location code not recognized.");
+      setManualError(result.error || "Unknown QR code — not a recognized CampusWay location");
     }
   };
 
@@ -453,8 +464,9 @@ export function QrScannerModal({
                     : "bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:text-slate-900 dark:hover:text-white"
                 }`}
                 title={torchOn ? "Turn off flashlight" : "Turn on flashlight"}
+                aria-label={torchOn ? "Turn off flashlight" : "Turn on flashlight"}
               >
-                🔦
+                <Icon name="flashlight" size={16} />
               </button>
             )}
 
@@ -544,8 +556,8 @@ export function QrScannerModal({
             cameraStatus === "insecure" ||
             cameraStatus === "unavailable") && (
             <div className="absolute inset-0 p-6 flex flex-col items-center justify-center text-center space-y-3 bg-[#0B1220]">
-              <div className="w-12 h-12 rounded-2xl bg-amber-950/40 border border-amber-800/80 text-amber-400 flex items-center justify-center text-xl">
-                📷
+              <div className="w-12 h-12 rounded-2xl bg-amber-950/40 border border-amber-800/80 text-amber-400 flex items-center justify-center">
+                <Icon name="camera" size={24} className="text-amber-400" />
               </div>
               <h3 className="text-sm font-bold text-white">Camera Access Required</h3>
               <p className="text-xs text-zinc-400 leading-relaxed max-w-xs">
@@ -573,7 +585,7 @@ export function QrScannerModal({
           {/* Non-blocking Scan Alert Toast */}
           {scanAlert && (
             <div className="absolute bottom-4 inset-x-4 p-3 rounded-2xl bg-amber-950/90 border border-amber-700/80 text-amber-200 text-xs shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-2 flex items-center gap-2">
-              <span className="text-sm">⚠️</span>
+              <Icon name="warning" size={16} className="text-amber-400 shrink-0" />
               <p className="leading-tight flex-1">{scanAlert}</p>
             </div>
           )}
@@ -630,7 +642,7 @@ export function QrScannerModal({
             onClick={() => fileInputRef.current?.click()}
             className="text-slate-600 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer font-medium"
           >
-            <span>📁</span>
+            <Icon name="upload" size={14} className="text-slate-500 dark:text-zinc-400" />
             <span>Upload Photo</span>
           </button>
 

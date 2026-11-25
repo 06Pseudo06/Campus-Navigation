@@ -41,7 +41,7 @@ export function formatSteps(meters: number): string {
  * Direction icon mapping for turn-by-turn navigation steps.
  * turn left -> ↰
  * turn right -> ↱
- * enter -> 🚪
+ * enter -> ↳
  * straight / default -> ↑
  */
 export function getDirectionIcon(direction?: string): string {
@@ -53,7 +53,7 @@ export function getDirectionIcon(direction?: string): string {
     case "right":
       return "↱";
     case "enter":
-      return "🚪";
+      return "↳";
     case "straight":
     default:
       return "↑";
@@ -63,7 +63,7 @@ export function getDirectionIcon(direction?: string): string {
 export interface AccessibilityBadgeInfo {
   label: string;
   badgeText: string;
-  icon: string;
+  iconName: "accessible" | "warning";
   isAccessible: boolean;
 }
 
@@ -74,15 +74,15 @@ export function getAccessibilityBadge(isAccessible: boolean): AccessibilityBadge
   if (isAccessible) {
     return {
       label: "Step-Free Accessible Route",
-      badgeText: "♿ Step-Free Route",
-      icon: "♿",
+      badgeText: "Step-Free Route",
+      iconName: "accessible",
       isAccessible: true,
     };
   }
   return {
     label: "Route includes stairs or curbs",
-    badgeText: "⚠️ Stairs",
-    icon: "⚠️",
+    badgeText: "Stairs / Curbs",
+    iconName: "warning",
     isAccessible: false,
   };
 }

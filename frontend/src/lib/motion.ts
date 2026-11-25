@@ -242,3 +242,128 @@ export function SmoothScroll() {
   useSmoothScroll();
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// 7. SCROLL-SCRUBBED REVEAL HELPER & HOOK
+// ---------------------------------------------------------------------------
+export interface ScrollRevealConfig {
+  containerRef: React.RefObject<HTMLElement | null>;
+  cardRefs: React.RefObject<(HTMLElement | null)[]>;
+  scrub?: number | boolean;
+  start?: string;
+  end?: string;
+  offsets?: number[];
+  mobileBreakpoint?: number;
+  mobileStart?: string;
+  mobileEnd?: string;
+}
+
+/**
+ * useScrollReveal
+ * 
+ * Synchronizes element / card reveals directly to user scroll position with GSAP ScrollTrigger.
+ * - Desktop: unified scrubbed timeline with sequential offsets (e.g. 0%, 8%, 16%) and staggered internal children.
+ * - Mobile (<768px): per-card individual ScrollTriggers (start: "top 90%", end: "top 60%").
+ * - Reduced motion: renders instantly at resting state (opacity: 1, transform: none).
+ */
+export function useScrollReveal({
+  containerRef,
+  cardRefs,
+  scrub = 0.8,
+  start = "top 88%",
+  end = "top 48%",
+  offsets = [0, 0.08, 0.16],
+  mobileBreakpoint = 768,
+  mobileStart = "top 90%",
+  mobileEnd = "top 60%",
+}: ScrollRevealConfig): void {
+  useEffect(() => {
+    if (typeof window === "undefined" || !containerRef.current) return;
+
+    const cards = (cardRefs.current || []).filter(Boolean) as HTMLElement[];
+    if (cards.length === 0) return;
+
+    if (isReducedMotion()) {
+      cards.forEach((card) => {
+        card.style.opacity = "1";
+        card.style.transform = "none";
+        const children = card.querySelectorAll<HTMLElement>("[data-reveal-child]");
+        children.forEach((child) => {
+          child.style.opacity = "1";
+          child.style.transform = "none";
+        });
+      });
+      return;
+    }
+
+    const isMobile = window.innerWidth < mobileBreakpoint;
+
+    const ctx = gsap.context(() => {
+      if (isMobile) {
+        // Mobile: each card gets its own individual ScrollTrigger
+        cards.forEach((card) => {
+          const children = card.querySelectorAll<HTMLElement>("[data-reveal-child]");
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: card,
+              start: mobileStart,
+              end: mobileEnd,
+              scrub,
+            },
+          });
+
+          tl.fromTo(
+            card,
+            { opacity: 0, y: 35 },
+            { opacity: 1, y: 0, ease: "power2.out", duration: 0.5 },
+            0
+          );
+
+          if (children.length > 0) {
+            tl.fromTo(
+              children,
+              { opacity: 0, y: 15 },
+              { opacity: 1, y: 0, ease: "power2.out", duration: 0.4, stagger: 0.06 },
+              0.15
+            );
+          }
+        });
+      } else {
+        // Desktop: unified horizontal sequence across container trigger
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start,
+            end,
+            scrub,
+          },
+        });
+
+        cards.forEach((card, idx) => {
+          const cardOffset = offsets[idx] ?? idx * 0.08;
+          const children = card.querySelectorAll<HTMLElement>("[data-reveal-child]");
+
+          // Card container reveal
+          tl.fromTo(
+            card,
+            { opacity: 0, y: 45 },
+            { opacity: 1, y: 0, ease: "power2.out", duration: 0.45 },
+            cardOffset
+          );
+
+          // Internal card elements (icon, title, body, link) staggered
+          if (children.length > 0) {
+            tl.fromTo(
+              children,
+              { opacity: 0, y: 18 },
+              { opacity: 1, y: 0, ease: "power2.out", duration: 0.35, stagger: 0.05 },
+              cardOffset + 0.08
+            );
+          }
+        });
+      }
+    }, containerRef);
+
+    return () => ctx.revert();
+  }, [containerRef, cardRefs, scrub, start, end, offsets, mobileBreakpoint, mobileStart, mobileEnd]);
+}

@@ -24,7 +24,7 @@ from app.models.base import Base
 # Synchronous Engine & Session Management (Core CampusWay Services)
 # =====================================================================
 
-def _probe_postgres(url_str: str, timeout: float = 1.0) -> bool:
+def _probe_postgres(url_str: str, timeout: float = 2.5) -> bool:
     try:
         u = make_url(url_str)
         host = u.host
@@ -56,10 +56,13 @@ if not db_url.startswith("sqlite"):
         "pool_size": settings.DB_POOL_SIZE,
         "max_overflow": settings.DB_MAX_OVERFLOW,
         "pool_recycle": settings.DB_POOL_RECYCLE,
-        "connect_args": {"connect_timeout": 3},
+        "connect_args": {"connect_timeout": 5},
     })
 
 engine = create_engine(db_url, **engine_kwargs)
+if db_url.startswith("sqlite"):
+    import app.models  # ensure models are imported
+    Base.metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

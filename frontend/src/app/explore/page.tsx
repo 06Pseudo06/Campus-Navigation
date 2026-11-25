@@ -28,6 +28,8 @@ import { FEATURE_QR } from "@/lib/featureFlags";
 import { destroySmoothScroll } from "@/lib/motion";
 import { WalkingIcon, ChevronDownIcon } from "@/components/dashboard/DashboardIcons";
 import { formatDistance } from "@/lib/routeFormatting";
+import { resolveNavigationIntent } from "@/lib/navigationIntent";
+import { Icon } from "@/components/ui/Icon";
 
 export type BottomSheetSnap = "peek" | "half" | "full";
 
@@ -146,6 +148,28 @@ export default function ExploreDashboardPage() {
   // Success toast for OAuth redirect (?auth=success)
   const [authSuccessToast, setAuthSuccessToast] = useState<string | null>(null);
 
+  // Scan debounce timestamp ref
+  const lastScanTimestampRef = useRef<number>(0);
+
+  // Unified toast notification state for QR and navigation feedback
+  const [toastNotification, setToastNotification] = useState<{
+    type: "success" | "error" | "info";
+    message: string;
+  } | null>(null);
+
+  // Auto-dismiss toast notification after 4000ms
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = setTimeout(() => {
+      setToastNotification(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [toastNotification]);
+
+  // "Where are you starting from?" origin resolution prompt state
+  const [originPromptDest, setOriginPromptDest] = useState<CampusLocation | null>(null);
+  const [originPromptSearch, setOriginPromptSearch] = useState<string>("");
+
   // 1. Fetch public campus locations on mount
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +210,22 @@ export default function ExploreDashboardPage() {
 
           setOriginLocation(targetOrigin || mainGate);
           setSelectedLocation(targetDest || block1);
+
+          // Deep link auto-route execution if explicit target destination provided
+          if (targetDest && targetOrigin && targetDest.id !== targetOrigin.id) {
+            routeService
+              .calculateRoute(targetOrigin, targetDest)
+              .then((rt) => {
+                if (!cancelled) {
+                  setActiveRoute(rt);
+                  setShowRoute(true);
+                  setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
+                }
+              })
+              .catch((err) => {
+                console.warn("[ExplorePage] Deep link auto-route error:", err);
+              });
+          }
         }
       } catch (err) {
         console.warn("[ExplorePage] Failed to fetch verified campus locations:", err);
@@ -245,6 +285,138 @@ export default function ExploreDashboardPage() {
       setIsCalculatingRoute(false);
     }
   }, [originLocation, selectedLocation]);
+
+  // End-to-End Navigation Intent Handler: processes QR scans, deep links, and manual entries
+  const handleApplyNavigationIntent = useCallback(
+    async (rawPayload: string) => {
+      const outcome = resolveNavigationIntent({
+        payload: rawPayload,
+        catalog: allLocations,
+        gpsCoords: geo.coordinates
+          ? {
+              latitude: geo.coordinates.latitude,
+              longitude: geo.coordinates.longitude,
+              accuracy: geo.coordinates.accuracy,
+            }
+          : null,
+        graphNodes: backendNodes,
+        lastScanTimestamp: lastScanTimestampRef.current,
+      });
+
+      lastScanTimestampRef.current = outcome.timestamp;
+
+      if (outcome.status === "debounced") {
+        return;
+      }
+
+      if (outcome.status === "invalid") {
+        setToastNotification({
+          type: "error",
+          message: outcome.error || "Unknown QR code — not a recognized CampusWay location",
+        });
+        return;
+      }
+
+      if (outcome.status === "same_location") {
+        setIsQrScannerOpen(false);
+        setSelectedLocation(outcome.destination);
+        setOriginLocation(outcome.origin);
+        setActiveRoute(null);
+        setToastNotification({
+          type: "info",
+          message: outcome.message,
+        });
+        return;
+      }
+
+      if (outcome.status === "needs_origin") {
+        setIsQrScannerOpen(false);
+        setSelectedLocation(outcome.destination);
+        setOriginPromptDest(outcome.destination);
+        return;
+      }
+
+      if (outcome.status === "ready") {
+        setIsQrScannerOpen(false);
+        setOriginPromptDest(null);
+        setSelectedLocation(outcome.destination);
+        setOriginLocation(outcome.origin);
+        setIsOriginCurrentLocation(outcome.isGpsOrigin);
+
+        if (outcome.toastMessage) {
+          setToastNotification({
+            type: "success",
+            message: outcome.toastMessage,
+          });
+        }
+
+        // Calculate route immediately
+        setIsCalculatingRoute(true);
+        setRouteError(null);
+        try {
+          const calculatedRoute = await routeService.calculateRoute(
+            outcome.origin,
+            outcome.destination
+          );
+          setActiveRoute(calculatedRoute);
+          setShowRoute(true);
+          setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
+          if (!outcome.toastMessage) {
+            setToastNotification({
+              type: "success",
+              message: `Route to ${outcome.destination.name} ready`,
+            });
+          }
+        } catch (err) {
+          console.warn("[ExplorePage] Route calculation error from intent:", err);
+          setRouteError(err instanceof Error ? err.message : "Unable to calculate route.");
+        } finally {
+          setIsCalculatingRoute(false);
+        }
+      }
+    },
+    [allLocations, backendNodes, geo.coordinates]
+  );
+
+  // Origin resolution prompt handler when user picks a starting point
+  const handleSelectOriginFromPrompt = useCallback(
+    async (chosenOrigin: CampusLocation) => {
+      if (!originPromptDest) return;
+      const dest = originPromptDest;
+      setOriginPromptDest(null);
+      setOriginLocation(chosenOrigin);
+      setSelectedLocation(dest);
+      setIsOriginCurrentLocation(false);
+
+      if (chosenOrigin.id === dest.id) {
+        setActiveRoute(null);
+        setToastNotification({
+          type: "info",
+          message: `You are already at ${dest.name}!`,
+        });
+        return;
+      }
+
+      setIsCalculatingRoute(true);
+      setRouteError(null);
+      try {
+        const calculatedRoute = await routeService.calculateRoute(chosenOrigin, dest);
+        setActiveRoute(calculatedRoute);
+        setShowRoute(true);
+        setSheetSnap((prev) => (prev === "peek" ? "half" : prev));
+        setToastNotification({
+          type: "success",
+          message: `Route to ${dest.name} ready`,
+        });
+      } catch (err) {
+        console.warn("[ExplorePage] Route calculation error:", err);
+        setRouteError(err instanceof Error ? err.message : "Unable to calculate route.");
+      } finally {
+        setIsCalculatingRoute(false);
+      }
+    },
+    [originPromptDest]
+  );
 
   // Location Handlers: selecting origin/destination updates pins & inputs without auto-calculating
   const handleSelectOrigin = (loc: CampusLocation) => {
@@ -632,6 +804,7 @@ export default function ExploreDashboardPage() {
                     }}
                     isOutsideCampusBanner={isOutsideCampusBanner}
                     onDismissOutsideCampusBanner={() => setIsOutsideCampusBanner(false)}
+                    onTestScan={handleApplyNavigationIntent}
                   />
                 </div>
               </div>
@@ -670,6 +843,7 @@ export default function ExploreDashboardPage() {
         <QrScannerModal
           isOpen={isQrScannerOpen}
           onClose={() => setIsQrScannerOpen(false)}
+          onScanPayload={handleApplyNavigationIntent}
           onScanSuccess={(scannedDest, scannedOrigin) => {
             const destLoc =
               allLocations.find((l) => l.slug === scannedDest.slug || l.id === scannedDest.id) ||
@@ -694,6 +868,161 @@ export default function ExploreDashboardPage() {
             setIsQrScannerOpen(false);
           }}
         />
+      )}
+
+      {/* 5. Origin Resolution Prompt Modal ("Where are you starting from?") */}
+      {originPromptDest && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="origin-prompt-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          data-testid="origin-prompt-modal"
+        >
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#0a0f1d] border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden flex flex-col text-slate-800 dark:text-zinc-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-900/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#E8452C]/15 border border-[#E8452C]/40 text-[#E8452C] flex items-center justify-center">
+                  <Icon name="route" size={16} />
+                </div>
+                <div>
+                  <h2 id="origin-prompt-title" className="text-sm font-bold text-slate-900 dark:text-white tracking-wide">
+                    Where are you starting from?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">
+                    Routing to {originPromptDest.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOriginPromptDest(null)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                aria-label="Close origin selector"
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+
+            {/* Quick Origin Chips */}
+            <div className="p-4 border-b border-slate-100 dark:border-zinc-800/60 space-y-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-zinc-400 font-bold">
+                Common Starting Points
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {allLocations
+                  .filter((l) =>
+                    ["gate-1", "hosteller-exit-entry-gate", "visitor-parking", "block-1", "cc-food-court"].includes(
+                      l.slug || ""
+                    )
+                  )
+                  .map((loc) => (
+                    <button
+                      key={loc.id}
+                      type="button"
+                      onClick={() => handleSelectOriginFromPrompt(loc)}
+                      data-testid={`prompt-chip-${loc.slug}`}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-[#E8452C]/15 dark:bg-zinc-800 dark:hover:bg-[#E8452C]/25 text-slate-700 hover:text-[#E8452C] dark:text-zinc-200 dark:hover:text-white border border-slate-200 dark:border-zinc-700 transition-colors cursor-pointer"
+                    >
+                      {loc.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Search Input */}
+            <div className="p-3 border-b border-slate-100 dark:border-zinc-800/60">
+              <div className="relative flex items-center">
+                <span className="absolute left-3 text-slate-400 dark:text-zinc-500 pointer-events-none">
+                  <Icon name="search" size={14} />
+                </span>
+                <input
+                  type="text"
+                  value={originPromptSearch}
+                  onChange={(e) => setOriginPromptSearch(e.target.value)}
+                  placeholder="Search starting place or gate…"
+                  data-testid="origin-prompt-search"
+                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-slate-100 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-[#E8452C]"
+                />
+              </div>
+            </div>
+
+            {/* Places List */}
+            <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800/50 p-2">
+              {allLocations
+                .filter(
+                  (l) =>
+                    l.id !== originPromptDest.id &&
+                    (!originPromptSearch.trim() ||
+                      l.name.toLowerCase().includes(originPromptSearch.trim().toLowerCase()) ||
+                      (l.slug && l.slug.toLowerCase().includes(originPromptSearch.trim().toLowerCase())))
+                )
+                .slice(0, 8)
+                .map((loc) => (
+                  <button
+                    key={loc.id}
+                    type="button"
+                    onClick={() => handleSelectOriginFromPrompt(loc)}
+                    data-testid={`prompt-item-${loc.slug}`}
+                    className="w-full text-left p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800/70 flex items-center justify-between group transition-colors cursor-pointer"
+                  >
+                    <div>
+                      <div className="text-xs font-semibold text-slate-900 dark:text-white group-hover:text-[#E8452C]">
+                        {loc.name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
+                        {loc.category}
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#E8452C] opacity-0 group-hover:opacity-100 transition-opacity">
+                      Start Here →
+                    </span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Toast Notification Alert */}
+      {toastNotification && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="toast-notification"
+          className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shadow-xl border backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200"
+          style={{
+            backgroundColor:
+              toastNotification.type === "error"
+                ? "rgba(225, 29, 72, 0.95)"
+                : toastNotification.type === "info"
+                ? "rgba(14, 116, 144, 0.95)"
+                : "rgba(16, 185, 129, 0.95)",
+            borderColor: "rgba(255, 255, 255, 0.2)",
+            color: "#FFFFFF",
+          }}
+        >
+          <Icon
+            name={
+              toastNotification.type === "error"
+                ? "alertTriangle"
+                : toastNotification.type === "info"
+                ? "compass"
+                : "check"
+            }
+            size={16}
+          />
+          <span className="text-xs font-semibold">{toastNotification.message}</span>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="ml-2 text-white/80 hover:text-white cursor-pointer"
+            aria-label="Dismiss toast"
+          >
+            <Icon name="close" size={12} />
+          </button>
+        </div>
       )}
     </div>
   );

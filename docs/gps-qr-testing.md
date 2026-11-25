@@ -103,3 +103,48 @@ The snapping engine is implemented in `frontend/src/lib/gpsSnapping.ts`:
 - [x] Low accuracy warnings ($>50\text{m}$) and outside-campus warnings display non-blocking alerts.
 - [x] Tab visibility change (Page Visibility API) pauses GPS watch to conserve battery.
 - [x] Mock Location panel operates seamlessly in dev mode.
+
+---
+
+## 6. End-to-End QR Navigation Flow Testing
+
+### Supported QR Payload Formats
+CampusWay supports five distinct QR encoding formats:
+1. **Canonical Web URL**: `https://campusway.lpu.in/navigate?to=block-1&from=gate-1`
+2. **Relative Path**: `/navigate?to=block-1` or `/explore?to=block-2&from=gate-1`
+3. **Prefixed Physical Signage**: `place:block-1` or `lpu:gate-1`
+4. **Signage with Explicit Origin**: `place:block-2?from=gate-1`
+5. **Direct Verified Slug/Code**: `block-1`, `gate-1`, `tracer`
+
+### Origin Resolution Logic
+When a QR payload is scanned:
+1. **Explicit Origin**: If `from` parameter is included (e.g. `gate-1`), that location is immediately resolved.
+2. **GPS Snapped Origin**: If no origin is provided, CampusWay checks if the user has a live GPS fix snapped to a verified node within $\le 45\text{m}$.
+   - If snapped: sets origin to the current location, displays toast: *"Starting from your current location (<node name>)"*, and triggers route calculation.
+3. **Origin Resolution Prompt**: If GPS is unavailable, denied, or $> 45\text{m}$ from campus graph nodes:
+   - Displays a clean dialog: *"Where are you starting from?"*
+   - Offers 1-tap quick chips for major gates (Gate 1, Hosteller Gate, Visitor Parking) and common buildings.
+   - Includes real-time search across all campus locations.
+   - Selecting a starting point immediately calculates the route and displays the Route Summary (Card B).
+
+### Edge Case Handling
+- **`to === from`**: If the scanned destination matches the current location/origin, CampusWay displays *"You are already at <name>!"* without executing unnecessary route calculations.
+- **Active Route In-Progress**: Scanning a new QR smoothly cancels any in-flight route and calculates the new path.
+- **Rapid Double-Scan Debounce**: Multiple decode events within $1500\text{ms}$ are debounced to prevent duplicate requests.
+- **Unrecognized / Foreign QR**: Shows error toast *"Unknown QR code — not a recognized CampusWay location"* and keeps the scanner modal open for another attempt.
+- **Offline Dijkstra Fallback**: If the backend API is unreachable, the client-side Dijkstra graph engine calculates the route offline using cached survey nodes.
+
+### In-App Verification Methods
+1. **In-App "Test this QR" Simulation Button**:
+   - Open any location detail card in `/explore`.
+   - Click the **QR Code** icon.
+   - In the modal, click the primary red button **"Test this QR in App (Simulate Scan)"** (`data-testid="test-qr-button"`).
+   - This immediately fires the navigation intent through the complete QR processing pipeline without needing a physical camera.
+2. **Manual Code Entry**:
+   - Open the QR Scanner modal.
+   - Switch to **"Type a code"** manual input.
+   - Enter any slug (e.g., `block-1`, `place:cc-food-court`, or `lpu:gate-1`) and submit.
+3. **Deep Link Forwarding**:
+   - Navigate directly to `http://localhost:3000/navigate?to=block-1&from=gate-1`.
+   - The route is automatically validated, forwarded to `/explore`, calculated, and displayed in the Route Summary.
+

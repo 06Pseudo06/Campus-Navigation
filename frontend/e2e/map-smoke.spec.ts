@@ -374,14 +374,14 @@ test.describe("map smoke", () => {
     await page.goto("/explore");
 
     // 1. Verify Card A Mode Switcher
-    const walkingMode = page.getByRole("button", { name: /Walking/ });
-    const accessibleMode = page.getByRole("button", { name: /Accessible/ });
+    const walkingMode = page.getByRole("radio", { name: /Walking/ });
+    const accessibleMode = page.getByRole("radio", { name: /Step-Free|Accessible/ });
     await expect(walkingMode).toBeVisible({ timeout: 15_000 });
     await expect(accessibleMode).toBeVisible();
 
     // Click Accessible Mode
     await accessibleMode.click();
-    await expect(accessibleMode).toHaveClass(/text-emerald/);
+    await expect(accessibleMode).toHaveAttribute("aria-checked", "true");
 
     // 2. Select a location without calculating route to verify Card D (Place details card)
     const block1Item = page.getByTestId("location-item-block-1");
@@ -596,11 +596,11 @@ test.describe("map smoke", () => {
     await expect(page.getByRole("heading", { name: /Help & Navigation Support/i })).toBeVisible();
 
     // Assert support directory
-    await expect(page.getByText("Campus Safety & Security Operations")).toBeVisible();
+    await expect(page.getByText("Campus Security & Quick Response")).toBeVisible();
     await expect(page.getByText("Shanti Devi Mittal Hospital")).toBeVisible();
 
-    // Assert Blue Light Call Stations
-    await expect(page.getByText(/Blue Light Emergency Call Stations/i)).toBeVisible();
+    // Assert Emergency Call Stations
+    await expect(page.getByRole("heading", { name: "Emergency Call Stations" })).toBeVisible();
 
     // Fill and submit live assistance ticket
     await page.locator("#contact-phone").fill("+91 98765 43210");
@@ -628,10 +628,69 @@ test.describe("map smoke", () => {
     const heroHeadline = page.getByRole("heading", { name: /Navigate Further/i });
     await expect(heroHeadline).toBeVisible({ timeout: 15_000 });
 
+    const hero = page.locator("#section-01");
     // Assert bottom meta row is rendered with legible text
-    await expect(page.getByText(/SCROLL TO EXPLORE/i)).toBeVisible();
-    await expect(page.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
-    await expect(page.getByText(/31.2536° N, 75.7037° E/i)).toBeVisible();
+    await expect(hero.getByText(/SCROLL TO EXPLORE/i)).toBeVisible();
+    await expect(hero.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
+    await expect(hero.getByText("LPU CAMPUS", { exact: true })).toBeVisible();
+  });
+
+  test("hero bottom boundary and consolidated meta row render cleanly across viewports without overflow", async ({
+    page,
+  }) => {
+    const viewports = [
+      { name: "360px", width: 360, height: 740 },
+      { name: "768px", width: 768, height: 1024 },
+      { name: "1280px", width: 1280, height: 800 },
+      { name: "1920px", width: 1920, height: 1080 },
+    ];
+
+    for (const vp of viewports) {
+      await page.setViewportSize({ width: vp.width, height: vp.height });
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+      await page.keyboard.press("Escape");
+
+      const hero = page.locator("#section-01");
+      await expect(hero).toBeVisible({ timeout: 15_000 });
+
+      // Verify consolidated single-line metadata elements
+      await expect(hero.getByText(/LIVE SATELLITE SYNC/i)).toBeVisible();
+      await expect(hero.getByText("LPU CAMPUS", { exact: true })).toBeVisible();
+
+      // Check overflow style is clip/hidden on hero section
+      const overflowStyle = await hero.evaluate((el) => {
+        const computed = window.getComputedStyle(el);
+        return { overflowX: computed.overflowX, overflowY: computed.overflowY };
+      });
+      expect(["hidden", "clip"]).toContain(overflowStyle.overflowX);
+      expect(["hidden", "clip"]).toContain(overflowStyle.overflowY);
+    }
+  });
+
+  test("feature cards and stats strip entrance is scroll-scrubbed and visible when scrolled into view", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    const section02 = page.locator("#section-02");
+    await expect(section02).toBeAttached();
+
+    // Scroll into section-02
+    await section02.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(600);
+
+    // Verify stats items and labels are visible
+    await expect(section02.getByText("BLOCKS INDEXED", { exact: true })).toBeVisible();
+    await expect(section02.getByText("SURVEYED NODES", { exact: true })).toBeVisible();
+    await expect(section02.getByText("PEDESTRIAN EDGES", { exact: true })).toBeVisible();
+    await expect(section02.getByText("ACCESSIBLE", { exact: true })).toBeVisible();
+
+    // Verify 3 feature cards
+    await expect(section02.getByRole("heading", { name: "Discover" })).toBeVisible();
+    await expect(section02.getByRole("heading", { name: "Navigate" })).toBeVisible();
+    await expect(section02.getByRole("heading", { name: "Save" })).toBeVisible();
   });
 
   test("full multi-viewport responsive matrix (360x740, 768x1024, 1280x800, 1920x1080)", async ({
@@ -657,5 +716,143 @@ test.describe("map smoke", () => {
         await expect(page.getByTestId("unified-map-toolbar")).toBeVisible();
       }
     }
+  });
+
+  test("hero orange disc transform stabilises and returns to resting state across 5 scroll cycles", async ({
+    page,
+  }) => {
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        const text = msg.text();
+        // Exclude backend network connection failures when backend is offline
+        if (!text.includes("ERR_CONNECTION_REFUSED") && !text.includes("Failed to load resource")) {
+          consoleErrors.push(text);
+        }
+      }
+    });
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/?intro=1", { waitUntil: "domcontentloaded" });
+
+    // Wait for hero intro to complete or skip it
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+
+    const scrollLayer = page.locator("#hero-sun-disc-scroll-layer");
+    await expect(scrollLayer).toBeAttached();
+
+    // Scroll 1000px down and back up 5 times
+    for (let i = 0; i < 5; i++) {
+      await page.evaluate(() => window.scrollTo(0, 1000));
+      await page.waitForTimeout(200);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(200);
+    }
+
+    // Allow GSAP scrub 0.4s to settle to 0
+    await page.waitForTimeout(600);
+
+    // Assert resting state computed transform
+    const transform = await scrollLayer.evaluate((el) => {
+      return window.getComputedStyle(el).transform;
+    });
+
+    // Resting state is either 'none' or 'matrix(1, 0, 0, 1, 0, 0)'
+    expect(transform === "none" || transform.startsWith("matrix(1, 0, 0, 1")).toBeTruthy();
+    expect(consoleErrors).toEqual([]);
+  });
+
+  test("theme toggle correctly switches to light mode and persists in localStorage with light semantic tokens", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    // Open Theme dropdown in navbar
+    const themeBtn = page.getByRole("button", { name: /Change theme/i });
+    await expect(themeBtn).toBeVisible({ timeout: 15_000 });
+    await themeBtn.click();
+
+    // Click "Light Mode"
+    const lightOption = page.getByRole("button", { name: /Light Mode/i });
+    await expect(lightOption).toBeVisible();
+    await lightOption.click();
+
+    // Verify localStorage has 'light'
+    const storedTheme = await page.evaluate(() => localStorage.getItem("campusway-theme"));
+    expect(storedTheme).toBe("light");
+
+    // Verify document.documentElement has 'light' class and does NOT have 'dark'
+    const htmlClasses = await page.evaluate(() => {
+      const root = document.documentElement;
+      return {
+        hasLight: root.classList.contains("light"),
+        hasDark: root.classList.contains("dark"),
+        dataTheme: root.getAttribute("data-theme"),
+      };
+    });
+    expect(htmlClasses.hasLight).toBe(true);
+    expect(htmlClasses.hasDark).toBe(false);
+    expect(htmlClasses.dataTheme).toBe("light");
+
+    // Verify body computed background color matches #F6F4EF (rgb(246, 244, 239))
+    const bodyBg = await page.evaluate(() => {
+      return window.getComputedStyle(document.body).backgroundColor;
+    });
+    expect(bodyBg).toBe("rgb(246, 244, 239)");
+
+    // Verify hero section computed background color matches #F6F4EF (rgb(246, 244, 239))
+    const heroBg = await page.evaluate(() => {
+      const hero = document.getElementById("section-01");
+      return hero ? window.getComputedStyle(hero).backgroundColor : null;
+    });
+    expect(heroBg).toBe("rgb(246, 244, 239)");
+
+    // Reload page and assert light theme persists across reload
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.keyboard.press("Escape");
+
+    const reloadedClasses = await page.evaluate(() => {
+      const root = document.documentElement;
+      return {
+        hasLight: root.classList.contains("light"),
+        hasDark: root.classList.contains("dark"),
+        dataTheme: root.getAttribute("data-theme"),
+        bodyBg: window.getComputedStyle(document.body).backgroundColor,
+      };
+    });
+    expect(reloadedClasses.hasLight).toBe(true);
+    expect(reloadedClasses.hasDark).toBe(false);
+    expect(reloadedClasses.dataTheme).toBe("light");
+    expect(reloadedClasses.bodyBg).toBe("rgb(246, 244, 239)");
+  });
+
+  test("help page emergency callout renders Lucide icon, semantic tokens, and verified contact links", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/help", { waitUntil: "domcontentloaded" });
+
+    const callout = page.locator("#emergency-callout");
+    await expect(callout).toBeVisible({ timeout: 15_000 });
+
+    // Assert emergency station heading
+    await expect(callout.getByRole("heading", { name: /Emergency Call Stations/i })).toBeVisible();
+
+    // Assert Lucide ShieldAlert icon SVG is rendered
+    const icon = callout.locator("svg.lucide-shield-alert");
+    await expect(icon).toBeVisible();
+
+    // Assert verified click-to-call tel links
+    const securityLink = callout.locator('a[href="tel:+911824517000"]');
+    await expect(securityLink).toBeVisible();
+
+    const hospitalLink = callout.locator('a[href="tel:+911824517108"]');
+    await expect(hospitalLink).toBeVisible();
+
+    const nationalLink = callout.locator('a[href="tel:112"]');
+    await expect(nationalLink).toBeVisible();
   });
 });

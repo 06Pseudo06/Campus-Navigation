@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { CampusLocation, CampusRoute, LocationCategory } from "@/types/campus";
 import { useDebounce } from "@/hooks/useDebounce";
 import {
@@ -9,6 +9,8 @@ import {
   getDirectionIcon,
   getAccessibilityBadge,
 } from "@/lib/routeFormatting";
+import { Icon } from "@/components/ui/Icon";
+import { CATEGORY_LIST, getCategoryConfig } from "@/lib/categories";
 import {
   SearchIcon,
   BookmarkIcon,
@@ -55,6 +57,7 @@ interface DestinationPanelProps {
   onSelectNearestPlace?: (location: CampusLocation) => void;
   isOutsideCampusBanner?: boolean;
   onDismissOutsideCampusBanner?: () => void;
+  onTestScan?: (payload: string) => void;
 }
 
 export function DestinationPanel({
@@ -85,6 +88,7 @@ export function DestinationPanel({
   onSelectNearestPlace,
   isOutsideCampusBanner = false,
   onDismissOutsideCampusBanner,
+  onTestScan,
 }: DestinationPanelProps) {
   const [panelSearch, setPanelSearch] = useState<string>("");
   const debouncedPanelSearch = useDebounce(panelSearch, 250);
@@ -96,20 +100,14 @@ export function DestinationPanel({
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [navigationMode, setNavigationMode] = useState<"walking" | "accessible">("walking");
   const [isNavigating, setIsNavigating] = useState(false);
+  const panelSearchInputRef = useRef<HTMLInputElement>(null);
 
   const isSameLocation = Boolean(
     originLocation && selectedLocation && originLocation.id === selectedLocation.id
   );
 
-  // Filter categories
-  const categories: { id: LocationCategory; label: string; icon: string }[] = [
-    { id: "all", label: "All", icon: "🌐" },
-    { id: "building", label: "Academic", icon: "🏛️" },
-    { id: "hostel", label: "Hostels", icon: "🏠" },
-    { id: "gate", label: "Gates", icon: "🚪" },
-    { id: "service", label: "Food & Dining", icon: "🍴" },
-    { id: "landmark", label: "Landmarks", icon: "📍" },
-  ];
+  // Filter categories from central configuration
+  const categories = CATEGORY_LIST;
 
   // Category place counts
   const categoryCounts = useMemo(() => {
@@ -223,14 +221,15 @@ export function DestinationPanel({
             className="p-3.5 rounded-2xl border border-amber-800/70 bg-amber-950/40 space-y-2 animate-in fade-in"
           >
             <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
-              <span className="text-sm">⚠️</span>
+              <Icon name="warning" size={16} className="text-amber-400 shrink-0" />
               <span>Route Notice</span>
             </div>
             <p className="text-xs leading-relaxed text-amber-200">
               {routeError}
             </p>
-            <p className="text-[11px] text-amber-300/80 pt-1 border-t border-amber-900/50 leading-relaxed font-mono">
-              💡 Suggestion: Pick a nearby main avenue or Gate 1 as your starting point.
+            <p className="text-[11px] text-amber-300/80 pt-1 border-t border-amber-900/50 leading-relaxed font-mono flex items-center gap-1">
+              <Icon name="hint" size={14} className="text-amber-400 shrink-0" />
+              <span>Suggestion: Pick a nearby main avenue or Gate 1 as your starting point.</span>
             </p>
           </div>
         )}
@@ -276,7 +275,7 @@ export function DestinationPanel({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-300">
-                <span>📍</span>
+                <Icon name="pinOff" size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>Outside Campus Bounds</span>
               </div>
               {onDismissOutsideCampusBanner && (
@@ -284,8 +283,9 @@ export function DestinationPanel({
                   type="button"
                   onClick={onDismissOutsideCampusBanner}
                   className="text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-white font-bold cursor-pointer text-xs"
+                  aria-label="Dismiss outside campus notice"
                 >
-                  ✕
+                  <Icon name="close" size={14} />
                 </button>
               )}
             </div>
@@ -303,7 +303,7 @@ export function DestinationPanel({
             className="p-4 rounded-2xl border border-amber-600/70 bg-amber-500/10 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 text-xs space-y-3 animate-in fade-in"
           >
             <div className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400">
-              <span className="text-base">⚠️</span>
+              <Icon name="warning" size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
               <span>Unsurveyed Campus Area</span>
             </div>
             <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
@@ -445,44 +445,89 @@ export function DestinationPanel({
             </button>
           </div>
 
-          {/* Navigation Mode Switcher: Walking vs Accessible */}
-          <div className="pt-1">
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/60">
+          {/* Navigation Mode Switcher: Walking vs Accessible Segmented Control */}
+          <div className="pt-1 space-y-1.5">
+            <div
+              role="radiogroup"
+              aria-label="Route Navigation Mode"
+              className="relative flex items-center p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700/60 select-none"
+            >
+              {/* Sliding Background Highlight */}
+              <div
+                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-white dark:bg-zinc-700 shadow-xs transition-transform duration-200 ease-out pointer-events-none ${
+                  navigationMode === "walking" ? "translate-x-0" : "translate-x-[calc(100%+8px)]"
+                }`}
+              />
+
+              {/* Walking Option */}
               <button
                 type="button"
+                role="radio"
+                aria-checked={navigationMode === "walking"}
                 onClick={() => setNavigationMode("walking")}
-                className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setNavigationMode("accessible");
+                  }
+                }}
+                className={`relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                   navigationMode === "walking"
-                    ? "bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-xs font-semibold"
+                    ? "text-slate-900 dark:text-white font-semibold"
                     : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
                 }`}
               >
-                <span>🚶</span>
+                <Icon name="walking" size={15} className={navigationMode === "walking" ? "text-[#E8452C]" : "text-slate-400"} />
                 <span>Walking</span>
               </button>
+
+              {/* Accessible Option */}
               <button
                 type="button"
+                role="radio"
+                aria-checked={navigationMode === "accessible"}
                 onClick={() => setNavigationMode("accessible")}
-                className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                    e.preventDefault();
+                    setNavigationMode("walking");
+                  }
+                }}
+                className={`relative z-10 flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
                   navigationMode === "accessible"
-                    ? "bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold"
+                    ? "text-emerald-700 dark:text-emerald-400 font-semibold"
                     : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
                 }`}
               >
-                <span>♿</span>
+                <Icon name="accessible" size={15} className={navigationMode === "accessible" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"} />
                 <span>Accessible</span>
               </button>
             </div>
+
+            {/* Helper Text for Active Mode */}
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 font-mono px-1 flex items-center gap-1">
+              {navigationMode === "accessible" ? (
+                <>
+                  <Icon name="accessible" size={12} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Step-free, ramp-first paths only</span>
+                </>
+              ) : (
+                <>
+                  <Icon name="walking" size={12} className="text-slate-400 shrink-0" />
+                  <span>Standard walking paths with stairs where faster</span>
+                </>
+              )}
+            </p>
           </div>
 
-          {/* ──── Primary Route Action Button ──── */}
+          {/* ──── Primary Route Action Button (44px min height, solid #E8452C, left Route icon) ──── */}
           <div className="pt-1">
             <button
               type="button"
               data-testid="get-directions-button"
               onClick={onCalculateRoute}
               disabled={!canCalculateRoute || isCalculatingRoute}
-              className={`w-full py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+              className={`w-full h-11 min-h-[44px] py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
                 !canCalculateRoute
                   ? "bg-slate-200 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 cursor-not-allowed shadow-none"
                   : isCalculatingRoute
@@ -495,15 +540,10 @@ export function DestinationPanel({
                   <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   <span>Calculating Route…</span>
                 </>
-              ) : hasActiveRouteForSelection ? (
-                <>
-                  <RouteIcon className="w-4 h-4" />
-                  <span>Recalculate</span>
-                </>
               ) : (
                 <>
-                  <RouteIcon className="w-4 h-4" />
-                  <span>Get directions</span>
+                  <Icon name="route" size={16} className="text-white shrink-0" />
+                  <span>{hasActiveRouteForSelection ? "Recalculate Route" : "Get Directions"}</span>
                 </>
               )}
             </button>
@@ -555,7 +595,7 @@ export function DestinationPanel({
             {/* Metrics Chips */}
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 flex items-center gap-2">
-                <span className="text-sm">👣</span>
+                <Icon name="walking" size={16} className="text-slate-500 dark:text-zinc-400 shrink-0" />
                 <div>
                   <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">Pedometer</span>
                   <span className="font-bold text-slate-800 dark:text-zinc-200 font-mono">
@@ -564,7 +604,7 @@ export function DestinationPanel({
                 </div>
               </div>
               <div className="p-2 rounded-xl bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60 flex items-center gap-2">
-                <span className="text-sm">📐</span>
+                <Icon name="ruler" size={16} className="text-slate-500 dark:text-zinc-400 shrink-0" />
                 <div>
                   <span className="text-[10px] text-slate-500 dark:text-zinc-400 block font-mono">Incline</span>
                   <span className="font-bold text-slate-800 dark:text-zinc-200 font-mono">
@@ -580,13 +620,18 @@ export function DestinationPanel({
                 Pathway Classification
               </span>
               <span
-                className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
                   activeRoute.isAccessible
                     ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800/60"
                     : "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800/60"
                 }`}
               >
-                {getAccessibilityBadge(activeRoute.isAccessible).badgeText}
+                <Icon
+                  name={getAccessibilityBadge(activeRoute.isAccessible).iconName}
+                  size={12}
+                  className="shrink-0"
+                />
+                <span>{getAccessibilityBadge(activeRoute.isAccessible).badgeText}</span>
               </span>
             </div>
 
@@ -622,7 +667,7 @@ export function DestinationPanel({
           <div className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 space-y-2.5 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                <span>🧭</span>
+                <Icon name="compass" size={15} className="text-[#E8452C] shrink-0" />
                 <span>Turn-by-Turn Directions ({activeRoute.steps.length})</span>
               </span>
               <button
@@ -710,8 +755,8 @@ export function DestinationPanel({
               </div>
 
               {/* Decorative background watermark */}
-              <div className="absolute -right-4 -bottom-4 text-6xl opacity-10 font-bold select-none pointer-events-none">
-                🏛️
+              <div className="absolute -right-2 -bottom-2 opacity-10 select-none pointer-events-none">
+                <Icon name="academic" size={72} className="text-slate-900 dark:text-white" />
               </div>
             </div>
 
@@ -783,75 +828,92 @@ export function DestinationPanel({
                 : "Explore Campus Places"}
             </span>
             <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
-              {filteredLocations.length} surveyed places
+              {filteredLocations.length} places
             </span>
           </div>
 
           {/* Search Input inside panel */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-400">
-              <SearchIcon className="w-4 h-4" />
+          <div className="relative flex items-center rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700/80 focus-within:ring-2 focus-within:ring-[#E8452C]/30 focus-within:border-[#E8452C] transition-all">
+            <div className="pl-3 flex items-center pointer-events-none text-slate-400 dark:text-zinc-500">
+              <Icon name="search" size={15} />
             </div>
             <input
+              ref={panelSearchInputRef}
               type="text"
               value={panelSearch}
               onChange={(e) => setPanelSearch(e.target.value)}
               placeholder="Search blocks, gates, food courts..."
-              className="w-full h-9 pl-9 pr-8 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700/80 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#E8452C] transition-all"
+              className="w-full h-9 pl-2.5 pr-8 bg-transparent text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none"
               data-testid="destination-search"
               aria-label="Search destination list"
             />
-            {panelSearch && (
+            {panelSearch ? (
               <button
                 type="button"
                 onClick={() => setPanelSearch("")}
-                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                className="pr-2.5 flex items-center text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
                 aria-label="Clear search"
               >
-                <CloseIcon className="w-4 h-4" />
+                <Icon name="close" size={14} />
               </button>
+            ) : (
+              <div className="pr-2.5 flex items-center pointer-events-none">
+                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-zinc-700/80 bg-slate-100 dark:bg-zinc-800 font-mono text-[9px] text-slate-400 dark:text-zinc-500">
+                  /
+                </kbd>
+              </div>
             )}
           </div>
 
-          {/* Clean Category Grid with Place Counts */}
-          <div className="grid grid-cols-3 gap-1.5 pt-1">
-            {categories.map((cat) => {
-              const isSelected = selectedCategory === cat.id;
-              const count = categoryCounts[cat.id] || 0;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? "bg-[#E8452C] border-[#E8452C] text-white shadow-xs font-semibold"
-                      : "bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-sm">{cat.icon}</span>
+          {/* Horizontally Scrollable Compact Category Chip Bar */}
+          <div className="relative py-1">
+            <div
+              role="tablist"
+              aria-label="Category Filters"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-1 px-0.5"
+            >
+              {categories.map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                const count = categoryCounts[cat.id] || 0;
+                return (
+                  <button
+                    key={cat.id}
+                    role="tab"
+                    aria-selected={isSelected}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`snap-start shrink-0 h-8 px-2.5 rounded-lg border text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+                      isSelected
+                        ? "bg-[#E8452C] border-[#E8452C] text-white shadow-xs font-semibold"
+                        : "bg-slate-50 dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700/60 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:border-slate-300 dark:hover:border-zinc-600"
+                    }`}
+                  >
+                    <Icon
+                      name={cat.iconName}
+                      size={14}
+                      className={isSelected ? "text-white" : cat.textTint}
+                    />
+                    <span className="text-[11px] whitespace-nowrap">{cat.label}</span>
                     <span
-                      className={`text-[9px] font-mono font-bold px-1 rounded ${
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                         isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400"
+                          ? "bg-white/20 text-white font-bold"
+                          : "bg-slate-200/80 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400"
                       }`}
                     >
                       {count}
                     </span>
-                  </div>
-                  <span className="text-[11px] truncate mt-1 leading-tight">{cat.label}</span>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Block 34 Warning Notice */}
           {isQueryingBlock34 && (
             <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 text-xs space-y-1">
               <p className="font-bold flex items-center gap-1.5">
-                <span>⚠️</span>
+                <Icon name="warning" size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
                 <span>Block 34 (Problem Statement P10)</span>
               </p>
               <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
@@ -898,15 +960,17 @@ export function DestinationPanel({
               </div>
             )}
 
-            {filteredLocations.map((loc) => {
+            {filteredLocations.map((loc, idx) => {
               const isOrig = originLocation?.id === loc.id;
               const isDest = selectedLocation?.id === loc.id;
+              const catConfig = getCategoryConfig(loc.category);
 
               return (
                 <div
                   key={loc.id}
                   data-testid={`location-item-${loc.slug || loc.id}`}
-                  className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                  style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}
+                  className={`p-2.5 rounded-xl border text-xs transition-all duration-200 motion-safe:animate-in motion-safe:fade-in flex items-center justify-between gap-2.5 cursor-pointer ${
                     isDest
                       ? "bg-[#E8452C]/10 border-[#E8452C] text-slate-900 dark:text-white"
                       : isOrig
@@ -915,6 +979,14 @@ export function DestinationPanel({
                   }`}
                   onClick={() => handleLocationPick(loc)}
                 >
+                  {/* Left 32px Category Icon Tile */}
+                  <div
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${catConfig.bgTint} ${catConfig.borderTint}`}
+                    title={catConfig.label}
+                  >
+                    <Icon name={catConfig.iconName} size={16} className={catConfig.textTint} />
+                  </div>
+
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="font-semibold text-slate-900 dark:text-white truncate">
@@ -931,23 +1003,24 @@ export function DestinationPanel({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-zinc-400 line-clamp-1 mt-0.5">
-                      {loc.description}
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate mt-0.5 font-mono">
+                      {catConfig.label} • {loc.code || loc.description}
                     </p>
                   </div>
 
-                  {/* Action buttons */}
-                  <div className="flex items-center gap-1 shrink-0">
+                  {/* Action buttons: Start (CircleDot) and Go (Navigation) */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectOrigin(loc);
                       }}
-                      className="p-1.5 rounded-lg bg-slate-200 dark:bg-zinc-800 hover:bg-emerald-600 text-slate-600 dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      className="w-8 h-8 rounded-lg border border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center justify-center transition-colors cursor-pointer"
                       title="Set as starting point"
+                      aria-label={`Set ${loc.name} as starting point`}
                     >
-                      <span className="text-[10px] font-bold">Start</span>
+                      <Icon name="startPin" size={14} />
                     </button>
                     <button
                       type="button"
@@ -956,10 +1029,11 @@ export function DestinationPanel({
                         onSelectDestination(loc);
                         if (onSelectLocation) onSelectLocation(loc);
                       }}
-                      className="p-1.5 rounded-lg bg-slate-200 dark:bg-zinc-800 hover:bg-[#DE4B31] text-slate-600 dark:text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      className="w-8 h-8 rounded-lg bg-[#E8452C] hover:bg-[#DE4B31] text-white flex items-center justify-center transition-colors cursor-pointer shadow-xs"
                       title="Set as destination"
+                      aria-label={`Navigate to ${loc.name}`}
                     >
-                      <span className="text-[10px] font-bold">Go</span>
+                      <Icon name="destPin" size={14} />
                     </button>
                   </div>
                 </div>
@@ -988,6 +1062,10 @@ export function DestinationPanel({
           destination={selectedLocation}
           origin={originLocation}
           isOriginCurrentLocation={isOriginCurrentLocation}
+          onTestScan={(payload) => {
+            setShowQrModal(false);
+            onTestScan?.(payload);
+          }}
         />
       )}
     </aside>
