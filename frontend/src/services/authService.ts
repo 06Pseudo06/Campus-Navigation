@@ -11,16 +11,20 @@ import {
 /**
  * CampusWay Authentication Service
  * 
- * Prepares the frontend for future FastAPI backend integration.
- * In Phase 1, network calls attempt to contact the FastAPI backend URL configured
- * via NEXT_PUBLIC_API_BASE_URL. If the backend is offline or unconfigured,
- * an informative response is returned without fabricating tokens, fake users, or mock sessions.
+ * Sends authentication requests to the configured FastAPI backend. Network
+ * failures are reported separately from HTTP errors returned by the backend.
  */
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:8000";
 
 const DEFAULT_TIMEOUT_MS = 5000;
+
+function backendUnavailableMessage(): string {
+  return `Could not reach the FastAPI backend at ${API_BASE_URL}. Start or restart the backend, then confirm ${API_BASE_URL}/api/v1/health opens. If it does, check the browser console for a CORS error.`;
+}
 
 async function fetchWithTimeout(
   url: string,
@@ -83,7 +87,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not running or unreachable at ${API_BASE_URL}. In Phase 1, form validation is complete, but live authentication requires starting the Phase 2 backend.`,
+        message: backendUnavailableMessage(),
         isBackendConnected: false,
       };
     }
@@ -130,7 +134,7 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not connected at ${API_BASE_URL}. Frontend registration inputs are validated, but real user creation will be executed once the FastAPI + PostgreSQL backend is deployed in Phase 2.`,
+        message: backendUnavailableMessage(),
         isBackendConnected: false,
       };
     }

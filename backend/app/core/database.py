@@ -113,7 +113,12 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
         raise ValueError("DATABASE_URL is not configured.")
 
     url = make_url(raw_url)
-    if url.drivername in ("postgresql", "postgres"):
+    if url.drivername in (
+        "postgresql",
+        "postgres",
+        "postgresql+psycopg",
+        "postgresql+psycopg2",
+    ):
         url = url.set(drivername="postgresql+asyncpg")
     elif url.drivername.startswith("sqlite"):
         raise ValueError("Async engine only supports PostgreSQL. SQLite does not support asyncpg operations.")
