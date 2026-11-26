@@ -7,6 +7,7 @@
 #
 # Optional Local Database Mode:
 #   Runs backend, frontend, and a local PostgreSQL container using the 'local-db' profile.
+#   Backend automatically connects to the isolated local database container.
 #   Command: docker-compose --profile local-db up --build
 # =============================================================================
 
@@ -27,7 +28,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-postgres} -d ${LOCAL_DB_NAME:-campusway_db}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -42,13 +43,20 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=${DATABASE_URL:-}
+      - LOCAL_DATABASE_URL=postgresql+psycopg2://${LOCAL_DB_USER:-postgres}:${LOCAL_DB_PASSWORD:-postgres_password}@postgres:5432/${LOCAL_DB_NAME:-campusway_db}
+      - USE_LOCAL_DB=${USE_LOCAL_DB:-false}
       - PROJECT_NAME=${PROJECT_NAME:-CampusWay Route Intelligence Service}
-      - ADMIN_API_KEY=${ADMIN_API_KEY:-campusway-admin-dev-secret}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-campusway-jwt-secret-key-change-in-production}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:?ADMIN_API_KEY environment variable is required}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY environment variable is required}
+      - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET environment variable is required}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - ENVIRONMENT=${ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 15s

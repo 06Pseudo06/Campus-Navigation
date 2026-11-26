@@ -49,17 +49,65 @@ def _probe_postgres(url_str: str, timeout: float = 2.0) -> bool:
         return False
 
 
-db_url = settings.DATABASE_URL or "sqlite:///:memory:"
+def _probe_local_postgres(host: str = "postgres", port: int = 5432, timeout: float = 1.0) -> bool:
+    """Check if the local postgres service is resolvable and reachable on the internal network."""
+    try:
+        sock = socket.create_connection((host, port), timeout=timeout)
+        sock.close()
+        return True
+    except Exception:
+        return False
+
+
+def resolve_database_url() -> str:
+    """Resolve database URL between remote Neon and local container database based on profile and environment."""
+    import os
+
+    # 1. Explicit local DB override flag
+    if os.getenv("USE_LOCAL_DB", "").lower() in ("true", "1", "yes"):
+        local_url = os.getenv("LOCAL_DATABASE_URL")
+        if local_url:
+            return local_url
+
+    # 2. Optional local-db profile detection (active local postgres container on network)
+    local_url = os.getenv("LOCAL_DATABASE_URL")
+    if local_url and not settings.is_production:
+        try:
+            u = make_url(local_url)
+            if u.host and _probe_local_postgres(u.host, u.port or 5432):
+                import logging
+                logging.getLogger("campusway.database").info(
+                    f"Local database profile detected at {u.host}:{u.port or 5432}. Using isolated local container database."
+                )
+                return local_url
+        except Exception:
+            pass
+
+    # 3. Default to configured DATABASE_URL (Neon PostgreSQL)
+    return (settings.DATABASE_URL or "").strip()
+
+
+db_url = resolve_database_url()
+if not db_url:
+    if settings.is_production:
+        raise ValueError("DATABASE_URL must be configured in production.")
+    db_url = "sqlite:///:memory:"
+
 if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
-    if not _probe_postgres(db_url):
-        import logging, os
-        logging.getLogger("campusway.database").warning(
-            "PostgreSQL port 5432 unreachable. Resiliently falling back to local SQLite (campusway_dev.db)."
-        )
-        dev_db = os.path.abspath("campusway_dev.db").replace("\\", "/")
-        db_url = f"sqlite:///{dev_db}"
-    else:
+    if settings.is_production:
+        # In production: never fall back to SQLite; strictly use configured PostgreSQL
         db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    else:
+        # In development: verify reachability or fall back to local dev SQLite
+        if not _probe_postgres(db_url):
+            import logging, os
+            logging.getLogger("campusway.database").warning(
+                "PostgreSQL unreachable in development mode. Falling back to local SQLite for offline development."
+            )
+            dev_db = os.path.abspath("campusway_dev.db").replace("\\", "/")
+            db_url = f"sqlite:///{dev_db}"
+        else:
+            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 engine_kwargs: Dict[str, Any] = {"pool_pre_ping": settings.DB_POOL_PRE_PING}
 if not db_url.startswith("sqlite"):

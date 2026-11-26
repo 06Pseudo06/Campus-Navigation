@@ -1,7 +1,10 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from starlette.middleware.gzip import GZipMiddleware
 from app.core.config import Settings, settings
+from app.core.database import engine
 from app.api.routes import api_router
 
 app = FastAPI(
@@ -12,6 +15,9 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc",
 )
+
+# Fail safe on production startup if required secrets or DB are missing/placeholder
+settings.validate_production_startup()
 
 # GZip Compression Middleware for large responses (locations, graphs, routes)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -45,7 +51,7 @@ except Exception:
 @app.get("/health", tags=["Health"], summary="System Health Check")
 @app.get("/api/v1/health", tags=["Health"], summary="System Health Check v1")
 def health_check():
-    """Health check endpoint to verify backend service availability."""
+    """Lightweight process health check endpoint to verify backend service availability."""
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
@@ -53,6 +59,36 @@ def health_check():
         "google_auth_configured": settings.is_google_configured,
         "environment": settings.ENVIRONMENT,
     }
+
+
+@app.get("/ready", tags=["Health"], summary="System Readiness Check (Database Connectivity)")
+@app.get("/api/v1/ready", tags=["Health"], summary="System Readiness Check v1 (Database Connectivity)")
+def readiness_check():
+    """Readiness probe validating database connectivity via SELECT 1.
+    
+    Returns HTTP 200 when database connectivity is healthy and operational.
+    Returns HTTP 503 Service Unavailable when database connectivity fails,
+    without leaking connection strings, credentials, or internal stack traces.
+    """
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {
+            "status": "ready",
+            "service": settings.PROJECT_NAME,
+            "database": "connected",
+            "environment": settings.ENVIRONMENT,
+        }
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not_ready",
+                "service": settings.PROJECT_NAME,
+                "database": "disconnected",
+                "detail": "Database connectivity check failed",
+            },
+        )
 
 
 @app.get("/", tags=["Root"], summary="Service Root Status")
