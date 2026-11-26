@@ -1,13 +1,40 @@
+# Dependencies and lock cache
 node_modules/
-.next/
-out/
-build/
+.pnpm-store/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# Next.js build and cache output
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Sensitive environment configuration and keys
 .env
-.env.local
-.env.*.local
+.env*.local
+.env.development
+.env.test
+.env.production
+secrets/
+*.pem
+*.key
+*.cert
+campusway-firebase-admin*.json
+
+# Test runs, reports, and coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Version control and developer tooling
 .git/
 .gitignore
+.github/
+.vscode/
+.idea/
+*.md
