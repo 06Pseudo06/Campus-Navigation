@@ -1,6 +1,10 @@
+# Python virtual environments
 venv/
 .venv/
 env/
+ENV/
+
+# Python bytecode, caches, and test artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,6 +13,31 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
+.mypy_cache/
+.ruff_cache/
+tests/
+
+# Sensitive environment configuration and service keys
 .env
+.env.*
+secrets/
+*.pem
+*.key
+*.cert
+campusway-firebase-admin*.json
+*.service-account*.json
+
+# Local databases and backups
+*.db
+*.sqlite*
+campusway_dev.db
+campusway_dev.sqlite3
+*.bak
+backups/
+
+# Version control and developer tooling
 .git/
 .gitignore
+.github/
+.vscode/
+.idea/

@@ -1,0 +1,68 @@
+# =============================================================================
+# CampusWay Root Docker Build Context Exclusion Rules
+# =============================================================================
+
+# Version control and repository metadata
+.git/
+.gitignore
+.github/
+
+# Secrets, private keys, service credentials, and environment files
+.env
+.env*
+*.env
+secrets/
+**/secrets/
+*.pem
+*.key
+*.cert
+campusway-firebase-admin*.json
+*.service-account*.json
+
+# Local SQLite databases, test databases, and persistent dumps
+*.db
+*.sqlite*
+campusway_dev.db
+campusway_dev.sqlite3
+campusway.db
+backups/
+**/backups/
+
+# Python virtual environments, bytecode, and test caches
+venv/
+.venv/
+env/
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node.js dependencies, caches, and Next.js builds
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Documentation files, media, and raw artifacts
+CampusWay_IEEE_SRS_Report*.docx
+CAMPUSWAY_*.md
+lpu_campus_images/
+scratch/
+test-results/
+playwright-report/
+.vscode/
+.idea/
