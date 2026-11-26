@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.middleware.gzip import GZipMiddleware
 from app.core.config import Settings, settings
-from app.core.database import engine
+from app.core.database import active_db_mode, engine
 from app.api.routes import api_router
 
 app = FastAPI(
@@ -77,6 +77,7 @@ def readiness_check():
             "status": "ready",
             "service": settings.PROJECT_NAME,
             "database": "connected",
+            "mode": active_db_mode,
             "environment": settings.ENVIRONMENT,
         }
     except Exception:

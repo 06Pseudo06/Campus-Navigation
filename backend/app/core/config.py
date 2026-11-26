@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000"]
 
     # Database Settings
+    DEFAULT_DEV_DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/campusway_db"
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/campusway_db"
+    USE_LOCAL_DB: bool = False
+    LOCAL_DATABASE_URL: str = ""
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_RECYCLE: int = 3600
@@ -104,6 +107,46 @@ class Settings(BaseSettings):
                 raise ValueError("SESSION_SECRET is too short (minimum 32 characters required in production).")
         return self
 
+    def validate_production_database(self) -> None:
+        """Strictly validate that production database configuration points to an explicit, non-default PostgreSQL database.
+        
+        Rejects empty URLs, default localhost URLs, dev placeholders, SQLite,
+        and unsupported drivers without leaking credentials in errors or logs.
+        """
+        if not self.is_production:
+            return
+
+        db_url = (self.DATABASE_URL or "").strip()
+        if not db_url:
+            raise ValueError("Production database configuration failed: DATABASE_URL must not be empty.")
+
+        # Reject SQLite
+        db_url_lower = db_url.lower()
+        if db_url_lower.startswith("sqlite") or db_url_lower == ":memory:":
+            raise ValueError("Production database configuration failed: SQLite is not permitted as a production database.")
+
+        # Reject unsupported drivers
+        valid_prefixes = ("postgresql://", "postgresql+psycopg2://", "postgresql+asyncpg://", "postgres://")
+        if not any(db_url_lower.startswith(prefix) for prefix in valid_prefixes):
+            raise ValueError("Production database configuration failed: DATABASE_URL must use a supported PostgreSQL driver.")
+
+        # Reject default localhost URLs and local container references in production
+        if (
+            db_url == self.DEFAULT_DEV_DATABASE_URL
+            or "localhost" in db_url_lower
+            or "127.0.0.1" in db_url_lower
+            or "@postgres:" in db_url_lower
+        ):
+            raise ValueError("Production database configuration failed: Default or localhost database URLs are not permitted in production.")
+
+        # Reject placeholder patterns
+        if (
+            "user:password" in db_url_lower
+            or "replace-" in db_url_lower
+            or "your_password" in db_url_lower
+        ):
+            raise ValueError("Production database configuration failed: Placeholder database credentials are not permitted in production.")
+
     def validate_production_startup(self) -> None:
         """Validate all required secrets and database configuration for production execution.
         
@@ -137,17 +180,7 @@ class Settings(BaseSettings):
             raise ValueError("Production startup failed: JWT_SECRET_KEY must be at least 32 characters and non-default.")
 
         # 4. Validate DATABASE_URL
-        db_url = (self.DATABASE_URL or "").strip()
-        if not db_url:
-            raise ValueError("Production startup failed: DATABASE_URL must not be empty in production.")
-        if db_url.startswith("sqlite") or db_url == ":memory:":
-            raise ValueError("Production startup failed: SQLite is not permitted as a production database.")
-        if not (
-            db_url.startswith("postgresql://")
-            or db_url.startswith("postgresql+psycopg2://")
-            or db_url.startswith("postgres://")
-        ):
-            raise ValueError("Production startup failed: DATABASE_URL must be a valid PostgreSQL connection string.")
+        self.validate_production_database()
 
     model_config = SettingsConfigDict(
         env_file=(_ROOT_DIR / ".env", _BACKEND_DIR / ".env", ".env"),

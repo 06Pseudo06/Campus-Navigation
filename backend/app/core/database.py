@@ -16,7 +16,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.config import settings
+from app.core.config import Settings, settings
 from app.models.base import Base
 
 
@@ -49,68 +49,131 @@ def _probe_postgres(url_str: str, timeout: float = 2.0) -> bool:
         return False
 
 
-def _probe_local_postgres(host: str = "postgres", port: int = 5432, timeout: float = 1.0) -> bool:
-    """Check if the local postgres service is resolvable and reachable on the internal network."""
-    try:
-        sock = socket.create_connection((host, port), timeout=timeout)
-        sock.close()
-        return True
-    except Exception:
-        return False
-
-
-def resolve_database_url() -> str:
-    """Resolve database URL between remote Neon and local container database based on profile and environment."""
+def resolve_authoritative_database_url(
+    cfg: Optional[Settings] = None,
+) -> tuple[str, Optional[str], str]:
+    """Authoritative single-source database selection and URL resolution.
+    
+    Returns a 3-tuple:
+        (sync_url, async_url, selected_mode)
+        
+    selected_mode:
+        - 'local_db': Explicit local container PostgreSQL mode
+        - 'neon': Default remote Neon PostgreSQL mode
+        - 'sqlite_dev': Offline development fallback
+    
+    Rules:
+    1. Explicit Local Development Mode:
+       Activated ONLY when explicit local database selection is requested
+       via settings.USE_LOCAL_DB or env USE_LOCAL_DB=true.
+       In production mode, local container database is forbidden.
+       In development mode, uses LOCAL_DATABASE_URL without connecting to Neon.
+    2. Default Neon Mode:
+       Uses the configured DATABASE_URL (Neon PostgreSQL).
+       Does NOT probe or silently switch to local PostgreSQL.
+    3. Consistent driver formatting:
+       - sync_url uses 'postgresql+psycopg2://...'
+       - async_url uses 'postgresql+asyncpg://...'
+    """
     import os
 
-    # 1. Explicit local DB override flag
-    if os.getenv("USE_LOCAL_DB", "").lower() in ("true", "1", "yes"):
-        local_url = os.getenv("LOCAL_DATABASE_URL")
-        if local_url:
-            return local_url
+    current_settings = cfg or settings
+    use_local = getattr(current_settings, "USE_LOCAL_DB", False) or (
+        os.getenv("USE_LOCAL_DB", "").lower() in ("true", "1", "yes")
+    )
 
-    # 2. Optional local-db profile detection (active local postgres container on network)
-    local_url = os.getenv("LOCAL_DATABASE_URL")
-    if local_url and not settings.is_production:
-        try:
-            u = make_url(local_url)
-            if u.host and _probe_local_postgres(u.host, u.port or 5432):
-                import logging
-                logging.getLogger("campusway.database").info(
-                    f"Local database profile detected at {u.host}:{u.port or 5432}. Using isolated local container database."
-                )
-                return local_url
-        except Exception:
-            pass
+    # --- Mode B: Explicit Local Development Mode ---
+    if use_local:
+        if current_settings.is_production:
+            raise ValueError("Production mode cannot use local database container.")
 
-    # 3. Default to configured DATABASE_URL (Neon PostgreSQL)
-    return (settings.DATABASE_URL or "").strip()
+        raw_local = (
+            getattr(current_settings, "LOCAL_DATABASE_URL", None)
+            or os.getenv("LOCAL_DATABASE_URL")
+            or "postgresql://postgres:postgres_password@postgres:5432/campusway_db"
+        )
 
+        base = raw_local
+        if base.startswith("postgres://"):
+            base = base.replace("postgres://", "postgresql://", 1)
 
-db_url = resolve_database_url()
-if not db_url:
-    if settings.is_production:
-        raise ValueError("DATABASE_URL must be configured in production.")
-    db_url = "sqlite:///:memory:"
+        if base.startswith("postgresql://"):
+            sync_url = base.replace("postgresql://", "postgresql+psycopg2://", 1)
+            async_url = base.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif base.startswith("postgresql+psycopg2://"):
+            sync_url = base
+            async_url = base.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        elif base.startswith("postgresql+asyncpg://"):
+            sync_url = base.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+            async_url = base
+        else:
+            sync_url = base
+            async_url = base
 
-if db_url.startswith("postgresql://") or db_url.startswith("postgres://"):
-    if settings.is_production:
-        # In production: never fall back to SQLite; strictly use configured PostgreSQL
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-    else:
-        # In development: verify reachability or fall back to local dev SQLite
-        if not _probe_postgres(db_url):
+        return sync_url, async_url, "local_db"
+
+    # --- Mode A: Default Neon Mode ---
+    if current_settings.is_production:
+        current_settings.validate_production_database()
+
+    raw_url = (current_settings.DATABASE_URL or "").strip()
+    if not raw_url:
+        if current_settings.is_production:
+            raise ValueError("Production database configuration failed: DATABASE_URL must not be empty.")
+        return "sqlite:///:memory:", None, "sqlite_dev"
+
+    # Format PostgreSQL URLs
+    if (
+        raw_url.startswith("postgresql://")
+        or raw_url.startswith("postgres://")
+        or raw_url.startswith("postgresql+psycopg2://")
+        or raw_url.startswith("postgresql+asyncpg://")
+    ):
+        # In development mode only: if Postgres is unreachable, allow dev SQLite fallback for offline unit tests
+        if not current_settings.is_production and not _probe_postgres(raw_url):
             import logging, os
             logging.getLogger("campusway.database").warning(
                 "PostgreSQL unreachable in development mode. Falling back to local SQLite for offline development."
             )
             dev_db = os.path.abspath("campusway_dev.db").replace("\\", "/")
-            db_url = f"sqlite:///{dev_db}"
+            return f"sqlite:///{dev_db}", None, "sqlite_dev"
+
+        base_pg = raw_url
+        if base_pg.startswith("postgres://"):
+            base_pg = base_pg.replace("postgres://", "postgresql://", 1)
+
+        if base_pg.startswith("postgresql://"):
+            sync_url = base_pg.replace("postgresql://", "postgresql+psycopg2://", 1)
+            async_url = base_pg.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif base_pg.startswith("postgresql+psycopg2://"):
+            sync_url = base_pg
+            async_url = base_pg.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        elif base_pg.startswith("postgresql+asyncpg://"):
+            sync_url = base_pg.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+            async_url = base_pg
         else:
-            db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            sync_url = base_pg
+            async_url = base_pg
+
+        return sync_url, async_url, "neon"
+
+    if raw_url.startswith("sqlite"):
+        if current_settings.is_production:
+            raise ValueError("Production database configuration failed: SQLite is not permitted as a production database.")
+        return raw_url, None, "sqlite_dev"
+
+    raise ValueError("Unsupported database driver in configured DATABASE_URL.")
+
+
+def resolve_database_url() -> str:
+    """Backward-compatible helper returning the authoritative synchronous database URL."""
+    return resolve_authoritative_database_url()[0]
+
+
+sync_db_url, async_db_url, active_db_mode = resolve_authoritative_database_url()
 
 engine_kwargs: Dict[str, Any] = {"pool_pre_ping": settings.DB_POOL_PRE_PING}
-if not db_url.startswith("sqlite"):
+if not sync_db_url.startswith("sqlite"):
     engine_kwargs.update({
         "pool_size": settings.DB_POOL_SIZE,
         "max_overflow": settings.DB_MAX_OVERFLOW,
@@ -118,8 +181,8 @@ if not db_url.startswith("sqlite"):
         "connect_args": {"connect_timeout": 5},
     })
 
-engine = create_engine(db_url, **engine_kwargs)
-if db_url.startswith("sqlite"):
+engine = create_engine(sync_db_url, **engine_kwargs)
+if sync_db_url.startswith("sqlite"):
     import app.models  # ensure models are imported
     Base.metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -161,7 +224,7 @@ def normalize_database_url(raw_url: str) -> tuple[URL, Dict[str, Any]]:
         raise ValueError("DATABASE_URL is not configured.")
 
     url = make_url(raw_url)
-    if url.drivername in ("postgresql", "postgres"):
+    if url.drivername in ("postgresql", "postgres", "postgresql+psycopg2"):
         url = url.set(drivername="postgresql+asyncpg")
     elif url.drivername.startswith("sqlite"):
         raise ValueError("Async engine only supports PostgreSQL. SQLite does not support asyncpg operations.")
@@ -226,9 +289,12 @@ try:
     def get_engine() -> AsyncEngine:
         global _async_engine
         if _async_engine is None:
-            if not settings.DATABASE_URL:
-                raise ValueError("DATABASE_URL is not configured.")
-            _async_engine = build_async_engine(settings.DATABASE_URL)
+            sync_url, async_url, mode = resolve_authoritative_database_url()
+            if not async_url:
+                raise ValueError(
+                    f"Async engine requires PostgreSQL with asyncpg. No async URL available for mode '{mode}'."
+                )
+            _async_engine = build_async_engine(async_url)
         return _async_engine
 
     def get_session_factory() -> async_sessionmaker[AsyncSession]:

@@ -1,14 +1,21 @@
 # =============================================================================
 # CampusWay Production & Multi-Container Docker Compose Specification
 #
-# Default Mode:
-#   Runs backend and frontend with remote Neon PostgreSQL (specified via DATABASE_URL).
-#   Command: docker-compose up --build
+# Mode A: Default Neon Mode (Remote Production/Staging Database)
+#   - Explicitly targets the configured Neon PostgreSQL instance via DATABASE_URL.
+#   - Does NOT launch local PostgreSQL.
+#   - Does NOT silently switch databases.
+#   Command:
+#     docker compose up --build
 #
-# Optional Local Database Mode:
-#   Runs backend, frontend, and a local PostgreSQL container using the 'local-db' profile.
-#   Backend automatically connects to the isolated local database container.
-#   Command: docker-compose --profile local-db up --build
+# Mode B: Explicit Local Development Mode (Isolated Local PostgreSQL Container)
+#   - Activated ONLY when both the 'local-db' profile and USE_LOCAL_DB=true are set.
+#   - Launches the 'campusway_postgres' container with persistent volume 'pgdata'.
+#   - Backend waits for PostgreSQL container health before connecting.
+#   - Both synchronous and asynchronous engines connect to the local container.
+#   - Does NOT connect to Neon unintentionally.
+#   Command:
+#     USE_LOCAL_DB=true docker compose --profile local-db up --build
 # =============================================================================
 
 services:
