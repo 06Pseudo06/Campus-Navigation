@@ -21,6 +21,8 @@ frontend/build/
 
 # Environment and Secret files (preserve examples)
 render.env
+vercel.env
+frontend/vercel.env
 *.env
 *.env.*
 .env*.local
