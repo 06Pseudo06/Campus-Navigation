@@ -20,6 +20,7 @@ frontend/out/
 frontend/build/
 
 # Environment and Secret files (preserve examples)
+render.env
 *.env
 *.env.*
 .env*.local
