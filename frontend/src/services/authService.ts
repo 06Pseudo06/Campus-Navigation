@@ -7,22 +7,28 @@ import {
   ChangePasswordData,
   DeleteAccountData,
 } from "@/types/auth";
+import {
+  getApiBaseUrl,
+  getBackendErrorMessage,
+  isProduction,
+} from "@/lib/apiConfig";
 
 /**
  * CampusWay Authentication Service
  * 
- * Prepares the frontend for future FastAPI backend integration.
- * In Phase 1, network calls attempt to contact the FastAPI backend URL configured
- * via NEXT_PUBLIC_API_BASE_URL. If the backend is offline or unconfigured,
- * an informative response is returned without fabricating tokens, fake users, or mock sessions.
+ * Provides environment-aware connectivity to the FastAPI backend.
+ * In development, provides informative guidance on port 8000.
+ * In production, connects to the verified Render production backend,
+ * accounting for cloud cold-start latency and proxy rewrites.
  */
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:8000";
+function getApiEndpoint(path: string): string {
+  const base = getApiBaseUrl({ preferRelative: true });
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${cleanPath}`;
+}
 
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 10000;
 
 async function fetchWithTimeout(
   url: string,
@@ -48,7 +54,7 @@ export const authService = {
    * Attempt email/password login against the FastAPI backend
    */
   async login(data: LoginFormData): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/login`;
+    const endpoint = getApiEndpoint("/api/v1/auth/login");
 
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -85,7 +91,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not running or unreachable at ${API_BASE_URL}. In Phase 1, form validation is complete, but live authentication requires starting the Phase 2 backend.`,
+        message: isProduction()
+          ? "Unable to reach the backend service. It may be waking up from sleep. Please try again in a few moments."
+          : `FastAPI backend is not running or unreachable at ${getApiBaseUrl()}. In Phase 1, form validation is complete, but live authentication requires starting the Phase 2 backend.`,
         isBackendConnected: false,
       };
     }
@@ -95,7 +103,7 @@ export const authService = {
    * Attempt account registration against the FastAPI backend
    */
   async signup(data: SignupFormData): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/register`;
+    const endpoint = getApiEndpoint("/api/v1/auth/register");
 
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -132,7 +140,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is not connected at ${API_BASE_URL}. Frontend registration inputs are validated, but real user creation will be executed once the FastAPI + PostgreSQL backend is deployed in Phase 2.`,
+        message: isProduction()
+          ? "Unable to reach the backend service. It may be waking up from sleep. Please try again in a few moments."
+          : `FastAPI backend is not connected at ${getApiBaseUrl()}. Frontend registration inputs are validated, but real user creation will be executed once the FastAPI + PostgreSQL backend is deployed in Phase 2.`,
         isBackendConnected: false,
       };
     }
@@ -142,7 +152,7 @@ export const authService = {
    * Request OTP for mobile number authentication
    */
   async requestPhoneOtp(countryCode: string, phoneNumber: string): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/otp/send`;
+    const endpoint = getApiEndpoint("/api/v1/auth/otp/send");
 
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -176,7 +186,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `SMS gateway is not configured yet. Live OTP delivery will be connected to the SMS service provider via FastAPI in Phase 2.`,
+        message: isProduction()
+          ? "SMS authentication service is temporarily unavailable. Please try again later."
+          : `SMS gateway is not configured yet. Live OTP delivery will be connected to the SMS service provider via FastAPI in Phase 2.`,
         isBackendConnected: false,
       };
     }
@@ -190,7 +202,7 @@ export const authService = {
     phoneNumber: string,
     otp: string
   ): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/otp/verify`;
+    const endpoint = getApiEndpoint("/api/v1/auth/otp/verify");
 
     try {
       const response = await fetchWithTimeout(endpoint, {
@@ -227,29 +239,82 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `SMS authentication service is not connected to a live backend. Real verification requires the Phase 2 FastAPI backend and SMS gateway.`,
+        message: isProduction()
+          ? "SMS verification service is temporarily unavailable. Please try again later."
+          : `SMS authentication service is not connected to a live backend. Real verification requires the Phase 2 FastAPI backend and SMS gateway.`,
         isBackendConnected: false,
       };
     }
   },
 
   /**
-   * Quick health check to ensure backend is accessible before navigating
+   * Health check to ensure backend is accessible before navigating or initiating OAuth.
+   * Handles Render cold starts gracefully with extended timeout (10s) and progressive status callback.
+   * Also attempts fallback to Next.js relative proxy if direct cross-origin fetch is blocked.
    */
-  async checkBackendHealth(): Promise<{ isOnline: boolean; googleConfigured: boolean; message?: string }> {
-    const endpoint = `${API_BASE_URL}/api/v1/health`;
+  async checkBackendHealth(
+    onProgress?: (status: { isWakingUp: boolean; message: string }) => void
+  ): Promise<{ isOnline: boolean; googleConfigured: boolean; isWakingUp?: boolean; message?: string }> {
+    const primaryUrl = `${getApiBaseUrl()}/api/v1/health`;
+
+    let coldStartTimer: NodeJS.Timeout | null = null;
+    let coldStartNotified = false;
+    if (onProgress) {
+      coldStartTimer = setTimeout(() => {
+        coldStartNotified = true;
+        onProgress({
+          isWakingUp: true,
+          message: isProduction()
+            ? "Connecting to backend service (waking up cloud instance)..."
+            : "Connecting to local FastAPI backend on port 8000...",
+        });
+      }, 2500);
+    }
+
     try {
-      const response = await fetchWithTimeout(endpoint, { method: "GET" }, 2500);
-      if (!response.ok) {
-        return { isOnline: false, googleConfigured: false, message: `Backend returned HTTP ${response.status}` };
+      const response = await fetchWithTimeout(primaryUrl, { method: "GET" }, 10000);
+      if (coldStartTimer) clearTimeout(coldStartTimer);
+
+      if (response.ok) {
+        const data = await response.json().catch(() => ({}));
+        return {
+          isOnline: true,
+          googleConfigured: Boolean(data.google_auth_configured),
+        };
       }
-      const data = await response.json().catch(() => ({}));
+
       return {
-        isOnline: true,
-        googleConfigured: Boolean(data.google_auth_configured),
+        isOnline: false,
+        googleConfigured: false,
+        isWakingUp: response.status === 502 || response.status === 503,
+        message: getBackendErrorMessage("offline", `Backend returned HTTP ${response.status}`),
       };
     } catch {
-      return { isOnline: false, googleConfigured: false, message: "Connection refused" };
+      if (coldStartTimer) clearTimeout(coldStartTimer);
+
+      // Second attempt (if in browser and primaryUrl was absolute):
+      // Try same-origin relative proxy /api/v1/health in case CORS blocked direct cross-origin fetch
+      if (typeof window !== "undefined" && !primaryUrl.startsWith("/")) {
+        try {
+          const proxyResponse = await fetchWithTimeout("/api/v1/health", { method: "GET" }, 5000);
+          if (proxyResponse.ok) {
+            const data = await proxyResponse.json().catch(() => ({}));
+            return {
+              isOnline: true,
+              googleConfigured: Boolean(data.google_auth_configured),
+            };
+          }
+        } catch {
+          // Both direct and proxied health checks failed
+        }
+      }
+
+      return {
+        isOnline: false,
+        googleConfigured: false,
+        isWakingUp: coldStartNotified,
+        message: getBackendErrorMessage(coldStartNotified ? "waking_up" : "offline"),
+      };
     }
   },
 
@@ -258,7 +323,7 @@ export const authService = {
    * Directs browser to FastAPI endpoint which validates state and forwards to Google.
    */
   getGoogleLoginUrl(): string {
-    return `${API_BASE_URL}/api/v1/auth/google/login`;
+    return `${getApiBaseUrl()}/api/v1/auth/google/login`;
   },
 
   /**
@@ -266,7 +331,7 @@ export const authService = {
    * Transmits credentials (HTTP-only session cookie) to backend.
    */
   async getCurrentUser(): Promise<UserProfile | null> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/me`;
+    const endpoint = getApiEndpoint("/api/v1/auth/me");
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "GET",
@@ -291,7 +356,7 @@ export const authService = {
    * Update authenticated user profile name.
    */
   async updateProfile(data: ProfileUpdateData): Promise<ApiResponse<UserProfile>> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/profile`;
+    const endpoint = getApiEndpoint("/api/v1/auth/profile");
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "PATCH",
@@ -322,7 +387,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        message: isProduction()
+          ? "Unable to connect to the backend service. Please check your connection and retry."
+          : `FastAPI backend is unreachable at ${getApiBaseUrl()}.`,
         isBackendConnected: false,
       };
     }
@@ -332,7 +399,7 @@ export const authService = {
    * Change password for email-authenticated user.
    */
   async changePassword(data: ChangePasswordData): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/change-password`;
+    const endpoint = getApiEndpoint("/api/v1/auth/change-password");
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "POST",
@@ -365,7 +432,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        message: isProduction()
+          ? "Unable to connect to the backend service. Please check your connection and retry."
+          : `FastAPI backend is unreachable at ${getApiBaseUrl()}.`,
         isBackendConnected: false,
       };
     }
@@ -375,7 +444,7 @@ export const authService = {
    * Permanently delete user account.
    */
   async deleteAccount(data: DeleteAccountData): Promise<ApiResponse> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/account`;
+    const endpoint = getApiEndpoint("/api/v1/auth/account");
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "DELETE",
@@ -407,7 +476,9 @@ export const authService = {
     } catch {
       return {
         success: false,
-        message: `FastAPI backend is unreachable at ${API_BASE_URL}.`,
+        message: isProduction()
+          ? "Unable to connect to the backend service. Please check your connection and retry."
+          : `FastAPI backend is unreachable at ${getApiBaseUrl()}.`,
         isBackendConnected: false,
       };
     }
@@ -417,7 +488,7 @@ export const authService = {
    * Terminate active backend session and clear session cookie.
    */
   async logout(): Promise<boolean> {
-    const endpoint = `${API_BASE_URL}/api/v1/auth/logout`;
+    const endpoint = getApiEndpoint("/api/v1/auth/logout");
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: "POST",

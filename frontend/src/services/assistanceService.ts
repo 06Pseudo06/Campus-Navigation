@@ -8,9 +8,9 @@
  */
 
 import { AssistanceRequestCreate, AssistanceRequestRead } from "@/types/api";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
-const API_BASE_URL =
-  (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+const API_BASE_URL = getApiBaseUrl({ preferRelative: true });
 
 const TOKEN_KEY = "campusway_access_token";
 

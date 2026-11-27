@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { GoogleIcon, Spinner } from "@/components/icons/Icons";
 
 import { authService } from "@/services/authService";
+import { getBackendErrorMessage } from "@/lib/apiConfig";
 
 interface GoogleButtonProps {
   text?: string;
@@ -22,12 +23,17 @@ export function GoogleButton({
 
     try {
       // 1. Verify that FastAPI backend is reachable to avoid ERR_CONNECTION_REFUSED
-      const health = await authService.checkBackendHealth();
+      const health = await authService.checkBackendHealth((progress) => {
+        if (onNotice) {
+          onNotice(progress.message);
+        }
+      });
+
       if (!health.isOnline) {
         setLoading(false);
         if (onNotice) {
           onNotice(
-            "FastAPI backend is offline (port 8000). Please run 'npm run dev' in your project root to run both backend and frontend."
+            health.message || getBackendErrorMessage(health.isWakingUp ? "waking_up" : "offline")
           );
         }
         return;
@@ -36,9 +42,7 @@ export function GoogleButton({
       if (!health.googleConfigured) {
         setLoading(false);
         if (onNotice) {
-          onNotice(
-            "Google OAuth is not configured in backend/.env. Please verify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
-          );
+          onNotice(getBackendErrorMessage("google_unconfigured"));
         }
         return;
       }
@@ -49,7 +53,7 @@ export function GoogleButton({
     } catch {
       setLoading(false);
       if (onNotice) {
-        onNotice("Unable to communicate with the backend on port 8000.");
+        onNotice(getBackendErrorMessage("generic_error"));
       }
     }
   };

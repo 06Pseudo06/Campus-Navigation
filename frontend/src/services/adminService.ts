@@ -2,11 +2,9 @@
 
 import { BackendLocation, BackendNode, BackendEdge } from "./locationService";
 import { UserProfile } from "@/types/auth";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "http://localhost:8000";
+const API_BASE = getApiBaseUrl({ preferRelative: true });
 
 export interface DashboardStats {
   users: {

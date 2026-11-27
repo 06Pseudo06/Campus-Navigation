@@ -4,8 +4,9 @@ import {
   projectGpsToSvg,
   VERIFIED_DATASET_C_SEGMENTS,
 } from "@/data/campusData";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = getApiBaseUrl({ preferRelative: true });
 
 interface RoutingSegmentResponse {
   source_node_id?: string;

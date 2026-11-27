@@ -25,7 +25,9 @@ const nextConfig: NextConfig = {
     const backendUrl =
       process.env.BACKEND_INTERNAL_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
-      "http://127.0.0.1:8000";
+      (process.env.NODE_ENV === "production"
+        ? "https://campusway-api-c9q8.onrender.com"
+        : "http://127.0.0.1:8000");
     return [
       {
         source: "/api/:path*",
@@ -34,6 +36,14 @@ const nextConfig: NextConfig = {
       {
         source: "/auth/:path*",
         destination: `${backendUrl}/auth/:path*`,
+      },
+      {
+        source: "/health",
+        destination: `${backendUrl}/health`,
+      },
+      {
+        source: "/ready",
+        destination: `${backendUrl}/ready`,
       },
     ];
   },
