@@ -48,6 +48,12 @@ describe("apiConfig", () => {
       // Node test environment does not have browser window by default unless mocked
       expect(getApiBaseUrl({ preferRelative: true })).toBe(PRODUCTION_BACKEND_URL);
     });
+
+    it("returns empty string for preferRelative when running in browser", () => {
+      vi.stubGlobal("window", {});
+      expect(getApiBaseUrl({ preferRelative: true })).toBe("");
+      vi.unstubAllGlobals();
+    });
   });
 
   describe("isProduction", () => {

@@ -28,7 +28,7 @@ function getApiEndpoint(path: string): string {
   return `${base}${cleanPath}`;
 }
 
-const DEFAULT_TIMEOUT_MS = 10000;
+const DEFAULT_TIMEOUT_MS = 25000;
 
 async function fetchWithTimeout(
   url: string,
@@ -255,7 +255,7 @@ export const authService = {
   async checkBackendHealth(
     onProgress?: (status: { isWakingUp: boolean; message: string }) => void
   ): Promise<{ isOnline: boolean; googleConfigured: boolean; isWakingUp?: boolean; message?: string }> {
-    const primaryUrl = `${getApiBaseUrl()}/api/v1/health`;
+    const primaryUrl = getApiEndpoint("/api/v1/health");
 
     let coldStartTimer: NodeJS.Timeout | null = null;
     let coldStartNotified = false;
@@ -272,7 +272,7 @@ export const authService = {
     }
 
     try {
-      const response = await fetchWithTimeout(primaryUrl, { method: "GET" }, 10000);
+      const response = await fetchWithTimeout(primaryUrl, { method: "GET" }, 25000);
       if (coldStartTimer) clearTimeout(coldStartTimer);
 
       if (response.ok) {
@@ -292,20 +292,20 @@ export const authService = {
     } catch {
       if (coldStartTimer) clearTimeout(coldStartTimer);
 
-      // Second attempt (if in browser and primaryUrl was absolute):
-      // Try same-origin relative proxy /api/v1/health in case CORS blocked direct cross-origin fetch
-      if (typeof window !== "undefined" && !primaryUrl.startsWith("/")) {
+      // Second attempt (if in browser and primaryUrl was relative, try direct Render backend):
+      if (typeof window !== "undefined" && primaryUrl.startsWith("/")) {
         try {
-          const proxyResponse = await fetchWithTimeout("/api/v1/health", { method: "GET" }, 5000);
-          if (proxyResponse.ok) {
-            const data = await proxyResponse.json().catch(() => ({}));
+          const directUrl = `${getApiBaseUrl()}/api/v1/health`;
+          const directResponse = await fetchWithTimeout(directUrl, { method: "GET" }, 15000);
+          if (directResponse.ok) {
+            const data = await directResponse.json().catch(() => ({}));
             return {
               isOnline: true,
               googleConfigured: Boolean(data.google_auth_configured),
             };
           }
         } catch {
-          // Both direct and proxied health checks failed
+          // Both proxied and direct health checks failed
         }
       }
 

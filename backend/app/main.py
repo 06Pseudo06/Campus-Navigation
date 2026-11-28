@@ -25,6 +25,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # CORS Middleware Configuration
 origins = list(set(settings.CORS_ORIGINS + [
     settings.FRONTEND_URL,
+    "https://campus-navigation-sandy.vercel.app",
+    "https://campusway-frontend-preview.vercel.app",
+    "https://campusway.vercel.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]))
@@ -32,6 +35,7 @@ origins = list(set(settings.CORS_ORIGINS + [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Any, List, Union
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -94,6 +94,20 @@ class Settings(BaseSettings):
         elif isinstance(v, list):
             return v
         return ["http://localhost:3000"]
+
+    @field_validator("GOOGLE_REDIRECT_URI", mode="before")
+    @classmethod
+    def assemble_google_redirect_uri(cls, v: Any) -> str:
+        render_url = os.getenv("RENDER_EXTERNAL_URL", "").rstrip("/")
+        if isinstance(v, str) and v.strip():
+            uri = v.strip()
+            # Autocorrect common typo where the Render unique service suffix '-c9q8' was omitted
+            if "campusway-api.onrender.com" in uri and "campusway-api-c9q8.onrender.com" not in uri:
+                return uri.replace("campusway-api.onrender.com", "campusway-api-c9q8.onrender.com")
+            return uri
+        if render_url:
+            return f"{render_url}/api/v1/auth/google/callback"
+        return "http://localhost:8000/api/v1/auth/google/callback"
 
     @model_validator(mode="after")
     def validate_production_secrets(self) -> "Settings":

@@ -32,6 +32,12 @@ export function isProduction(): boolean {
  * @param options.preferRelative - In browser production, return "" to route via Next.js /api rewrites
  */
 export function getApiBaseUrl(options?: { preferRelative?: boolean }): string {
+  // In browser runtime, prefer same-origin relative URLs (/api/*) to leverage Next.js rewrites.
+  // This completely eliminates CORS preflight overhead and cross-origin blocking on Vercel deployments.
+  if (options?.preferRelative && typeof window !== "undefined") {
+    return "";
+  }
+
   const envUrl =
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -41,9 +47,6 @@ export function getApiBaseUrl(options?: { preferRelative?: boolean }): string {
   }
 
   if (isProduction()) {
-    if (options?.preferRelative && typeof window !== "undefined") {
-      return "";
-    }
     return PRODUCTION_BACKEND_URL;
   }
 
