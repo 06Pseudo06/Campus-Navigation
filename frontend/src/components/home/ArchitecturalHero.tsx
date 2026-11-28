@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { gsap } from "gsap";
@@ -71,6 +71,23 @@ export function ArchitecturalHero() {
   // State: preloader active on first load; client-side navigation skips it immediately
   const [isIntroActive, setIsIntroActive] = useState(() => !introPlayed);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Close modal on Escape key and manage scroll locking
+  useEffect(() => {
+    if (!modalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalOpen(false);
+      }
+    };
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modalOpen]);
 
   // Scroll locking utilities
   const lockScroll = useCallback(() => {
@@ -855,22 +872,29 @@ export function ArchitecturalHero() {
               <span className="text-[#E8452C] font-bold text-sm">↗</span>
             </MagneticButton>
 
-            {/* Circular Play Button + WATCH OVERVIEW */}
+            {/* Architectural System Overview Trigger Button */}
             <button
               ref={playBtnRef}
               type="button"
-              data-cursor="PLAY"
+              data-cursor="VIEW"
               onClick={() => setModalOpen(true)}
               className="flex items-center gap-3 text-left group cursor-pointer focus:outline-none will-change-transform"
-              aria-label="View system overview"
+              aria-label="View system overview dialog"
+              aria-haspopup="dialog"
             >
               <div className="w-12 h-12 rounded-full border border-[#0E1118]/30 dark:border-white/20 group-hover:border-[#E8452C] bg-white/70 dark:bg-zinc-800/80 flex items-center justify-center transition-all group-hover:scale-105 shadow-sm">
                 <svg
-                  className="w-4 h-4 text-[#0E1118] dark:text-white group-hover:text-[#E8452C] ml-0.5 transition-colors"
-                  fill="currentColor"
+                  className="w-5 h-5 text-[#0E1118] dark:text-white group-hover:text-[#E8452C] transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M8 5v14l11-7z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
                 </svg>
               </div>
               <div className="flex flex-col text-[11px] font-mono font-bold tracking-widest uppercase text-[#0E1118] dark:text-zinc-200 leading-tight group-hover:text-[#E8452C] transition-colors">
@@ -932,39 +956,156 @@ export function ArchitecturalHero() {
         />
       </div>
 
-      {/* OVERVIEW VIDEO MODAL DIALOG */}
+      {/* ARCHITECTURAL SYSTEM OVERVIEW DIALOG */}
       {modalOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="CampusWay System Overview Video"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          aria-labelledby="system-overview-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in"
           onClick={() => setModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-4xl bg-[#FAF8F5] dark:bg-[#0E1422] rounded-3xl p-6 sm:p-8 border border-[#E1DDD3] dark:border-zinc-800 shadow-2xl"
+            className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-[#FAF8F5] dark:bg-[#0E1422] rounded-3xl p-6 sm:p-8 border border-[#E1DDD3] dark:border-zinc-800 shadow-2xl flex flex-col gap-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E1DDD3] dark:border-zinc-800 font-mono text-xs text-[#0E1118] dark:text-zinc-300">
-              <span className="font-bold text-[#E8452C]">✦ CAMPUSWAY SYSTEM OVERVIEW</span>
+            {/* Modal Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-[#E1DDD3] dark:border-zinc-800">
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#E8452C] animate-pulse" />
+                  <span className="font-mono text-xs font-bold text-[#E8452C] tracking-widest uppercase">
+                    CAMPUSWAY SYSTEM ARCHITECTURE
+                  </span>
+                </div>
+                <h3
+                  id="system-overview-title"
+                  className="text-xl sm:text-2xl font-serif font-bold text-[#0E1118] dark:text-white"
+                >
+                  Next-Generation Campus Navigation Platform
+                </h3>
+                <p className="text-xs sm:text-sm text-[#5B5750] dark:text-zinc-400">
+                  Precision topological pathfinding, ground-truth survey calibration, and multi-floor positioning for Lovely Professional University.
+                </p>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="hover:text-[#E8452C] transition-colors cursor-pointer text-sm font-bold"
+                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E1DDD3] dark:border-zinc-700 bg-white/60 dark:bg-zinc-800/60 hover:border-[#E8452C] hover:text-[#E8452C] text-[#0E1118] dark:text-zinc-200 transition-all text-xs font-mono font-bold shrink-0 cursor-pointer ml-4"
                 aria-label="Close dialog"
               >
-                ✕ CLOSE
+                <span>✕</span>
+                <span className="hidden sm:inline">ESC</span>
               </button>
             </div>
 
-            <div className="aspect-video w-full rounded-2xl overflow-hidden bg-black relative flex items-center justify-center">
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1"
-                title="System Overview"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            {/* Live Telemetry / Capability Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-[#E1DDD3]/80 dark:border-zinc-800/80">
+                <span className="block text-[10px] font-mono tracking-wider text-[#5B5750] dark:text-zinc-400 uppercase">Survey Standard</span>
+                <span className="text-xs sm:text-sm font-bold text-[#0E1118] dark:text-white">Dataset C Ground Truth</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-[#E1DDD3]/80 dark:border-zinc-800/80">
+                <span className="block text-[10px] font-mono tracking-wider text-[#5B5750] dark:text-zinc-400 uppercase">Path Solvers</span>
+                <span className="text-xs sm:text-sm font-bold text-[#0E1118] dark:text-white">Dijkstra + A* Engines</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-[#E1DDD3]/80 dark:border-zinc-800/80">
+                <span className="block text-[10px] font-mono tracking-wider text-[#5B5750] dark:text-zinc-400 uppercase">GPS Snap Radius</span>
+                <span className="text-xs sm:text-sm font-bold text-[#0E1118] dark:text-white">75m Corridor Vector</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white/70 dark:bg-zinc-900/60 border border-[#E1DDD3]/80 dark:border-zinc-800/80">
+                <span className="block text-[10px] font-mono tracking-wider text-[#5B5750] dark:text-zinc-400 uppercase">Backend Stack</span>
+                <span className="text-xs sm:text-sm font-bold text-[#0E1118] dark:text-white">FastAPI + Neon Postgres</span>
+              </div>
+            </div>
+
+            {/* Core Architectural Subsystems (2x2 Grid) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Card 1 */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-zinc-900/80 border border-[#E1DDD3] dark:border-zinc-800/80 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E8452C]/10 text-[#E8452C]">
+                    01
+                  </span>
+                  <h4 className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#0E1118] dark:text-white uppercase">
+                    Dual-Engine Graph Solvers
+                  </h4>
+                </div>
+                <p className="text-xs leading-relaxed text-[#5B5750] dark:text-zinc-400">
+                  Computes globally optimal routes across weighted pedestrian polyline networks. Dijkstra guarantees shortest-path optimality, while heuristic A* executes sub-millisecond dynamic re-routing with turn penalties and floor transitions.
+                </p>
+              </div>
+
+              {/* Card 2 */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-zinc-900/80 border border-[#E1DDD3] dark:border-zinc-800/80 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E8452C]/10 text-[#E8452C]">
+                    02
+                  </span>
+                  <h4 className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#0E1118] dark:text-white uppercase">
+                    Dataset C Ground Truth
+                  </h4>
+                </div>
+                <p className="text-xs leading-relaxed text-[#5B5750] dark:text-zinc-400">
+                  Zero-hallucination geospatial accuracy surveyed specifically for LPU. Over 38 academic blocks, UniMall, Shanti Devi Mittal Auditorium, faculty wings, and emergency exits are calibrated to sub-meter physical coordinates.
+                </p>
+              </div>
+
+              {/* Card 3 */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-zinc-900/80 border border-[#E1DDD3] dark:border-zinc-800/80 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E8452C]/10 text-[#E8452C]">
+                    03
+                  </span>
+                  <h4 className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#0E1118] dark:text-white uppercase">
+                    Physical QR Signage &amp; GPS Snapping
+                  </h4>
+                </div>
+                <p className="text-xs leading-relaxed text-[#5B5750] dark:text-zinc-400">
+                  Scan physical signposts across campus for instant origin anchoring. Real-time GPS signals drifting under covered walkways or multistory overhangs are intelligently snapped to surveyed corridor vectors up to 75 meters.
+                </p>
+              </div>
+
+              {/* Card 4 */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white/90 dark:bg-zinc-900/80 border border-[#E1DDD3] dark:border-zinc-800/80 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#E8452C]/10 text-[#E8452C]">
+                    04
+                  </span>
+                  <h4 className="font-mono text-xs sm:text-sm font-bold tracking-wider text-[#0E1118] dark:text-white uppercase">
+                    Accessibility &amp; Cloud Security
+                  </h4>
+                </div>
+                <p className="text-xs leading-relaxed text-[#5B5750] dark:text-zinc-400">
+                  Dedicated barrier-free routing filter that automatically eliminates stairs and steep grades for wheelchair navigation. Backed by Google OAuth 2.0, HTTP-only session cookies, and Neon SSL database pooling.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-[#E1DDD3] dark:border-zinc-800">
+              <div className="flex items-center gap-2 text-[11px] font-mono text-[#5B5750] dark:text-zinc-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Architecture verified &bull; LPU Geodetic Survey</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/about"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-mono font-bold border border-[#E1DDD3] dark:border-zinc-700 hover:border-[#E8452C] text-[#0E1118] dark:text-zinc-200 hover:text-[#E8452C] transition-colors"
+                >
+                  Architecture Docs &rarr;
+                </Link>
+                <Link
+                  href="/explore"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-[#E8452C] text-white hover:bg-[#d03d25] transition-colors shadow-sm"
+                >
+                  Launch Explorer ↗
+                </Link>
+              </div>
             </div>
           </div>
         </div>
